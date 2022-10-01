@@ -2,7 +2,7 @@ import unittest
 import tempfile, os, json, bz2, pickle, indexed_bzip2
 
 from tests.common import readTestDbTable
-from hist_data.wikidata.gen_events_data import genData
+from hist_data.gen_events_data import genData
 
 def runGenData(wikiItemArray: str, preGenOffsets: bool, nProcs: int):
 	""" Sets up wikidata file to be read by genData(), runs it, and returns the output database's contents.

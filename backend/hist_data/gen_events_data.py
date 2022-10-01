@@ -64,10 +64,10 @@ import bz2, json, sqlite3
 import multiprocessing, indexed_bzip2, pickle, tempfile
 from jdcal import gcal2jd, jcal2jd
 
-WIKIDATA_FILE = 'latest-all.json.bz2'
+WIKIDATA_FILE = os.path.join('wikidata', 'latest-all.json.bz2')
 DUMP_YEAR = 2022 # Used for converting 'age' values into dates
-OFFSETS_FILE = 'offsets.dat'
-DB_FILE = 'events.db'
+OFFSETS_FILE = os.path.join('wikidata', 'offsets.dat')
+DB_FILE = 'data.db'
 N_PROCS = 6
 
 # For getting Wikidata entity IDs
@@ -164,10 +164,8 @@ def genData(wikidataFile: str, offsetsFile: str, dbFile: str, nProcs: int) -> No
 	print('Writing to db')
 	dbCon = sqlite3.connect(dbFile)
 	dbCur = dbCon.cursor()
-	dbCur.execute('CREATE TABLE events (' \
-		'id INT NOT NULL PRIMARY KEY, title TEXT NOT NULL UNIQUE,' \
-		'start INT NOT NULL, start_upper INT, end INT, end_upper INT,' \
-		'fmt INT, ctg TEXT NOT NULL)')
+	dbCur.execute('CREATE TABLE events (id INT PRIMARY KEY, title TEXT UNIQUE, ' \
+		'start INT, start_upper INT, end INT, end_upper INT, fmt INT, ctg TEXT)')
 	if nProcs == 1:
 		with bz2.open(wikidataFile, mode='rb') as file:
 			for lineNum, line in enumerate(file, 1):

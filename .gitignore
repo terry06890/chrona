@@ -4,5 +4,8 @@
 __pycache__
 .venv
 
+/backend/hist_data/data.db
 /backend/hist_data/wikidata/events.db
 /backend/hist_data/wikidata/*.json.bz2
+/backend/hist_data/enwiki/*.db
+/backend/hist_data/enwiki/pageviews/
