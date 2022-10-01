@@ -9,3 +9,5 @@ __pycache__
 /backend/hist_data/wikidata/*.json.bz2
 /backend/hist_data/enwiki/*.db
 /backend/hist_data/enwiki/pageviews/
+/backend/hist_data/enwiki/*.bz2
+/backend/hist_data/enwiki/imgs/

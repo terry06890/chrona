@@ -14,8 +14,10 @@ import sqlite3
 
 DUMP_FILE = 'enwiki-20220501-pages-articles-multistream.xml.bz2'
 INDEX_DB = 'dump_index.db'
+PAGEVIEW_DB = 'pageview_data.db'
 IMG_DB = 'img_data.db' # The database to create
 DB_FILE = os.path.join('..', 'data.db')
+MAX_IMGS_PER_CTG = 20000
 #
 ID_LINE_REGEX = re.compile(r'<id>(.*)</id>')
 IMG_LINE_REGEX = re.compile(r'.*\| *image *= *([^|]*)')
@@ -174,30 +176,49 @@ def getImageName(content: list[str]) -> str | None:
 			return None
 	return None
 
-def getInputPageIdsFromDb(dbFile: str, indexDb: str) -> set[int]:
-	print('Getting input page-ids')
-	pageTitles: set[str] = set()
-	pageIds: set[int] = set()
-	print('Reading event titles')
+def getInputPageIdsFromDb(dbFile: str, pageviewDb: str, indexDb: str, maxImgsPerCtg: int) -> set[int]:
+	print('Getting event data')
+	titleToCtg: dict[str, str] = {}
 	dbCon = sqlite3.connect(dbFile)
-	dbCur = dbCon.cursor()
-	for (pageId,) in dbCur.execute('SELECT title from events'):
-		pageTitles.add(pageId)
+	for title, ctg in dbCon.execute('SELECT title, ctg from events'):
+		titleToCtg[title] = ctg
 	dbCon.close()
-	print('Getting event page IDs')
+	print('Getting top images for each event category')
+	ctgToTitles: dict[str, list[str]] = {}
+	dbCon = sqlite3.connect(pageviewDb)
+	for (title,) in dbCon.execute('SELECT title FROM views ORDER BY views DESC'):
+		if title not in titleToCtg:
+			continue
+		ctg = titleToCtg[title]
+		if ctg not in ctgToTitles:
+			ctgToTitles[ctg] = []
+		elif len(ctgToTitles[ctg]) == maxImgsPerCtg:
+			continue
+		ctgToTitles[ctg].append(title)
+		del titleToCtg[title]
+	dbCon.close()
+	for title, ctg in titleToCtg.items(): # Account for titles without view counts
+		if ctg not in ctgToTitles:
+			ctgToTitles[ctg] = []
+		elif len(ctgToTitles[ctg]) == maxImgsPerCtg:
+			continue
+		ctgToTitles[ctg].append(title)
+	print('Getting page IDs')
+	pageIds: set[int] = set()
 	dbCon = sqlite3.connect(indexDb)
 	dbCur = dbCon.cursor()
-	for pageTitle in pageTitles:
-		row = dbCur.execute('SELECT id FROM offsets WHERE title = ?', (pageTitle,)).fetchone()
-		if row:
-			pageIds.add(row[0])
+	for ctg in ctgToTitles:
+		for title in ctgToTitles[ctg]:
+			row = dbCur.execute('SELECT id FROM offsets WHERE title = ?', (title,)).fetchone()
+			if row:
+				pageIds.add(row[0])
 	dbCon.close()
-	print(f'Found {len(pageIds)} out of {len(pageTitles)}')
+	print(f'Result: {len(pageIds)} out of {len(titleToCtg)}')
 	return pageIds
 if __name__ == '__main__':
 	import argparse
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	parser.parse_args()
 	#
-	pageIds = getInputPageIdsFromDb(DB_FILE, INDEX_DB)
+	pageIds = getInputPageIdsFromDb(DB_FILE, PAGEVIEW_DB, INDEX_DB, MAX_IMGS_PER_CTG)
 	genData(pageIds, DUMP_FILE, INDEX_DB, IMG_DB)

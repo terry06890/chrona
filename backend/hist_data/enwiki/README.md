@@ -29,6 +29,18 @@ This directory holds files obtained/derived from [English Wikipedia](https://en.
     -   `redirects`: `id INT PRIMARY KEY, target TEXT`
     -   `descs`:     `id INT PRIMARY KEY, desc TEXT`
 
+# Page View Files
+-   `pageviews/pageviews-*-user.bz2`
+    Each holds wikimedia article page view data for some month.
+    Obtained via <https://dumps.wikimedia.org/other/pageview_complete/monthly/>.
+    Some format info was available from <https://dumps.wikimedia.org/other/pageview_complete/readme.html>.
+-   `gen_pageview_data.py` <br>
+    Reads pageview/* and `dump_index.db`, and creates a database holding average monthly pageview counts.
+-   `pageview_data.db` <br>
+    Generated using `gen_pageview_data.py`. <br>
+    Tables: <br>
+    -   `views`: `title TEXT PRIMARY KEY, id INT UNIQUE, views INT`
+
 # Image Files
 -   `gen_img_data.py` <br>
     Used to find infobox image names for page IDs, and store them into a database.
@@ -46,15 +58,3 @@ This directory holds files obtained/derived from [English Wikipedia](https://en.
         Might lack some matches for `img_name` in `page_imgs`, due to licensing info unavailability.
 -   `download_imgs.py` <br>
     Used to download image files into imgs/.
-
-# Page View Files
--   `pageviews/pageviews-*-user.bz2`
-    Each holds wikimedia article page view data for some month.
-    Obtained via <https://dumps.wikimedia.org/other/pageview_complete/monthly/>.
-    Some format info was available from <https://dumps.wikimedia.org/other/pageview_complete/readme.html>.
--   `gen_pageview_data.py` <br>
-    Reads pageview/* and `dump_index.db`, and creates a database holding average monthly pageview counts.
--   `pageview_data.db` <br>
-    Generated using `gen_pageview_data.py`. <br>
-    Tables: <br>
-    -   `views`: `title TEXT PRIMARY KEY, id INT UNIQUE, views INT`
