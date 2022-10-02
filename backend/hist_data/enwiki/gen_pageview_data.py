@@ -5,7 +5,7 @@ Reads through wikimedia files containing pageview counts,
 computes average counts, and adds them to a database
 """
 
-# Took about 15min per file (each had about 180e6 lines)
+# Took about 10min per file (each had about 180e6 lines)
 
 import sys, os, glob, math, re
 from collections import defaultdict
@@ -42,6 +42,7 @@ def genData(pageviewFiles: list[str], dumpIndexDb: str, dbFile: str) -> None:
 				if namespaceRegex.match(title) is not None:
 					continue
 				# Update map
+				title = title.replace('_', ' ')
 				titleToViews[title] += viewCount
 	print(f'Found {len(titleToViews)} titles')
 	#
