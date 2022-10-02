@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 
 """
-
 Looks at images described by a database, and generates resized/cropped versions
 into an output directory, with names of the form 'eventId1.jpg'.
 Adds the image associations and metadata to the history database.

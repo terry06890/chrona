@@ -11,8 +11,7 @@ class TestGenImgs(unittest.TestCase):
 	@patch('hist_data.gen_imgs.convertImage', autospec=True)
 	def test_gen(self, convertImageMock):
 		with tempfile.TemporaryDirectory() as tempDir:
-			convertImageMock.side_effect = \
-				lambda imgPath, outPath: shutil.copy(imgPath, outPath)
+			convertImageMock.side_effect = lambda imgPath, outPath: shutil.copy(imgPath, outPath)
 			# Create temp images
 			imgDir = os.path.join(tempDir, 'enwiki_imgs')
 			os.mkdir(imgDir)
@@ -63,7 +62,7 @@ class TestGenImgs(unittest.TestCase):
 				'200.jpg',
 			})
 			self.assertEqual(
-				readTestDbTable(dbFile, 'SELECT id, img_id from event_imgs'),
+				readTestDbTable(dbFile, 'SELECT id, img_id FROM event_imgs'),
 				{
 					(10, 100),
 					(20, 200),
@@ -71,7 +70,7 @@ class TestGenImgs(unittest.TestCase):
 				}
 			)
 			self.assertEqual(
-				readTestDbTable(dbFile, 'SELECT id, url, license, artist, credit from images'),
+				readTestDbTable(dbFile, 'SELECT id, url, license, artist, credit FROM images'),
 				{
 					(100, 'https://en.wikipedia.org/wiki/File:one.jpg', 'CC BY-SA 3.0', 'author1', 'credits1'),
 					(200, 'https://en.wikipedia.org/wiki/File:two.jpeg', 'cc-by', 'author2', 'credits2'),

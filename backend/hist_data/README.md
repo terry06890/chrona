@@ -5,7 +5,7 @@ This directory holds files used to generate the history database data.db.
     Format:
         `id INT PRIMARY KEY, title TEXT UNIQUE, start INT, start_upper INT, end INT, end_upper INT, fmt INT, ctg TEXT`
         <br>
-    Each row has a Wikidata ID, Wikipedia title, start and end dates, and an event category.
+    Each row has an ID, Wikipedia title, start and end dates, and an event category.
     -   `start*` and `end*` specify start and end dates.
         `start_upper`, `end`, and `end_upper`, are optional.
         If `start_upper` is present, it and `start` denote an uncertain range of start times.
@@ -27,15 +27,18 @@ This directory holds files used to generate the history database data.db.
 -   `event_imgs`: <br>
     Format: `id INT PRIMARY KEY, img_id INT` <br>
     Assocates events with images
+-   `descs` <br>
+    Format: `title TEXT PRIMARY KEY, desc TEXT` <br>
+    Associates an event's enwiki title with a short description.
 
 # Generating the Database
 
 ## Environment
 Some of the scripts use third-party packages:
 -   `jdcal`: For date conversion
--   `indexed_bzip2`: For parallelised bzip2 processing.
--   `mwxml`, `mwparserfromhell`: For parsing Wikipedia dumps.
--   `requests`: For downloading data.
+-   `indexed_bzip2`: For parallelised bzip2 processing
+-   `mwxml`, `mwparserfromhell`: For parsing Wikipedia dumps
+-   `requests`: For downloading data
 
 ## Generate Event Data
 1.  Obtain a Wikidata JSON dump in wikidata/, as specified in it's README.
@@ -59,4 +62,5 @@ Some of the scripts use third-party packages:
 1.  Obtain an enwiki dump in enwiki/, as specified in the README.
 1.  In enwiki/, run `gen_dump_index.db.py`, which generates a database for indexing the dump.
 1.  In enwiki/, run `gen_desc_data.py`, which extracts page descriptions into a database.
-1.  Run
+1.  Run `gen_desc_data.py`, which adds the `descs` table, using data in enwiki/,
+    and the `events` and `images` tables (only adds descriptions for events with images).
