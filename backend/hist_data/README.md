@@ -21,6 +21,12 @@ This directory holds files used to generate the history database data.db.
 -   `pop`: <br>
     Format: `id INT PRIMARY KEY, pop INT` <br>
     Associates each event with a popularity measure (currently an average monthly viewcount)
+-   `images`: <br>
+    Format: `id INT PRIMARY KEY, url TEXT, license TEXT, artist TEXT, credit TEXT` <br>
+    Holds metadata for available images
+-   `event_imgs`: <br>
+    Format: `id INT PRIMARY KEY, img_id INT` <br>
+    Assocates events with images
 
 # Generating the Database
 
@@ -46,10 +52,11 @@ Some of the scripts use third-party packages:
 1.  In enwiki/, run `download_img_license_info.py`, which downloads licensing info for found
     images, and adds them to the image database.
 1.  In enwiki/, run `download_imgs.py`, which downloads images into enwiki/imgs/.
-1.  Run
+1.  Run `gen_imgs.py`, which creates resized/cropped images in img/, from images in enwiki/imgs/.
+    Adds the `imgs` and `event_imgs` tables.
 
 ## Generate Description Data
 1.  Obtain an enwiki dump in enwiki/, as specified in the README.
 1.  In enwiki/, run `gen_dump_index.db.py`, which generates a database for indexing the dump.
 1.  In enwiki/, run `gen_desc_data.py`, which extracts page descriptions into a database.
-1.  Run 
+1.  Run

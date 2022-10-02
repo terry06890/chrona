@@ -1,0 +1,13 @@
+{
+  "name": "histplorer",
+  "version": "0.1.0",
+  "description": "An interactive historical timeline",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Terry Truong",
+  "license": "MIT",
+  "devDependencies": {
+    "smartcrop-cli": "^2.0.3"
+  }
+}
