@@ -34,7 +34,8 @@ def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
 	print('Checking tables')
 	if imgDbCur.execute('SELECT name FROM sqlite_master WHERE type="table" AND name="page_imgs"').fetchone() is None:
 		# Create tables if not present
-		imgDbCur.execute('CREATE TABLE page_imgs (page_id INT PRIMARY KEY, img_name TEXT)') # img_name may be NULL
+		imgDbCur.execute('CREATE TABLE page_imgs (page_id INT PRIMARY KEY, title TEXT UNIQUE, img_name TEXT)')
+			# 'img_name' may be NULL
 		imgDbCur.execute('CREATE INDEX page_imgs_idx ON page_imgs(img_name)')
 	else:
 		# Check for already-processed page IDs
@@ -48,24 +49,26 @@ def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
 		print(f'Will skip {numSkipped} already-processed page IDs')
 	#
 	print('Getting dump-file offsets')
-	offsetToPageids: dict[int, list[int]] = {}
+	offsetToPageId: dict[int, list[int]] = {}
 	offsetToEnd: dict[int, int] = {} # Maps chunk-start offsets to their chunk-end offsets
+	pageIdToTitle: dict[int, str] = {}
 	iterNum = 0
 	for pageId in pageIds:
 		iterNum += 1
 		if iterNum % 1e4 == 0:
 			print(f'At iteration {iterNum}')
 		#
-		query = 'SELECT offset, next_offset FROM offsets WHERE id = ?'
-		row: tuple[int, int] | None = indexDbCur.execute(query, (pageId,)).fetchone()
+		query = 'SELECT offset, next_offset, title FROM offsets WHERE id = ?'
+		row = indexDbCur.execute(query, (pageId,)).fetchone()
 		if row is None:
 			print(f'WARNING: Page ID {pageId} not found')
 			continue
-		chunkOffset, endOffset = row
+		chunkOffset, endOffset, title = row
 		offsetToEnd[chunkOffset] = endOffset
-		if chunkOffset not in offsetToPageids:
-			offsetToPageids[chunkOffset] = []
-		offsetToPageids[chunkOffset].append(pageId)
+		if chunkOffset not in offsetToPageId:
+			offsetToPageId[chunkOffset] = []
+		offsetToPageId[chunkOffset].append(pageId)
+		pageIdToTitle[pageId] = title
 	print(f'Found {len(offsetToEnd)} chunks to check')
 	#
 	print('Iterating through chunks in dump file')
@@ -76,7 +79,7 @@ def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
 			if iterNum % 100 == 0:
 				print(f'At iteration {iterNum}')
 			#
-			chunkPageIds = offsetToPageids[pageOffset]
+			chunkPageIds = offsetToPageId[pageOffset]
 			# Jump to chunk
 			file.seek(pageOffset)
 			compressedData = file.read(None if endOffset == -1 else endOffset - pageOffset)
@@ -121,7 +124,7 @@ def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
 						content.append(line[:line.rfind('</text>')])
 						# Look for image-filename
 						imageName = getImageName(content)
-						imgDbCur.execute('INSERT into page_imgs VALUES (?, ?)', (pageId, imageName))
+						imgDbCur.execute('INSERT into page_imgs VALUES (?, ?, ?)', (pageId, None if imageName is None else pageIdToTitle[pageId], imageName))
 						break
 					if not foundTextEnd:
 						print(f'WARNING: Did not find </text> for page id {pageId}')

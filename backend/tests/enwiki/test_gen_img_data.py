@@ -76,20 +76,20 @@ class TestGenData(unittest.TestCase):
 			genData({10, 25}, TEST_DUMP_FILE, indexDb, imgDb)
 			# Check
 			self.assertEqual(
-				readTestDbTable(imgDb, 'SELECT page_id, img_name from page_imgs'),
+				readTestDbTable(imgDb, 'SELECT page_id, title, img_name from page_imgs'),
 				{
-					(10, None),
-					(25, 'Autism-stacking-cans 2nd edit.jpg'),
+					(10, None, None),
+					(25, 'Autism', 'Autism-stacking-cans 2nd edit.jpg'),
 				}
 			)
 			# Run with updated page-ids set
 			genData({13, 10}, TEST_DUMP_FILE, indexDb, imgDb)
 			# Check
 			self.assertEqual(
-				readTestDbTable(imgDb, 'SELECT page_id, img_name from page_imgs'),
+				readTestDbTable(imgDb, 'SELECT page_id, title, img_name from page_imgs'),
 				{
-					(10, None),
-					(13, None),
-					(25, 'Autism-stacking-cans 2nd edit.jpg'),
+					(10, None, None),
+					(13, None, None),
+					(25, 'Autism', 'Autism-stacking-cans 2nd edit.jpg'),
 				}
 			)

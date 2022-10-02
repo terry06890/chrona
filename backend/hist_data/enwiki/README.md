@@ -40,7 +40,7 @@ This directory holds files obtained/derived from [English Wikipedia](https://en.
     Used to hold metadata about infobox images for a set of page IDs.
     Generated using `get_enwiki_img_data.py` and `download_img_license_info.py`. <br>
     Tables: <br>
-    -   `page_imgs`: `page_id INT PRIMAY KEY, img_name TEXT` <br>
+    -   `page_imgs`: `page_id INT PRIMARY KEY, title TEXT UNIQUE, img_name TEXT` <br>
         `img_name` may be NULL, which means 'none found', and is used to avoid re-processing page IDs.
     -   `imgs`:
             `id INT PRIMARY KEY, name TEXT UNIQUE, license TEXT, artist TEXT, credit TEXT, restrictions TEXT, url TEXT`
