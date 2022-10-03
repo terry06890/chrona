@@ -22,6 +22,7 @@ USER_AGENT = 'terryt.dev (terry06890@gmail.com)'
 TIMEOUT = 1
 	# https://en.wikipedia.org/wiki/Wikipedia:Database_download says to 'throttle to 1 cache miss per sec'
 	# It's unclear how to properly check for cache misses, so we just aim for 1 per sec
+BACKOFF = False # If True, double the timeout each time a download error occurs (otherwise just exit)
 
 def downloadImgs(imgDb: str, outDir: str, timeout: int) -> None:
 	if not os.path.exists(outDir):
@@ -83,7 +84,12 @@ def downloadImgs(imgDb: str, outDir: str, timeout: int) -> None:
 			time.sleep(timeout)
 		except Exception as e:
 			print(f'Error while downloading to {outFile}: {e}')
-			return
+			if not BACKOFF:
+				return
+			else:
+				timeout *= 2
+				print(f'New timeout: {timeout}')
+				continue
 	print('Closing database')
 	dbCon.close()
 
