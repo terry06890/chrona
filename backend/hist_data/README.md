@@ -39,6 +39,7 @@ Some of the scripts use third-party packages:
 -   `indexed_bzip2`: For parallelised bzip2 processing
 -   `mwxml`, `mwparserfromhell`: For parsing Wikipedia dumps
 -   `requests`: For downloading data
+-   `Pillow`: For image processing
 
 ## Generate Event Data
 1.  Obtain a Wikidata JSON dump in wikidata/, as specified in it's README.
@@ -56,7 +57,11 @@ Some of the scripts use third-party packages:
     images, and adds them to the image database.
 1.  In enwiki/, run `download_imgs.py`, which downloads images into enwiki/imgs/.
 1.  Run `gen_imgs.py`, which creates resized/cropped images in img/, from images in enwiki/imgs/.
-    Adds the `imgs` and `event_imgs` tables.
+    Adds the `imgs` and `event_imgs` tables. <br>
+    The outputs will likely need additional manual changes:
+    -   An input image might have no output produced, possibly due to
+        data incompatibilities, memory limits, etc.
+    -   An input x.gif might produce x-1.jpg, x-2.jpg, etc, instead of x.jpg.
 
 ## Generate Description Data
 1.  Obtain an enwiki dump in enwiki/, as specified in the README.

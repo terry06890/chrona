@@ -13,7 +13,7 @@ to skip.
 import os, math, subprocess
 import sqlite3, urllib.parse
 import signal
-from PIL import Image, UnidentifiedImageError
+from PIL import Image
 
 IMG_DIR = os.path.join('enwiki', 'imgs')
 IMG_DB = os.path.join('enwiki', 'img_data.db')
@@ -21,7 +21,7 @@ OUT_DIR = 'img'
 DB_FILE = 'data.db'
 #
 MAX_MINOR_DIM = 200
-MAX_DIM_RATIO = 2
+MAX_DIM_RATIO = 3/2
 
 def genImgs(imgDir: str, imgDb: str, outDir: str, dbFile: str):
 	""" Converts images and updates db, checking for entries to skip """
@@ -116,8 +116,8 @@ def convertImage(imgPath: str, outPath: str):
 	try:
 		with Image.open(imgPath) as image:
 			width, height = image.size
-	except UnidentifiedImageError as e:
-		print(f'ERROR: Unable to open/identify {imgPath}: {e}')
+	except Exception as e: # Being more specific runs the risk of ending the program without committing to db
+		print(f'ERROR: Unable to open {imgPath}: {e}')
 		return False
 	# Limit output dims
 	if width > height:
