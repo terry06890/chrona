@@ -35,7 +35,6 @@ This directory holds files used to generate the history database data.db.
 
 ## Environment
 Some of the scripts use third-party packages:
--   `jdcal`: For date conversion
 -   `indexed_bzip2`: For parallelised bzip2 processing
 -   `mwxml`, `mwparserfromhell`: For parsing Wikipedia dumps
 -   `requests`: For downloading data

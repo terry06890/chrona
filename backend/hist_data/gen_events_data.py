@@ -59,10 +59,16 @@ Info about objects with type 'quantity' can be found at: https://www.wikidata.or
 # - Using pool.map() instead of pool.imap_unordered(), which seems to hang in some cases (was using python 3.8).
 #   Possibly related: https://github.com/python/cpython/issues/72882
 
-import os, io, math, re, argparse
+# Enable unit testing code to, when running this script, resolve imports of modules within this directory
+import os, sys
+parentDir = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(parentDir)
+
+import io, math, re, argparse
 import bz2, json, sqlite3
 import multiprocessing, indexed_bzip2, pickle, tempfile
-from jdcal import gcal2jd, jcal2jd
+# Modules in this directory
+from cal import gregorianToJdn, julianToJdn
 
 WIKIDATA_FILE = os.path.join('wikidata', 'latest-all.json.bz2')
 DUMP_YEAR = 2022 # Used for converting 'age' values into dates
@@ -382,18 +388,16 @@ def getEventTime(dataVal) -> tuple[int, int | None, int] | None:
 		if year < -4713: # If before 4713 BCE (start of valid julian date period)
 			print(f'WARNING: Skipping sub-year-precision date before 4713 BCE: {json.dumps(dataVal)}')
 			return None
-		if year < 0:
-			year += 1 # Adjust for 'jdcal' treating year 0 as 1 BCE, year -1 as 2 BCE, etc
 		day = max(day, 1) # With month-precision, entry may have a 'day' of 0
 		if calendarmodel == 'http://www.wikidata.org/entity/Q1985727': # 'proleptic gregorian calendar'
-			start = jdPairToJd(gcal2jd(year, month, day))
+			start = gregorianToJdn(year, month, day)
 			if precision == 10:
-				startUpper = jdPairToJd(gcal2jd(year, month+1, 0))
+				startUpper = gregorianToJdn(year, month+1, 0)
 			timeFmt = 2
 		else: # "http://www.wikidata.org/entity/Q1985786" ('proleptic julian calendar')
-			start = jdPairToJd(jcal2jd(year, month, day))
+			start = julianToJdn(year, month, day)
 			if precision == 10:
-				startUpper = jdPairToJd(jcal2jd(year, month+1, 0))
+				startUpper = julianToJdn(year, month+1, 0)
 			timeFmt = 1
 	elif 0 <= precision < 10: # 'year' to 'gigaannum' precision
 		scale: int = 10 ** (9 - precision)
@@ -408,9 +412,6 @@ def getEventTime(dataVal) -> tuple[int, int | None, int] | None:
 	else:
 		return None
 	return start, startUpper, timeFmt
-def jdPairToJd(jdPair: tuple[int, int]) -> int:
-	""" Converts a julian-date-representing value from jdcal into an int """
-	return math.ceil(sum(jdPair))
 
 # For using multiple processes
 def readDumpChunkOneParam(params: tuple[int, str, str, str, int, int]) -> str:
