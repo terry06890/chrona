@@ -149,12 +149,12 @@ class TestGenData(unittest.TestCase):
 			},
 		]
 		self.expectedRows = {
-			(1, 'event one', 2433616, 2433646, None, None, 2, 'event'),
-			(2, 'Human One', 2452593, None, 2455368, None, 3, 'human'),
+			(1, 'event one', 2433617, 2433647, None, None, 2, 'event'),
+			(2, 'Human One', 2452594, None, 2455369, None, 3, 'human'),
 			(3, 'country one', -1001, None, -99, None, 0, 'country'),
 			(4, 'country two', -9000, -7000, None, None, 0, 'country'),
 			(5, 'discovery one', 1, 1000, None, None, 0, 'discovery'),
-			(6, 'media one', 1713965, None, 1713996, None, 1, 'media'),
+			(6, 'media one', 1714331, None, 1714362, None, 1, 'media'),
 			(7, 'media two', -2199, -2100, None, None, 0, 'media'),
 		}
 	def test_wikiItems(self):

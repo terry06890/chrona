@@ -16,7 +16,7 @@ Value objects have a 'type' and 'value' field.
 Info about objects with type 'time' can be found at: https://www.wikidata.org/wiki/Help:Dates
 	An example:
 		{"value":{
-			"time":"+1830-10-04T00:00:00Z", # The year is always signed and padded to 4-16 digits
+			"time":"+1830-10-04T00:00:00Z", # The year is always signed and padded to 4-16 digits (-0001 means 1 BCE)
 			"timezone":0, # Unused
 			"before":0,   # Unused
 			"after":0,    # Unused
@@ -379,9 +379,11 @@ def getEventTime(dataVal) -> tuple[int, int | None, int] | None:
 	startUpper: int | None = None
 	timeFmt: int
 	if precision in [10, 11]: # 'month' or 'day' precision
-		if year < -4712: # If before 4713 BCE (start of valid julian date period)
+		if year < -4713: # If before 4713 BCE (start of valid julian date period)
 			print(f'WARNING: Skipping sub-year-precision date before 4713 BCE: {json.dumps(dataVal)}')
 			return None
+		if year < 0:
+			year += 1 # Adjust for 'jdcal' treating year 0 as 1 BCE, year -1 as 2 BCE, etc
 		day = max(day, 1) # With month-precision, entry may have a 'day' of 0
 		if calendarmodel == 'http://www.wikidata.org/entity/Q1985727': # 'proleptic gregorian calendar'
 			start = jdPairToJd(gcal2jd(year, month, day))
@@ -408,7 +410,7 @@ def getEventTime(dataVal) -> tuple[int, int | None, int] | None:
 	return start, startUpper, timeFmt
 def jdPairToJd(jdPair: tuple[int, int]) -> int:
 	""" Converts a julian-date-representing value from jdcal into an int """
-	return math.floor(sum(jdPair))
+	return math.ceil(sum(jdPair))
 
 # For using multiple processes
 def readDumpChunkOneParam(params: tuple[int, str, str, str, int, int]) -> str:
