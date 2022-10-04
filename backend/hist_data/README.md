@@ -68,3 +68,8 @@ Some of the scripts use third-party packages:
 1.  In enwiki/, run `gen_desc_data.py`, which extracts page descriptions into a database.
 1.  Run `gen_desc_data.py`, which adds the `descs` table, using data in enwiki/,
     and the `events` and `images` tables (only adds descriptions for events with images).
+
+## Optionally Add Extra Event Data
+1.  Additional events can be described in `picked/events.json`, with images for them put
+    in `picked` (see the README for details).
+1.  Can run `gen_picked_data.py` to add those described events to the database.
