@@ -1,5 +1,7 @@
 # Files
 -   `hist_data/`: Holds scripts for generating the history database and images
+-   `histplorer.py`: WSGI script that serves data from the history database
+-   `server.py`: Basic dev server that serves the WSGI script and image files
 -   `tests/`: Holds unit testing scripts <br>
     Running all tests: `python -m unittest discover -s tests` <br>
     Running a particular test: `python -m unittest tests/test_script1.py` <br>

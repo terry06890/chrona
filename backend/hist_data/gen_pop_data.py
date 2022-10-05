@@ -35,6 +35,7 @@ def genData(pageviewsDb: str, dbFile: str) -> None:
 	#
 	print(f'Result: {len(titleToViews)} out of {len(titleToId)}')
 	dbCur.execute('CREATE TABLE pop (id INT PRIMARY KEY, pop INT)')
+	dbCur.execute('CREATE INDEX pop_idx ON pop(pop)')
 	for title, views in titleToViews.items():
 		dbCur.execute('INSERT INTO pop VALUES (?, ?)', (titleToId[title], views))
 	#

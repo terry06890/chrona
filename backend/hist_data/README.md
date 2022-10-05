@@ -11,7 +11,7 @@ This directory holds files used to generate the history database data.db.
         If `start_upper` is present, it and `start` denote an uncertain range of start times.
         Similarly for 'end' and 'end_upper'.
     -   `fmt` indicates format info for `start`, `start_upper`, `end`, and `end_upper`.
-        -   If 1, they denote a Julian date (with 0.5 removed to align with midnight).
+        -   If 1, they denote a Julian date number.
             This allows simple comparison of events with day-level precision, but only goes back to 4713 BCE.
         -   If 2, same as 1, but dates are preferably displayed using the Gregorian calendar, not the Julian calendar.
             For example, William Shakespeare's birth appears 'preferably Julian', but Samuel Johnson's does not.
@@ -28,7 +28,7 @@ This directory holds files used to generate the history database data.db.
     Format: `id INT PRIMARY KEY, img_id INT` <br>
     Assocates events with images
 -   `descs` <br>
-    Format: `title TEXT PRIMARY KEY, desc TEXT` <br>
+    Format: `id INT PRIMARY KEY, wiki_id INT, desc TEXT` <br>
     Associates an event's enwiki title with a short description.
 
 # Generating the Database
