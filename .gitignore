@@ -3,6 +3,7 @@
 /dist/
 __pycache__
 .venv
+.coverage
 
 /backend/hist_data/data.db
 /backend/hist_data/wikidata/events.db
