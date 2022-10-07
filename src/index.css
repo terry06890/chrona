@@ -1,0 +1,17 @@
+/* From Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Other */
+@font-face {
+	font-family: Ubuntu;
+	src: url('/font/Ubuntu-Regular.woff2');
+}
+body {
+	font-family: Ubuntu, system-ui, sans-serif;
+	touch-action: manipulation; /* Prevents non-standard gestures such as double-tap to zoom */
+}
+a {
+	@apply hover:underline hover:cursor-pointer;
+}
