@@ -3,9 +3,16 @@
 	@wheel.exact.prevent="onShift" @wheel.shift.exact.prevent="onZoom" ref="rootRef">
 	<svg :viewBox="`0 0 ${width} ${height}`">
 		<line stroke="yellow" stroke-width="2px" x1="50%" y1="0%" x2="50%" y2="100%"/>
-		<line v-for="n in ticks" :key="n"
-			:x1="width/2-8" y1="0" :x2="width/2+8" y2="0" stroke="yellow" stroke-width="1px"
-			:style="tickStyles(n)" class="animate-fadein"/>
+		<template v-for="n in ticks" :key="n">
+			<line v-if="n == minDate || n == maxDate"
+				:x1="width/2 - 4" y1="0"
+				:x2="width/2 + 4" y2="0"
+				stroke="yellow" stroke-width="8px" :style="tickStyles(n)" class="animate-fadein"/>
+			<line v-else
+				:x1="width/2 - 8" y1="0"
+				:x2="width/2 + 8" y2="0"
+				stroke="yellow" stroke-width="1px" :style="tickStyles(n)" class="animate-fadein"/>
+		</template>
 		<text fill="#606060" v-for="n in ticks" :key="n"
 			:x="width/2 + 12" y="0"
 			text-anchor="start" dominant-baseline="middle" :style="tickLabelStyles(n)" class="text-sm animate-fadein">
@@ -32,25 +39,30 @@ const minDate = -1000;
 const maxDate = 1000;
 const scales = [200, 50, 10, 1, 0.2]; // The timeline get divided into units of scales[0], then scales[1], etc
 let scaleIdx = 0; // Index of current scale in 'scales'
-const startDate = ref(minDate);
-const endDate = ref(maxDate);
+const startDate = ref(0);
+const endDate = ref(0);
 const SHIFT_INC = 0.3; // Proportion of timeline length to shift by
 const ZOOM_RATIO = 1.5; // When zooming out, the timeline length gets multiplied by this ratio
 const MIN_TICK_SEP = 30; // Smallest px separation between ticks
 const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further if less than this many ticks would result
 const ticks = ref(null); // Holds date value for each tick
+let padUnits = 0.5; // Amount of extra scale units to add before/after min/max date
 
 // For initialisation
 function initTicks(): number[] {
-	let len = maxDate - minDate;
 	// Find smallest usable scale
 	for (let i = 0; i < scales.length; i++){
+		let len = maxDate - minDate + (padUnits * scales[i]) * 2;
 		if (props.height * (scales[i] / len) > MIN_TICK_SEP){
 			scaleIdx = i;
 		} else {
 			break;
 		}
 	}
+	// Set start/end date
+	let extraPad = padUnits * scales[scaleIdx];
+	startDate.value = minDate - extraPad;
+	endDate.value = maxDate + extraPad;
 	// Get tick values
 	let newTicks = [];
 	let next = minDate;
@@ -102,22 +114,25 @@ function updateTicks(){
 // Performs a shift action
 function shiftTimeline(n: number){
 	let len = endDate.value - startDate.value;
+	let extraPad = padUnits * scales[scaleIdx]
+	let paddedMinDate = minDate - extraPad;
+	let paddedMaxDate = maxDate + extraPad;
 	let chg = len * n;
-	if (startDate.value + chg < minDate){
-		if (startDate.value == minDate){
+	if (startDate.value + chg < paddedMinDate){
+		if (startDate.value == paddedMinDate){
 			console.log('Reached minDate limit')
 			return;
 		}
-		chg = minDate - startDate.value;
-		startDate.value = minDate;
+		chg = paddedMinDate - startDate.value;
+		startDate.value = paddedMinDate;
 		endDate.value += chg;
-	} else if (endDate.value + chg > maxDate){
-		if (endDate.value == maxDate){
+	} else if (endDate.value + chg > paddedMaxDate){
+		if (endDate.value == paddedMaxDate){
 			console.log('Reached maxDate limit')
 			return;
 		}
-		chg = maxDate - endDate.value;
-		endDate.value = maxDate;
+		chg = paddedMaxDate - endDate.value;
+		endDate.value = paddedMaxDate;
 		startDate.value += chg;
 	} else {
 		startDate.value += chg;
@@ -129,6 +144,9 @@ function shiftTimeline(n: number){
 function zoomTimeline(frac: number){
 	let oldLen = endDate.value - startDate.value;
 	let newLen = oldLen * frac;
+	let extraPad = padUnits * scales[scaleIdx]
+	let paddedMinDate = minDate - extraPad;
+	let paddedMaxDate = maxDate + extraPad;
 	// Get new bounds
 	let newStart: number;
 	let newEnd: number;
@@ -141,26 +159,26 @@ function zoomTimeline(frac: number){
 		newStart = zoomCenter - (zoomCenter - startDate.value) * frac;
 		newEnd = zoomCenter + (endDate.value - zoomCenter) * frac;
 	}
-	if (newStart < minDate){
-		newEnd += minDate - newStart;
-		newStart = minDate;
-		if (newEnd > maxDate){
-			if (startDate.value == minDate && endDate.value == maxDate){
+	if (newStart < paddedMinDate){
+		newEnd += paddedMinDate - newStart;
+		newStart = paddedMinDate;
+		if (newEnd > paddedMaxDate){
+			if (startDate.value == paddedMinDate && endDate.value == paddedMaxDate){
 				console.log('Reached upper scale limit');
 				return;
 			} else {
-				newEnd = maxDate;
+				newEnd = paddedMaxDate;
 			}
 		}
-	} else if (newEnd > maxDate){
-		newStart -= newEnd - maxDate;
-		newEnd = maxDate;
-		if (newStart < minDate){
-			if (startDate.value == minDate && endDate.value == maxDate){
+	} else if (newEnd > paddedMaxDate){
+		newStart -= newEnd - paddedMaxDate;
+		newEnd = paddedMaxDate;
+		if (newStart < paddedMinDate){
+			if (startDate.value == paddedMinDate && endDate.value == paddedMaxDate){
 				console.log('Reached upper scale limit');
 				return;
 			} else {
-				newStart = minDate;
+				newStart = paddedMinDate;
 			}
 		}
 	}
@@ -196,9 +214,11 @@ function zoomTimeline(frac: number){
 let cursorX = null;
 let cursorY = null;
 onMounted(() => window.addEventListener('mousemove', (evt: MouseEvent) => {
-	let rect = rootRef.value.getBoundingClientRect();
-	cursorX = evt.clientX - rect.left;
-	cursorY = evt.clientY - rect.top;
+	if (rootRef.value != null){ // Can become null during dev-server hot-reload for some reason
+		let rect = rootRef.value.getBoundingClientRect();
+		cursorX = evt.clientX - rect.left;
+		cursorY = evt.clientY - rect.top;
+	}
 }))
 
 // For mouse/etc handling
@@ -222,21 +242,21 @@ function tickStyles(tick: number){
 	let y = (tick - startDate.value) / (endDate.value - startDate.value) * props.height;
 	return {
 		transform: `translate(0, ${y}px)`,
-		transition: 'transform 300ms ease-out',
+		transitionProperty: 'transform',
+		transitionDuration: '300ms',
+		transitionTimingFunction: 'ease-out',
+		display: (y >= 0 && y <= props.height) ? 'block' : 'none',
 	}
 }
 function tickLabelStyles(tick: number){
 	let y = (tick - startDate.value) / (endDate.value - startDate.value) * props.height;
 	let fontHeight = 10;
-	if (Math.abs(y) < fontHeight/2){
-		y = fontHeight;
-	}
-	if (Math.abs(y - props.height) < fontHeight/2){
-		y = props.height - fontHeight;
-	}
 	return {
 		transform: `translate(0, ${y}px)`,
-		transition: 'transform 300ms ease-out',
+		transitionProperty: 'transform',
+		transitionDuration: '300ms',
+		transitionTimingFunction: 'ease-out',
+		display: (y >= fontHeight && y <= props.height - fontHeight) ? 'block' : 'none',
 	}
 }
 </script>
