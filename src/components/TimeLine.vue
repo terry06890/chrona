@@ -129,7 +129,43 @@ function shiftTimeline(n: number){
 function zoomTimeline(frac: number){
 	let oldLen = endDate.value - startDate.value;
 	let newLen = oldLen * frac;
+	// Get new bounds
+	let newStart: number;
+	let newEnd: number;
+	if (cursorY == null){
+		let lenChg = newLen - oldLen
+		newStart = startDate.value - lenChg / 2;
+		newEnd = endDate.value + lenChg / 2;
+	} else {
+		let zoomCenter = startDate.value + (cursorY / props.height) * oldLen;
+		newStart = zoomCenter - (zoomCenter - startDate.value) * frac;
+		newEnd = zoomCenter + (endDate.value - zoomCenter) * frac;
+	}
+	if (newStart < minDate){
+		newEnd += minDate - newStart;
+		newStart = minDate;
+		if (newEnd > maxDate){
+			if (startDate.value == minDate && endDate.value == maxDate){
+				console.log('Reached upper scale limit');
+				return;
+			} else {
+				newEnd = maxDate;
+			}
+		}
+	} else if (newEnd > maxDate){
+		newStart -= newEnd - maxDate;
+		newEnd = maxDate;
+		if (newStart < minDate){
+			if (startDate.value == minDate && endDate.value == maxDate){
+				console.log('Reached upper scale limit');
+				return;
+			} else {
+				newStart = minDate;
+			}
+		}
+	}
 	// Possibly change the scale
+	newLen = newEnd - newStart;
 	let tickDiff = props.height * (scales[scaleIdx] / newLen);
 	if (tickDiff < MIN_TICK_SEP){
 		if (scaleIdx == 0){
@@ -150,43 +186,20 @@ function zoomTimeline(frac: number){
 			}
 		}
 	}
-	// Get new bounds
-	let endChg = (newLen - oldLen) / 2;
-	if (startDate.value - endChg < minDate){
-		let tempChg = startDate.value - minDate;
-		if (endDate.value + endChg + tempChg > maxDate){
-			if (startDate.value == minDate && endDate.value == maxDate){
-				console.log('Reached upper scale limit');
-				return;
-			} else {
-				startDate.value = minDate;
-				endDate.value = maxDate;
-			}
-		} else {
-			startDate.value = minDate;
-			endDate.value += endChg + tempChg;
-		}
-	} else if (endDate.value + endChg > maxDate){
-		let tempChg = maxDate - endDate.value;
-		if (startDate.value - endChg - tempChg < minDate){
-			if (startDate.value == minDate && endDate.value == maxDate){
-				console.log('Reached upper scale limit');
-				return;
-			} else {
-				startDate.value = minDate;
-				endDate.value = maxDate;
-			}
-		} else {
-			startDate.value -= endChg + tempChg
-			endDate.value = maxDate;
-		}
-	} else {
-		startDate.value -= endChg;
-		endDate.value += endChg;
-	}
 	//
+	startDate.value = newStart;
+	endDate.value = newEnd;
 	updateTicks();
 }
+
+// For cursor tracking
+let cursorX = null;
+let cursorY = null;
+onMounted(() => window.addEventListener('mousemove', (evt: MouseEvent) => {
+	let rect = rootRef.value.getBoundingClientRect();
+	cursorX = evt.clientX - rect.left;
+	cursorY = evt.clientY - rect.top;
+}))
 
 // For mouse/etc handling
 function onShift(evt: WheelEvent){
