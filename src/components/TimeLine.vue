@@ -8,7 +8,7 @@
 			:style="tickStyles(n)" class="animate-fadein"/>
 		<text fill="#606060" v-for="n in ticks" :key="n"
 			:x="width/2 + 12" y="0"
-			text-anchor="start" :style="tickLabelStyles(n)" class="text-sm animate-fadein">
+			text-anchor="start" dominant-baseline="middle" :style="tickLabelStyles(n)" class="text-sm animate-fadein">
 			{{Math.round(n * 100) / 100}}
 		</text>
 	</svg>
@@ -219,15 +219,24 @@ function onZoom(evt: WheelEvent){
 
 // Styles
 function tickStyles(tick: number){
+	let y = (tick - startDate.value) / (endDate.value - startDate.value) * props.height;
 	return {
-		transform: `translate(0, ${(tick - startDate.value) / (endDate.value - startDate.value) * props.height}px)`,
-		transition: 'transform 300ms linear',
+		transform: `translate(0, ${y}px)`,
+		transition: 'transform 300ms ease-out',
 	}
 }
 function tickLabelStyles(tick: number){
+	let y = (tick - startDate.value) / (endDate.value - startDate.value) * props.height;
+	let fontHeight = 10;
+	if (Math.abs(y) < fontHeight/2){
+		y = fontHeight;
+	}
+	if (Math.abs(y - props.height) < fontHeight/2){
+		y = props.height - fontHeight;
+	}
 	return {
-		transform: `translate(0, ${(tick - startDate.value) / (endDate.value - startDate.value) * props.height + 5}px)`,
-		transition: 'transform 300ms linear',
+		transform: `translate(0, ${y}px)`,
+		transition: 'transform 300ms ease-out',
 	}
 }
 </script>
