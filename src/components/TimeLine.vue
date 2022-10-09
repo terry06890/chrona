@@ -8,16 +8,16 @@
 		<line stroke="yellow" stroke-width="2px" x1="50%" y1="0%" x2="50%" y2="100%"/>
 		<template v-for="n in ticks" :key="n">
 			<line v-if="n == minDate || n == maxDate"
-				:x1="width/2 - 4" y1="0"
-				:x2="width/2 + 4" y2="0"
+				:x1="-4" y1="0"
+				:x2="4" y2="0"
 				stroke="yellow" stroke-width="8px" :style="tickStyles(n)" class="animate-fadein"/>
 			<line v-else
-				:x1="width/2 - 8" y1="0"
-				:x2="width/2 + 8" y2="0"
+				:x1="-8" y1="0"
+				:x2="8" y2="0"
 				stroke="yellow" stroke-width="1px" :style="tickStyles(n)" class="animate-fadein"/>
 		</template>
 		<text fill="#606060" v-for="n in ticks" :key="n"
-			:x="width/2 + 12" y="0"
+			:x="width/2 + 20" y="0"
 			text-anchor="start" dominant-baseline="middle" :style="tickLabelStyles(n)" class="text-sm animate-fadein">
 			{{Math.round(n * 100) / 100}}
 		</text>
@@ -242,8 +242,10 @@ function onPointerMove(evt: PointerEvent){
 		dragDiffY += yDiff;
 		if (dragHandler == 0){
 			dragHandler = setTimeout(() => {
-				shiftTimeline(-dragDiffY / props.height);
-				dragDiffY = 0;
+				if (Math.abs(dragDiffY) > 2){
+					shiftTimeline(-dragDiffY / props.height);
+					dragDiffY = 0;
+				}
 				dragHandler = 0;
 			}, 50);
 		}
@@ -293,8 +295,12 @@ function onShiftWheel(evt: WheelEvent){
 // Styles
 function tickStyles(tick: number){
 	let y = (tick - startDate.value) / (endDate.value - startDate.value) * props.height;
+	let scaleX = 1;
+	if (scaleIdx > 0 && tick % scales[scaleIdx-1] == 0){ // If the tick exists on the scale directly above this one
+		scaleX = 2;
+	}
 	return {
-		transform: `translate(0, ${y}px)`,
+		transform: `translate(${props.width/2}px, ${y}px) scale(${scaleX})`,
 		transitionProperty: 'transform',
 		transitionDuration: '300ms',
 		transitionTimingFunction: 'ease-out',
