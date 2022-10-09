@@ -1,6 +1,9 @@
 <template>
 <div class="touch-none" :width="width" :height="height"
-	@wheel.exact.prevent="onShift" @wheel.shift.exact.prevent="onZoom" ref="rootRef">
+	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel"
+	@pointerdown.prevent="onPointerDown" @pointermove.prevent="onPointerMove" @pointerup.prevent="onPointerUp"
+	@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp"
+	ref="rootRef">
 	<svg :viewBox="`0 0 ${width} ${height}`">
 		<line stroke="yellow" stroke-width="2px" x1="50%" y1="0%" x2="50%" y2="100%"/>
 		<template v-for="n in ticks" :key="n">
@@ -34,25 +37,25 @@ const props = defineProps({
 	height: {type: Number, required: true},
 });
 
-// For date range
-const minDate = -1000;
+// Vars
+const minDate = -1000; // Lowest date that gets marked
 const maxDate = 1000;
+const startDate = ref(0); // Lowest date on displayed timeline
+const endDate = ref(0);
 const scales = [200, 50, 10, 1, 0.2]; // The timeline get divided into units of scales[0], then scales[1], etc
 let scaleIdx = 0; // Index of current scale in 'scales'
-const startDate = ref(0);
-const endDate = ref(0);
-const SHIFT_INC = 0.3; // Proportion of timeline length to shift by
+const ticks = ref(null); // Holds date value for each tick
+const SCROLL_SHIFT_CHG = 0.3; // Proportion of timeline length to shift by upon scroll
 const ZOOM_RATIO = 1.5; // When zooming out, the timeline length gets multiplied by this ratio
 const MIN_TICK_SEP = 30; // Smallest px separation between ticks
 const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further if less than this many ticks would result
-const ticks = ref(null); // Holds date value for each tick
-let padUnits = 0.5; // Amount of extra scale units to add before/after min/max date
+let PAD_UNITS = 0.5; // Amount of extra scale units to add before/after min/max date
 
 // For initialisation
 function initTicks(): number[] {
 	// Find smallest usable scale
 	for (let i = 0; i < scales.length; i++){
-		let len = maxDate - minDate + (padUnits * scales[i]) * 2;
+		let len = maxDate - minDate + (PAD_UNITS * scales[i]) * 2;
 		if (props.height * (scales[i] / len) > MIN_TICK_SEP){
 			scaleIdx = i;
 		} else {
@@ -60,7 +63,7 @@ function initTicks(): number[] {
 		}
 	}
 	// Set start/end date
-	let extraPad = padUnits * scales[scaleIdx];
+	let extraPad = PAD_UNITS * scales[scaleIdx];
 	startDate.value = minDate - extraPad;
 	endDate.value = maxDate + extraPad;
 	// Get tick values
@@ -80,7 +83,7 @@ onMounted(() => nextTick(initTicks));
 // and adds/removes ticks upon a scale change
 function updateTicks(){
 	let len = endDate.value - startDate.value;
-	let shiftChg = len * SHIFT_INC;
+	let shiftChg = len * SCROLL_SHIFT_CHG;
 	let scaleChg = len * (ZOOM_RATIO - 1) / 2;
 	let scale = scales[scaleIdx];
 	// Get ticks in new range, and add hidden ticks that might transition in on a shift action
@@ -114,7 +117,7 @@ function updateTicks(){
 // Performs a shift action
 function shiftTimeline(n: number){
 	let len = endDate.value - startDate.value;
-	let extraPad = padUnits * scales[scaleIdx]
+	let extraPad = PAD_UNITS * scales[scaleIdx]
 	let paddedMinDate = minDate - extraPad;
 	let paddedMaxDate = maxDate + extraPad;
 	let chg = len * n;
@@ -144,18 +147,23 @@ function shiftTimeline(n: number){
 function zoomTimeline(frac: number){
 	let oldLen = endDate.value - startDate.value;
 	let newLen = oldLen * frac;
-	let extraPad = padUnits * scales[scaleIdx]
+	let extraPad = PAD_UNITS * scales[scaleIdx]
 	let paddedMinDate = minDate - extraPad;
 	let paddedMaxDate = maxDate + extraPad;
 	// Get new bounds
 	let newStart: number;
 	let newEnd: number;
-	if (cursorY == null){
+	if (pointerY == null){
 		let lenChg = newLen - oldLen
 		newStart = startDate.value - lenChg / 2;
 		newEnd = endDate.value + lenChg / 2;
 	} else {
-		let zoomCenter = startDate.value + (cursorY / props.height) * oldLen;
+		let y = 0; // Element-relative pointerY
+		if (rootRef.value != null){ // Can become null during dev-server hot-reload for some reason
+			let rect = rootRef.value.getBoundingClientRect();
+			y = pointerY - rect.top;
+		}
+		let zoomCenter = startDate.value + (y / props.height) * oldLen;
 		newStart = zoomCenter - (zoomCenter - startDate.value) * frac;
 		newEnd = zoomCenter + (endDate.value - zoomCenter) * frac;
 	}
@@ -210,26 +218,71 @@ function zoomTimeline(frac: number){
 	updateTicks();
 }
 
-// For cursor tracking
-let cursorX = null;
-let cursorY = null;
-onMounted(() => window.addEventListener('mousemove', (evt: MouseEvent) => {
-	if (rootRef.value != null){ // Can become null during dev-server hot-reload for some reason
-		let rect = rootRef.value.getBoundingClientRect();
-		cursorX = evt.clientX - rect.left;
-		cursorY = evt.clientY - rect.top;
-	}
-}))
-
 // For mouse/etc handling
-function onShift(evt: WheelEvent){
+let pointerX = null; // Stores pointer position (used for pointer-centered zooming)
+let pointerY = null;
+const ptrEvtCache = []; // Holds last captured PointerEvent for each pointerId (used for pinch-zoom)
+let lastPinchY = -1; // Holds last y-distance between two pointers that are down
+let dragDiffY = 0; // Holds accumlated change in pointer's y-coordinate while dragging
+let dragHandler = 0; // Set by a setTimeout() to a handler for pointer dragging
+function onPointerDown(evt: PointerEvent){
+	ptrEvtCache.push(evt);
+	// Update stored cursor position
+	pointerX = evt.clientX;
+	pointerY = evt.clientY;
+}
+function onPointerMove(evt: PointerEvent){
+	// Update event cache
+	const index = ptrEvtCache.findIndex((e) => e.pointerId == evt.pointerId);
+	ptrEvtCache[index] = evt;
+	//
+	if (ptrEvtCache.length == 1){
+		// Handle pointer dragging
+		let yDiff = evt.clientY - pointerY;
+		dragDiffY += yDiff;
+		if (dragHandler == 0){
+			dragHandler = setTimeout(() => {
+				shiftTimeline(-dragDiffY / props.height);
+				dragDiffY = 0;
+				dragHandler = 0;
+			}, 50);
+		}
+	} else if (ptrEvtCache.length == 2){
+		// Handle pinch-zoom
+		const pinchY = Math.abs(ptrEvtCache[0].clientY - ptrEvtCache[1].clientY);
+		if (lastPinchY > 0){
+			if (pinchY > lastPinchY){
+				console.log('Pinching out, zooming in');
+				//TODO: implement pinch-zooming
+			} else if (pinchY < lastPinchY){
+				console.log('Pinching in, zooming out');
+				//TODO: implement pinch-zooming
+			}
+		}
+		lastPinchY = pinchY;
+	}
+	// Update stored cursor position
+	pointerX = evt.clientX;
+	pointerY = evt.clientY;
+}
+function onPointerUp(evt: PointerEvent){
+	// Remove from event cache
+	const index = ptrEvtCache.findIndex((e) => e.pointerId == evt.pointerId);
+	ptrEvtCache.splice(index, 1);
+	// Reset other vars
+	if (ptrEvtCache.length < 2){
+		lastPinchY = -1;
+	}
+	dragDiffY = 0;
+}
+function onWheel(evt: WheelEvent){
 	if (evt.deltaY > 0){
-		shiftTimeline(SHIFT_INC);
+		shiftTimeline(SCROLL_SHIFT_CHG);
 	} else {
-		shiftTimeline(-SHIFT_INC);
+		shiftTimeline(-SCROLL_SHIFT_CHG);
 	}
 }
-function onZoom(evt: WheelEvent){
+function onShiftWheel(evt: WheelEvent){
 	if (evt.deltaY > 0){
 		zoomTimeline(ZOOM_RATIO);
 	} else {
