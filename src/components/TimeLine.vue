@@ -19,7 +19,7 @@
 		<text fill="#606060" v-for="n in ticks" :key="n"
 			:x="width/2 + 20" y="0"
 			text-anchor="start" dominant-baseline="middle" :style="tickLabelStyles(n)" class="text-sm animate-fadein">
-			{{Math.round(n * 100) / 100}}
+			{{n}}
 		</text>
 	</svg>
 </div>
@@ -45,7 +45,7 @@ const endDate = ref(0);
 const scales = [200, 50, 10, 1, 0.2]; // The timeline get divided into units of scales[0], then scales[1], etc
 let scaleIdx = 0; // Index of current scale in 'scales'
 const ticks = ref(null); // Holds date value for each tick
-const SCROLL_SHIFT_CHG = 0.3; // Proportion of timeline length to shift by upon scroll
+const SCROLL_SHIFT_CHG = 0.2; // Proportion of timeline length to shift by upon scroll
 const ZOOM_RATIO = 1.5; // When zooming out, the timeline length gets multiplied by this ratio
 const MIN_TICK_SEP = 30; // Smallest px separation between ticks
 const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further if less than this many ticks would result
@@ -238,8 +238,7 @@ function onPointerMove(evt: PointerEvent){
 	//
 	if (ptrEvtCache.length == 1){
 		// Handle pointer dragging
-		let yDiff = evt.clientY - pointerY;
-		dragDiffY += yDiff;
+		dragDiffY += evt.clientY - pointerY;
 		if (dragHandler == 0){
 			dragHandler = setTimeout(() => {
 				if (Math.abs(dragDiffY) > 2){
@@ -301,10 +300,10 @@ function tickStyles(tick: number){
 	}
 	return {
 		transform: `translate(${props.width/2}px, ${y}px) scale(${scaleX})`,
-		transitionProperty: 'transform',
+		transitionProperty: 'transform, opacity',
 		transitionDuration: '300ms',
 		transitionTimingFunction: 'ease-out',
-		display: (y >= 0 && y <= props.height) ? 'block' : 'none',
+		opacity: (y >= 0 && y <= props.height) ? 1 : 0,
 	}
 }
 function tickLabelStyles(tick: number){
@@ -312,10 +311,10 @@ function tickLabelStyles(tick: number){
 	let fontHeight = 10;
 	return {
 		transform: `translate(0, ${y}px)`,
-		transitionProperty: 'transform',
+		transitionProperty: 'transform, opacity',
 		transitionDuration: '300ms',
 		transitionTimingFunction: 'ease-out',
-		display: (y >= fontHeight && y <= props.height - fontHeight) ? 'block' : 'none',
+		opacity: (y >= fontHeight && y <= props.height - fontHeight) ? 1 : 0,
 	}
 }
 </script>
