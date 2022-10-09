@@ -6,20 +6,20 @@
 	ref="rootRef">
 	<svg :viewBox="`0 0 ${width} ${height}`">
 		<line stroke="yellow" stroke-width="2px"
-			:x1="vert ? '50%' :      0" :y1="vert ?      0 : '50%'"
-			:x2="vert ? '50%' : '100%'" :y2="vert ? '100%' : '50%'"/>
+			:x1="vert2 ? '50%' :      0" :y1="vert2 ?      0 : '50%'"
+			:x2="vert2 ? '50%' : '100%'" :y2="vert2 ? '100%' : '50%'"/>
 		<template v-for="n in ticks" :key="n">
 			<line v-if="n == MIN_DATE || n == MAX_DATE"
-				:x1="vert ? -END_TICK_SZ : 0" :y1="vert ? 0 : -END_TICK_SZ"
-				:x2="vert ?  END_TICK_SZ : 0" :y2="vert ? 0 :  END_TICK_SZ"
+				:x1="vert2 ? -END_TICK_SZ : 0" :y1="vert2 ? 0 : -END_TICK_SZ"
+				:x2="vert2 ?  END_TICK_SZ : 0" :y2="vert2 ? 0 :  END_TICK_SZ"
 				stroke="yellow" :stroke-width="`${END_TICK_SZ * 2}px`" :style="tickStyles(n)" class="animate-fadein"/>
 			<line v-else
-				:x1="vert ? -TICK_LEN : 0" :y1="vert ? 0 : -TICK_LEN"
-				:x2="vert ?  TICK_LEN : 0" :y2="vert ? 0 :  TICK_LEN"
+				:x1="vert2 ? -TICK_LEN : 0" :y1="vert2 ? 0 : -TICK_LEN"
+				:x2="vert2 ?  TICK_LEN : 0" :y2="vert2 ? 0 :  TICK_LEN"
 				stroke="yellow" stroke-width="1px" :style="tickStyles(n)" class="animate-fadein"/>
 		</template>
 		<text fill="#606060" v-for="n in ticks" :key="n"
-			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
+			x="0" y="0" :text-anchor="vert2 ? 'start' : 'middle'" dominant-baseline="middle"
 			:style="tickLabelStyles(n)" class="text-sm animate-fadein">
 			{{n}}
 		</text>
@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, computed, nextTick} from 'vue';
+import {ref, onMounted, computed, watch, nextTick} from 'vue';
 
 // Refs
 const rootRef = ref(null as HTMLElement | null);
@@ -52,10 +52,20 @@ const SCROLL_SHIFT_CHG = 0.2; // Proportion of timeline length to shift by upon 
 const ZOOM_RATIO = 1.5; // When zooming out, the timeline length gets multiplied by this ratio
 const MIN_TICK_SEP = 30; // Smallest px separation between ticks
 const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further into less than this many ticks
-const padUnits = computed(() => props.vert ? 0.5 : 1); // Amount of extra scale units to add before/after min/max date
+const padUnits = computed(() => vert2.value ? 0.5 : 1); // Amount of extra scale units to add before/after min/max date
 const TICK_LEN = 8;
 const END_TICK_SZ = 4; // Size for MIN_DATE/MAX_DATE ticks
-const availLen = computed(() => props.vert ? props.height : props.width);
+const availLen = computed(() => vert2.value ? props.height : props.width);
+
+// For skipping transitions on horz/vert swap
+const vert2 = ref(props.vert); // Used in place of 'vert', and only updated after disabling transitions
+const skipTransition = ref(false);
+watch(() => props.vert, async (newVal: boolean) => {
+	skipTransition.value = true;
+	await nextTick();
+	vert2.value = newVal;
+	setTimeout(() => {skipTransition.value = false}, 0); // Using nextTick() here doesn't work
+});
 
 // For initialisation
 function initTicks(): number[] {
@@ -158,7 +168,7 @@ function zoomTimeline(frac: number){
 	// Get new bounds
 	let newStart: number;
 	let newEnd: number;
-	let ptrOffset = props.vert ? pointerY : pointerX;
+	let ptrOffset = vert2.value ? pointerY : pointerX;
 	if (ptrOffset == null){
 		let lenChg = newDateLen - oldDateLen
 		newStart = startDate.value - lenChg / 2;
@@ -244,7 +254,7 @@ function onPointerMove(evt: PointerEvent){
 	//
 	if (ptrEvtCache.length == 1){
 		// Handle pointer dragging
-		dragDiff += props.vert ? evt.clientY - pointerY : evt.clientX - pointerX;
+		dragDiff += vert2.value ? evt.clientY - pointerY : evt.clientX - pointerX;
 		if (dragHandler == 0){
 			dragHandler = setTimeout(() => {
 				if (Math.abs(dragDiff) > 2){
@@ -256,7 +266,7 @@ function onPointerMove(evt: PointerEvent){
 		}
 	} else if (ptrEvtCache.length == 2){
 		// Handle pinch-zoom
-		const pinchDiff = Math.abs(props.vert ?
+		const pinchDiff = Math.abs(vert2.value ?
 			ptrEvtCache[0].clientY - ptrEvtCache[1].clientY :
 			ptrEvtCache[0].clientX - ptrEvtCache[1].clientX);
 		if (lastPinchDiff > 0){
@@ -286,7 +296,7 @@ function onPointerUp(evt: PointerEvent){
 }
 function onWheel(evt: WheelEvent){
 	let shiftDir = evt.deltaY > 0 ? 1 : -1;
-	if (!props.vert){
+	if (!vert2.value){
 		shiftDir *= -1;
 	}
 	shiftTimeline(shiftDir * SCROLL_SHIFT_CHG);
@@ -307,10 +317,10 @@ function tickStyles(tick: number){
 		scale = 2;
 	}
 	return {
-		transform: props.vert ?
+		transform: vert2.value ?
 			`translate(${props.width/2}px,  ${offset}px) scale(${scale})` :
 			`translate(${offset}px, ${props.height/2}px) scale(${scale})`,
-		transitionProperty: 'transform, opacity',
+		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
 		transitionDuration: '300ms',
 		transitionTimingFunction: 'ease-out',
 		opacity: (offset >= 0 && offset <= availLen.value) ? 1 : 0,
@@ -318,12 +328,12 @@ function tickStyles(tick: number){
 }
 function tickLabelStyles(tick: number){
 	let offset = (tick - startDate.value) / (endDate.value - startDate.value) * availLen.value;
-	let labelSz = props.vert ? 10 : 30;
+	let labelSz = vert2.value ? 10 : 30;
 	return {
-		transform: props.vert ?
+		transform: vert2.value ?
 			`translate(${props.width / 2 + 20}px, ${offset}px)` :
 			`translate(${offset}px, ${props.height / 2 + 30}px)`,
-		transitionProperty: 'transform, opacity',
+		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
 		transitionDuration: '300ms',
 		transitionTimingFunction: 'ease-out',
 		opacity: (offset >= labelSz && offset <= availLen.value - labelSz) ? 1 : 0,
