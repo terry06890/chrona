@@ -241,11 +241,29 @@ const ptrEvtCache = []; // Holds last captured PointerEvent for each pointerId (
 let lastPinchDiff = -1; // Holds last x/y distance between two pointers that are down
 let dragDiff = 0; // Holds accumlated change in pointer's x/y coordinate while dragging
 let dragHandler = 0; // Set by a setTimeout() to a handler for pointer dragging
+let dragVelocity: number; // Used to add 'drag momentum'
+let vUpdateTime: number; // Holds timestamp for last update of 'dragVelocityY'
+let vPrevPointer: null | number; // Holds pointerX/pointerY used for last update of 'dragVelocity'
+let vUpdater = 0; // Set by a setInterval(), used to update 'dragVelocity'
 function onPointerDown(evt: PointerEvent){
 	ptrEvtCache.push(evt);
 	// Update stored cursor position
 	pointerX = evt.clientX;
 	pointerY = evt.clientY;
+	// Update vars for dragging
+	dragDiff = 0;
+	dragVelocity = 0;
+	vUpdateTime = Date.now();
+	vPrevPointer = null;
+	vUpdater = setInterval(() => {
+		if (vPrevPointer != null){
+			let time = Date.now();
+			let ptrDiff = (vert2.value ? pointerY : pointerX) - vPrevPointer;
+			dragVelocity = ptrDiff / (time - vUpdateTime) * 1000;
+			vUpdateTime = time;
+		}
+		vPrevPointer = (vert2.value ? pointerY : pointerX);
+	}, 50);
 }
 function onPointerMove(evt: PointerEvent){
 	// Update event cache
@@ -288,7 +306,16 @@ function onPointerUp(evt: PointerEvent){
 	// Remove from event cache
 	const index = ptrEvtCache.findIndex((e) => e.pointerId == evt.pointerId);
 	ptrEvtCache.splice(index, 1);
-	// Reset other vars
+	// Possibly trigger 'drag momentum'
+	if (vUpdater != 0){ // Might be zero on pointerleave/etc
+		clearInterval(vUpdater);
+		vUpdater = 0;
+		if (lastPinchDiff == -1 && Math.abs(dragVelocity) > 10){
+			let scrollChg = dragVelocity * 0.1;
+			shiftTimeline(-scrollChg / props.height);
+		}
+	}
+	//
 	if (ptrEvtCache.length < 2){
 		lastPinchDiff = -1;
 	}
