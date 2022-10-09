@@ -14,7 +14,7 @@
 	</div>
 	<!-- Content area -->
 	<div class="grow min-h-0 bg-stone-800" ref="contentAreaRef">
-		<time-line :width="contentWidth" :height="contentHeight"/>
+		<time-line :width="contentWidth" :height="contentHeight" :vert="contentHeight > contentWidth"/>
 	</div>
 </div>
 </template>

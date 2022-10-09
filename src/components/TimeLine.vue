@@ -5,20 +5,22 @@
 	@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp"
 	ref="rootRef">
 	<svg :viewBox="`0 0 ${width} ${height}`">
-		<line stroke="yellow" stroke-width="2px" x1="50%" y1="0%" x2="50%" y2="100%"/>
+		<line stroke="yellow" stroke-width="2px"
+			:x1="vert ? '50%' :      0" :y1="vert ?      0 : '50%'"
+			:x2="vert ? '50%' : '100%'" :y2="vert ? '100%' : '50%'"/>
 		<template v-for="n in ticks" :key="n">
-			<line v-if="n == minDate || n == maxDate"
-				:x1="-4" y1="0"
-				:x2="4" y2="0"
-				stroke="yellow" stroke-width="8px" :style="tickStyles(n)" class="animate-fadein"/>
+			<line v-if="n == MIN_DATE || n == MAX_DATE"
+				:x1="vert ? -END_TICK_SZ : 0" :y1="vert ? 0 : -END_TICK_SZ"
+				:x2="vert ?  END_TICK_SZ : 0" :y2="vert ? 0 :  END_TICK_SZ"
+				stroke="yellow" :stroke-width="`${END_TICK_SZ * 2}px`" :style="tickStyles(n)" class="animate-fadein"/>
 			<line v-else
-				:x1="-8" y1="0"
-				:x2="8" y2="0"
+				:x1="vert ? -TICK_LEN : 0" :y1="vert ? 0 : -TICK_LEN"
+				:x2="vert ?  TICK_LEN : 0" :y2="vert ? 0 :  TICK_LEN"
 				stroke="yellow" stroke-width="1px" :style="tickStyles(n)" class="animate-fadein"/>
 		</template>
 		<text fill="#606060" v-for="n in ticks" :key="n"
-			:x="width/2 + 20" y="0"
-			text-anchor="start" dominant-baseline="middle" :style="tickLabelStyles(n)" class="text-sm animate-fadein">
+			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
+			:style="tickLabelStyles(n)" class="text-sm animate-fadein">
 			{{n}}
 		</text>
 	</svg>
@@ -26,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, nextTick} from 'vue';
+import {ref, onMounted, computed, nextTick} from 'vue';
 
 // Refs
 const rootRef = ref(null as HTMLElement | null);
@@ -35,79 +37,82 @@ const rootRef = ref(null as HTMLElement | null);
 const props = defineProps({
 	width: {type: Number, required: true},
 	height: {type: Number, required: true},
+	vert: {type: Boolean, default: false},
 });
 
 // Vars
-const minDate = -1000; // Lowest date that gets marked
-const maxDate = 1000;
+const MIN_DATE = -1000; // Lowest date that gets marked
+const MAX_DATE = 1000;
 const startDate = ref(0); // Lowest date on displayed timeline
 const endDate = ref(0);
-const scales = [200, 50, 10, 1, 0.2]; // The timeline get divided into units of scales[0], then scales[1], etc
-let scaleIdx = 0; // Index of current scale in 'scales'
+const SCALES = [200, 50, 10, 1, 0.2]; // The timeline get divided into units of SCALES[0], then SCALES[1], etc
+let scaleIdx = 0; // Index of current scale in SCALES
 const ticks = ref(null); // Holds date value for each tick
 const SCROLL_SHIFT_CHG = 0.2; // Proportion of timeline length to shift by upon scroll
 const ZOOM_RATIO = 1.5; // When zooming out, the timeline length gets multiplied by this ratio
 const MIN_TICK_SEP = 30; // Smallest px separation between ticks
-const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further if less than this many ticks would result
-let PAD_UNITS = 0.5; // Amount of extra scale units to add before/after min/max date
+const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further into less than this many ticks
+const padUnits = computed(() => props.vert ? 0.5 : 1); // Amount of extra scale units to add before/after min/max date
+const TICK_LEN = 8;
+const END_TICK_SZ = 4; // Size for MIN_DATE/MAX_DATE ticks
+const availLen = computed(() => props.vert ? props.height : props.width);
 
 // For initialisation
 function initTicks(): number[] {
 	// Find smallest usable scale
-	for (let i = 0; i < scales.length; i++){
-		let len = maxDate - minDate + (PAD_UNITS * scales[i]) * 2;
-		if (props.height * (scales[i] / len) > MIN_TICK_SEP){
+	for (let i = 0; i < SCALES.length; i++){
+		let dateLen = MAX_DATE - MIN_DATE + (padUnits.value * SCALES[i]) * 2;
+		if (availLen.value * (SCALES[i] / dateLen) > MIN_TICK_SEP){
 			scaleIdx = i;
 		} else {
 			break;
 		}
 	}
 	// Set start/end date
-	let extraPad = PAD_UNITS * scales[scaleIdx];
-	startDate.value = minDate - extraPad;
-	endDate.value = maxDate + extraPad;
+	let extraPad = padUnits.value * SCALES[scaleIdx];
+	startDate.value = MIN_DATE - extraPad;
+	endDate.value = MAX_DATE + extraPad;
 	// Get tick values
 	let newTicks = [];
-	let next = minDate;
-	while (next <= maxDate){
+	let next = MIN_DATE;
+	while (next <= MAX_DATE){
 		newTicks.push(next);
-		next += scales[scaleIdx];
+		next += SCALES[scaleIdx];
 	}
 	ticks.value = newTicks;
-	//
 	updateTicks();
 }
 onMounted(() => nextTick(initTicks));
 
-// Adds extra ticks outside the visible area (which can transition in upon shift/zoom),
+// Adds extra ticks outside the visible area (which might transition in upon shift/zoom),
 // and adds/removes ticks upon a scale change
 function updateTicks(){
-	let len = endDate.value - startDate.value;
-	let shiftChg = len * SCROLL_SHIFT_CHG;
-	let scaleChg = len * (ZOOM_RATIO - 1) / 2;
-	let scale = scales[scaleIdx];
+	let dateLen = endDate.value - startDate.value;
+	let shiftChg = dateLen * SCROLL_SHIFT_CHG;
+	let scaleChg = dateLen * (ZOOM_RATIO - 1) / 2;
+	let scale = SCALES[scaleIdx];
 	// Get ticks in new range, and add hidden ticks that might transition in on a shift action
 	let tempTicks = [];
-	let next = Math.ceil((Math.max(minDate, startDate.value - shiftChg) - minDate) / scale);
-	let last = Math.floor((Math.min(maxDate, endDate.value + shiftChg) - minDate) / scale);
+	let next = Math.ceil((Math.max(MIN_DATE, startDate.value - shiftChg) - MIN_DATE) / scale);
+	let last = Math.floor((Math.min(MAX_DATE, endDate.value + shiftChg) - MIN_DATE) / scale);
 	while (next <= last){
-		tempTicks.push(minDate + next * scale);
+		tempTicks.push(MIN_DATE + next * scale);
 		next++;
 	}
 	// Get hidden ticks that might transition in on a zoom action
 	let tempTicks2 = [];
 	let tempTicks3 = [];
 	if (scaleIdx > 0){
-		scale = scales[scaleIdx-1];
-		let first = Math.ceil((Math.max(minDate, startDate.value - scaleChg) - minDate) / scale);
-		while ((minDate + first * scale) < tempTicks[0]){
-			tempTicks2.push(minDate + first * scale);
+		scale = SCALES[scaleIdx-1];
+		let first = Math.ceil((Math.max(MIN_DATE, startDate.value - scaleChg) - MIN_DATE) / scale);
+		while ((MIN_DATE + first * scale) < tempTicks[0]){
+			tempTicks2.push(MIN_DATE + first * scale);
 			first++;
 		}
-		let last = Math.floor((Math.min(maxDate, endDate.value + scaleChg) - minDate) / scale);
-		let next = Math.floor((tempTicks[tempTicks.length - 1] - minDate) / scale) + 1;
+		let last = Math.floor((Math.min(MAX_DATE, endDate.value + scaleChg) - MIN_DATE) / scale);
+		let next = Math.floor((tempTicks[tempTicks.length - 1] - MIN_DATE) / scale) + 1;
 		while (next <= last){
-			tempTicks3.push(minDate + next * scale);
+			tempTicks3.push(MIN_DATE + next * scale);
 			next++;
 		}
 	}
@@ -116,14 +121,14 @@ function updateTicks(){
 }
 // Performs a shift action
 function shiftTimeline(n: number){
-	let len = endDate.value - startDate.value;
-	let extraPad = PAD_UNITS * scales[scaleIdx]
-	let paddedMinDate = minDate - extraPad;
-	let paddedMaxDate = maxDate + extraPad;
-	let chg = len * n;
+	let dateLen = endDate.value - startDate.value;
+	let extraPad = padUnits.value * SCALES[scaleIdx]
+	let paddedMinDate = MIN_DATE - extraPad;
+	let paddedMaxDate = MAX_DATE + extraPad;
+	let chg = dateLen * n;
 	if (startDate.value + chg < paddedMinDate){
 		if (startDate.value == paddedMinDate){
-			console.log('Reached minDate limit')
+			console.log('Reached MIN_DATE limit')
 			return;
 		}
 		chg = paddedMinDate - startDate.value;
@@ -131,7 +136,7 @@ function shiftTimeline(n: number){
 		endDate.value += chg;
 	} else if (endDate.value + chg > paddedMaxDate){
 		if (endDate.value == paddedMaxDate){
-			console.log('Reached maxDate limit')
+			console.log('Reached MAX_DATE limit')
 			return;
 		}
 		chg = paddedMaxDate - endDate.value;
@@ -145,25 +150,26 @@ function shiftTimeline(n: number){
 }
 // Performs a zoom action
 function zoomTimeline(frac: number){
-	let oldLen = endDate.value - startDate.value;
-	let newLen = oldLen * frac;
-	let extraPad = PAD_UNITS * scales[scaleIdx]
-	let paddedMinDate = minDate - extraPad;
-	let paddedMaxDate = maxDate + extraPad;
+	let oldDateLen = endDate.value - startDate.value;
+	let newDateLen = oldDateLen * frac;
+	let extraPad = padUnits.value * SCALES[scaleIdx]
+	let paddedMinDate = MIN_DATE - extraPad;
+	let paddedMaxDate = MAX_DATE + extraPad;
 	// Get new bounds
 	let newStart: number;
 	let newEnd: number;
-	if (pointerY == null){
-		let lenChg = newLen - oldLen
+	let ptrOffset = props.vert ? pointerY : pointerX;
+	if (ptrOffset == null){
+		let lenChg = newDateLen - oldDateLen
 		newStart = startDate.value - lenChg / 2;
 		newEnd = endDate.value + lenChg / 2;
 	} else {
-		let y = 0; // Element-relative pointerY
+		let innerOffset = 0; // Element-relative ptrOffset
 		if (rootRef.value != null){ // Can become null during dev-server hot-reload for some reason
 			let rect = rootRef.value.getBoundingClientRect();
-			y = pointerY - rect.top;
+			innerOffset = ptrOffset - rect.top;
 		}
-		let zoomCenter = startDate.value + (y / props.height) * oldLen;
+		let zoomCenter = startDate.value + (innerOffset / availLen.value) * oldDateLen;
 		newStart = zoomCenter - (zoomCenter - startDate.value) * frac;
 		newEnd = zoomCenter + (endDate.value - zoomCenter) * frac;
 	}
@@ -191,8 +197,8 @@ function zoomTimeline(frac: number){
 		}
 	}
 	// Possibly change the scale
-	newLen = newEnd - newStart;
-	let tickDiff = props.height * (scales[scaleIdx] / newLen);
+	newDateLen = newEnd - newStart;
+	let tickDiff = availLen.value * (SCALES[scaleIdx] / newDateLen);
 	if (tickDiff < MIN_TICK_SEP){
 		if (scaleIdx == 0){
 			console.log('INFO: Reached zoom out limit');
@@ -201,12 +207,12 @@ function zoomTimeline(frac: number){
 			scaleIdx--;
 		}
 	} else {
-		if (scaleIdx < scales.length - 1){
-			if (tickDiff > MIN_TICK_SEP * scales[scaleIdx] / scales[scaleIdx + 1]){
+		if (scaleIdx < SCALES.length - 1){
+			if (tickDiff > MIN_TICK_SEP * SCALES[scaleIdx] / SCALES[scaleIdx + 1]){
 				scaleIdx++;
 			}
 		} else {
-			if (newLen / tickDiff < MIN_LAST_TICKS){
+			if (newDateLen / tickDiff < MIN_LAST_TICKS){
 				console.log('INFO: Reached zoom in limit');
 				return;
 			}
@@ -222,8 +228,8 @@ function zoomTimeline(frac: number){
 let pointerX = null; // Stores pointer position (used for pointer-centered zooming)
 let pointerY = null;
 const ptrEvtCache = []; // Holds last captured PointerEvent for each pointerId (used for pinch-zoom)
-let lastPinchY = -1; // Holds last y-distance between two pointers that are down
-let dragDiffY = 0; // Holds accumlated change in pointer's y-coordinate while dragging
+let lastPinchDiff = -1; // Holds last x/y distance between two pointers that are down
+let dragDiff = 0; // Holds accumlated change in pointer's x/y coordinate while dragging
 let dragHandler = 0; // Set by a setTimeout() to a handler for pointer dragging
 function onPointerDown(evt: PointerEvent){
 	ptrEvtCache.push(evt);
@@ -238,29 +244,31 @@ function onPointerMove(evt: PointerEvent){
 	//
 	if (ptrEvtCache.length == 1){
 		// Handle pointer dragging
-		dragDiffY += evt.clientY - pointerY;
+		dragDiff += props.vert ? evt.clientY - pointerY : evt.clientX - pointerX;
 		if (dragHandler == 0){
 			dragHandler = setTimeout(() => {
-				if (Math.abs(dragDiffY) > 2){
-					shiftTimeline(-dragDiffY / props.height);
-					dragDiffY = 0;
+				if (Math.abs(dragDiff) > 2){
+					shiftTimeline(-dragDiff / availLen.value);
+					dragDiff = 0;
 				}
 				dragHandler = 0;
 			}, 50);
 		}
 	} else if (ptrEvtCache.length == 2){
 		// Handle pinch-zoom
-		const pinchY = Math.abs(ptrEvtCache[0].clientY - ptrEvtCache[1].clientY);
-		if (lastPinchY > 0){
-			if (pinchY > lastPinchY){
+		const pinchDiff = Math.abs(props.vert ?
+			ptrEvtCache[0].clientY - ptrEvtCache[1].clientY :
+			ptrEvtCache[0].clientX - ptrEvtCache[1].clientX);
+		if (lastPinchDiff > 0){
+			if (pinchDiff > lastPinchDiff){
 				console.log('Pinching out, zooming in');
 				//TODO: implement pinch-zooming
-			} else if (pinchY < lastPinchY){
+			} else if (pinchDiff < lastPinchDiff){
 				console.log('Pinching in, zooming out');
 				//TODO: implement pinch-zooming
 			}
 		}
-		lastPinchY = pinchY;
+		lastPinchDiff = pinchDiff;
 	}
 	// Update stored cursor position
 	pointerX = evt.clientX;
@@ -272,16 +280,16 @@ function onPointerUp(evt: PointerEvent){
 	ptrEvtCache.splice(index, 1);
 	// Reset other vars
 	if (ptrEvtCache.length < 2){
-		lastPinchY = -1;
+		lastPinchDiff = -1;
 	}
-	dragDiffY = 0;
+	dragDiff = 0;
 }
 function onWheel(evt: WheelEvent){
-	if (evt.deltaY > 0){
-		shiftTimeline(SCROLL_SHIFT_CHG);
-	} else {
-		shiftTimeline(-SCROLL_SHIFT_CHG);
+	let shiftDir = evt.deltaY > 0 ? 1 : -1;
+	if (!props.vert){
+		shiftDir *= -1;
 	}
+	shiftTimeline(shiftDir * SCROLL_SHIFT_CHG);
 }
 function onShiftWheel(evt: WheelEvent){
 	if (evt.deltaY > 0){
@@ -293,28 +301,32 @@ function onShiftWheel(evt: WheelEvent){
 
 // Styles
 function tickStyles(tick: number){
-	let y = (tick - startDate.value) / (endDate.value - startDate.value) * props.height;
-	let scaleX = 1;
-	if (scaleIdx > 0 && tick % scales[scaleIdx-1] == 0){ // If the tick exists on the scale directly above this one
-		scaleX = 2;
+	let offset = (tick - startDate.value) / (endDate.value - startDate.value) * availLen.value;
+	let scale = 1;
+	if (scaleIdx > 0 && tick % SCALES[scaleIdx-1] == 0){ // If the tick exists on the scale directly above this one
+		scale = 2;
 	}
 	return {
-		transform: `translate(${props.width/2}px, ${y}px) scale(${scaleX})`,
+		transform: props.vert ?
+			`translate(${props.width/2}px,  ${offset}px) scale(${scale})` :
+			`translate(${offset}px, ${props.height/2}px) scale(${scale})`,
 		transitionProperty: 'transform, opacity',
 		transitionDuration: '300ms',
 		transitionTimingFunction: 'ease-out',
-		opacity: (y >= 0 && y <= props.height) ? 1 : 0,
+		opacity: (offset >= 0 && offset <= availLen.value) ? 1 : 0,
 	}
 }
 function tickLabelStyles(tick: number){
-	let y = (tick - startDate.value) / (endDate.value - startDate.value) * props.height;
-	let fontHeight = 10;
+	let offset = (tick - startDate.value) / (endDate.value - startDate.value) * availLen.value;
+	let labelSz = props.vert ? 10 : 30;
 	return {
-		transform: `translate(0, ${y}px)`,
+		transform: props.vert ?
+			`translate(${props.width / 2 + 20}px, ${offset}px)` :
+			`translate(${offset}px, ${props.height / 2 + 30}px)`,
 		transitionProperty: 'transform, opacity',
 		transitionDuration: '300ms',
 		transitionTimingFunction: 'ease-out',
-		opacity: (y >= fontHeight && y <= props.height - fontHeight) ? 1 : 0,
+		opacity: (offset >= labelSz && offset <= availLen.value - labelSz) ? 1 : 0,
 	}
 }
 </script>
