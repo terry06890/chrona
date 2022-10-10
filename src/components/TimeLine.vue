@@ -5,9 +5,7 @@
 	@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp"
 	ref="rootRef">
 	<svg :viewBox="`0 0 ${width} ${height}`">
-		<line stroke="yellow" stroke-width="2px"
-			:x1="vert2 ? width/2 :     0" :y1="vert2 ?      0 : height/2"
-			:x2="vert2 ? width/2 : width" :y2="vert2 ? height : height/2"/>
+		<line stroke="yellow" stroke-width="2px" x1="0" y1="0" x2="1" y2="0" :style="mainlineStyles"/>
 		<template v-for="n in ticks" :key="n">
 			<line v-if="n == MIN_DATE || n == MAX_DATE"
 				:x1="vert2 ? -END_TICK_SZ : 0" :y1="vert2 ? 0 : -END_TICK_SZ"
@@ -366,6 +364,14 @@ function onClose(){
 }
 
 // Styles
+const mainlineStyles = computed(() => ({
+	transform: vert2.value ?
+		`translate(${width.value/2}px, 0) rotate(90deg) scale(${height.value},1)` :
+		`translate(0, ${height.value/2}px) scale(${width.value},1)`,
+	transitionProperty: skipTransition.value ? 'none' : 'transform',
+	transitionDuration: '300ms',
+	transitionTimingFunction: 'ease-out',
+}));
 function tickStyles(tick: number){
 	let offset = (tick - startDate.value) / (endDate.value - startDate.value) * availLen.value;
 	let scale = 1;
