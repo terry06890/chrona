@@ -32,7 +32,8 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, computed, nextTick} from 'vue';
+import {ref, onMounted, computed, watch, nextTick} from 'vue';
+import {MIN_DATE, MAX_DATE} from '../lib';
 // Components
 import IconButton from './IconButton.vue';
 // Icons
@@ -44,8 +45,10 @@ const rootRef = ref(null as HTMLElement | null);
 // Props + events
 const props = defineProps({
 	vert: {type: Boolean, required: true},
+	initialStart: {type: Number, required: true},
+	initialEnd: {type: Number, required: true},
 });
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'bound-chg']);
 
 // For skipping transitions on horz/vert swap
 const skipTransition = ref(false);
@@ -72,10 +75,8 @@ const resizeObserver = new ResizeObserver((entries) => {
 onMounted(() => resizeObserver.observe(rootRef.value));
 
 // Vars
-const MIN_DATE = -1000; // Lowest date that gets marked
-const MAX_DATE = 1000;
-const startDate = ref(0); // Lowest date on displayed timeline
-const endDate = ref(0);
+const startDate = ref(props.initialStart); // Lowest date on displayed timeline
+const endDate = ref(props.initialEnd);
 const SCALES = [200, 50, 10, 1, 0.2]; // The timeline get divided into units of SCALES[0], then SCALES[1], etc
 let scaleIdx = 0; // Index of current scale in SCALES
 const ticks = ref(null); // Holds date value for each tick
@@ -92,21 +93,17 @@ const availLen = computed(() => props.vert ? height.value : width.value);
 function initTicks(): number[] {
 	// Find smallest usable scale
 	for (let i = 0; i < SCALES.length; i++){
-		let dateLen = MAX_DATE - MIN_DATE + (padUnits.value * SCALES[i]) * 2;
+		let dateLen = endDate.value - startDate.value;
 		if (availLen.value * (SCALES[i] / dateLen) > MIN_TICK_SEP){
 			scaleIdx = i;
 		} else {
 			break;
 		}
 	}
-	// Set start/end date
-	let extraPad = padUnits.value * SCALES[scaleIdx];
-	startDate.value = MIN_DATE - extraPad;
-	endDate.value = MAX_DATE + extraPad;
 	// Get tick values
 	let newTicks = [];
-	let next = MIN_DATE;
-	while (next <= MAX_DATE){
+	let next = startDate.value;
+	while (next <= endDate.value){
 		newTicks.push(next);
 		next += SCALES[scaleIdx];
 	}
@@ -362,6 +359,11 @@ function onClose(){
 	emit('close');
 }
 
+// For bound-change signalling
+watch(startDate, () => {
+	emit('bound-chg', [startDate.value, endDate.value]);
+});
+
 // Styles
 const mainlineStyles = computed(() => ({
 	transform: props.vert ?
@@ -401,19 +403,3 @@ function tickLabelStyles(tick: number){
 	}
 }
 </script>
-
-<style>
-.animate-fadein {
-	animation-name: fadein;
-	animation-duration: 300ms;
-	animation-timing-function: ease-in;
-}
-@keyframes fadein {
-	from {
-		opacity: 0;
-	}
-	to {
-		opacity: 1;
-	}
-}
-</style>

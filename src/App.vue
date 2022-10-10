@@ -18,8 +18,10 @@
 	<!-- Content area -->
 	<div class="grow min-h-0 bg-stone-800 flex" :class="{'flex-col': !vert}" ref="contentAreaRef">
 		<time-line v-for="(data, idx) in timelineData" :key="data"
-			class="grow basis-full min-h-0 outline outline-1" :vert="vert" @close="onTimelineClose(idx)"/>
-		<base-line :vert="vert" :timelineData="[]"/>
+			:vert="vert" :initialStart="data.start" :initialEnd="data.end"
+			class="grow basis-full min-h-0 outline outline-1"
+			@close="onTimelineClose(idx)" @bound-chg="onBoundChg($event, idx)"/>
+		<base-line :vert="vert" :timelineData="timelineData"/>
 	</div>
 </div>
 </template>
@@ -50,14 +52,21 @@ onMounted(updateAreaDims)
 
 // For multiple timelines
 const vert = computed(() => contentHeight.value > contentWidth.value);
-const timelineData = ref([{}]);
+const timelineData = ref([]);
+let nextTimelineId = 1;
+function genTimelineData(){
+	let data = {id: nextTimelineId, start: -500, end: 500};
+	nextTimelineId++;
+	return data;
+}
+timelineData.value.push(genTimelineData());
 function onTimelineAdd(){
 	if (vert.value && contentWidth.value / (timelineData.value.length + 1) < 150 ||
 		!vert.value && contentHeight.value / (timelineData.value.length + 1) < 150){
 		console.log('Reached timeline min size');
 		return;
 	}
-	timelineData.value.push({});
+	timelineData.value.push(genTimelineData());
 }
 function onTimelineClose(idx: number){
 	if (timelineData.value.length == 1){
@@ -65,6 +74,11 @@ function onTimelineClose(idx: number){
 		return;
 	}
 	timelineData.value.splice(idx, 1);
+}
+function onBoundChg(newBounds: [number, number], idx: number){
+	let data = timelineData.value[idx];
+	data.start = newBounds[0];
+	data.end = newBounds[1];
 }
 
 // For resize handling

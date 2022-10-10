@@ -3,6 +3,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* For transitions/animations */
+.fade-enter-from, .fade-leave-to {
+	opacity: 0;
+}
+.fade-enter-active, .fade-leave-active {
+	transition-property: opacity;
+	transition-duration: 300ms;
+	transition-timing-function: ease-out;
+}
+.animate-fadein {
+	animation-name: fadein;
+	animation-duration: 300ms;
+	animation-timing-function: ease-in;
+}
+@keyframes fadein {
+	from {
+		opacity: 0;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
 /* Other */
 @font-face {
 	font-family: Ubuntu;
