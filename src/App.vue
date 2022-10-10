@@ -5,26 +5,40 @@
 		<h1 class="my-auto ml-2 text-4xl">Histplorer</h1>
 		<div class="mx-auto"/> <!-- Spacer -->
 		<!-- Icons -->
-		<icon-button :size="45" class="text-stone-50 bg-yellow-600">
-			<help-icon/>
+		<icon-button :size="45" class="text-stone-50 bg-yellow-600" @click="onTimelineAdd" title="Add a timeline">
+			<plus-icon/>
 		</icon-button>
 		<icon-button :size="45" class="text-stone-50 bg-yellow-600">
 			<settings-icon/>
 		</icon-button>
+		<icon-button :size="45" class="text-stone-50 bg-yellow-600">
+			<help-icon/>
+		</icon-button>
 	</div>
 	<!-- Content area -->
-	<div class="grow min-h-0 bg-stone-800" ref="contentAreaRef">
-		<time-line :width="contentWidth" :height="contentHeight" :vert="contentHeight > contentWidth"/>
+	<div class="grow min-h-0 bg-stone-800 relative" ref="contentAreaRef">
+		<time-line v-for="(data, idx) in timelineData" :key="data"
+			:style="{
+				position: 'absolute',
+				top: (vert ? 0 : idx * contentHeight / timelineData.length) + 'px',
+				left: (vert ? idx * contentWidth / timelineData.length : 0) + 'px',
+				outline: 'black solid 1px',
+			}"
+			:width="vert ? contentWidth / timelineData.length : contentWidth"
+			:height="vert ? contentHeight : contentHeight / timelineData.length"
+			:vert="vert"
+			@close="onTimelineClose(idx)"/>
 	</div>
 </div>
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, onUnmounted} from 'vue';
+import {ref, computed, onMounted, onUnmounted} from 'vue';
 // Components
 import TimeLine from './components/TimeLine.vue';
 import IconButton from './components/IconButton.vue';
 // Icons
+import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 
@@ -40,6 +54,25 @@ function updateAreaDims(){
 	contentHeight.value = contentAreaEl.offsetHeight;
 }
 onMounted(updateAreaDims)
+
+// For multiple timelines
+const vert = computed(() => contentHeight.value > contentWidth.value);
+const timelineData = ref([{}]);
+function onTimelineAdd(){
+	if (vert.value && contentWidth.value / (timelineData.value.length + 1) < 150 ||
+		!vert.value && contentHeight.value / (timelineData.value.length + 1) < 150){
+		console.log('Reached timeline min size');
+		return;
+	}
+	timelineData.value.push({});
+}
+function onTimelineClose(idx: number){
+	if (timelineData.value.length == 1){
+		console.log('Ignored close for last timeline')
+		return;
+	}
+	timelineData.value.splice(idx, 1);
+}
 
 // For resize handling
 let lastResizeHdlrTime = 0; // Used to throttle resize handling
@@ -65,5 +98,4 @@ async function onResize(){
 }
 onMounted(() => window.addEventListener('resize', onResize));
 onUnmounted(() => window.removeEventListener('resize', onResize));
-
 </script>

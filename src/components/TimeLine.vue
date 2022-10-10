@@ -1,13 +1,14 @@
 <template>
-<div class="touch-none" :width="width" :height="height"
+<div class="touch-none relative"
+	:style="{minWidth: width + 'px', maxWidth: width + 'px', maxHeight: height + 'px', minHeight: height + 'px'}"
 	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel"
 	@pointerdown.prevent="onPointerDown" @pointermove.prevent="onPointerMove" @pointerup.prevent="onPointerUp"
 	@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp"
 	ref="rootRef">
-	<svg :viewBox="`0 0 ${width} ${height}`">
+	<svg :viewBox="`0 0 ${width} ${height}`" width="100%" height="100%">
 		<line stroke="yellow" stroke-width="2px"
-			:x1="vert2 ? '50%' :      0" :y1="vert2 ?      0 : '50%'"
-			:x2="vert2 ? '50%' : '100%'" :y2="vert2 ? '100%' : '50%'"/>
+			:x1="vert2 ? width/2 :     0" :y1="vert2 ?      0 : height/2"
+			:x2="vert2 ? width/2 : width" :y2="vert2 ? height : height/2"/>
 		<template v-for="n in ticks" :key="n">
 			<line v-if="n == MIN_DATE || n == MAX_DATE"
 				:x1="vert2 ? -END_TICK_SZ : 0" :y1="vert2 ? 0 : -END_TICK_SZ"
@@ -24,21 +25,31 @@
 			{{n}}
 		</text>
 	</svg>
+	<!-- Icons -->
+	<icon-button :size="30" class="absolute bottom-2 right-2 text-stone-50 bg-yellow-600"
+		@click="onClose" title="Remove timeline">
+		<minus-icon/>
+	</icon-button>
 </div>
 </template>
 
 <script setup lang="ts">
 import {ref, onMounted, computed, watch, nextTick} from 'vue';
+// Components
+import IconButton from './IconButton.vue';
+// Icons
+import MinusIcon from './icon/MinusIcon.vue';
 
 // Refs
 const rootRef = ref(null as HTMLElement | null);
 
-// Props
+// Props + events
 const props = defineProps({
 	width: {type: Number, required: true},
 	height: {type: Number, required: true},
 	vert: {type: Boolean, default: false},
 });
+const emit = defineEmits(['close']);
 
 // Vars
 const MIN_DATE = -1000; // Lowest date that gets marked
@@ -334,6 +345,11 @@ function onShiftWheel(evt: WheelEvent){
 	} else {
 		zoomTimeline(1/ZOOM_RATIO);
 	}
+}
+
+// For button handling
+function onClose(){
+	emit('close');
 }
 
 // Styles
