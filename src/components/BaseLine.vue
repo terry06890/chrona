@@ -36,7 +36,7 @@ function periodStyles(period){
 		flexGrow: period.len,
 	};
 }
-const labelStyles = computed(() => ({
+const labelStyles: Record<string,string> = computed(() => ({
 	transform: props.vert ? 'rotate(90deg) translate(50%, 0)' : 'none',
 	whiteSpace: 'nowrap',
 	width: props.vert ? '40px' : 'auto',

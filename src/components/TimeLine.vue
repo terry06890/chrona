@@ -73,7 +73,7 @@ const resizeObserver = new ResizeObserver((entries) => {
 		}
 	}
 });
-onMounted(() => resizeObserver.observe(rootRef.value));
+onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 
 // Vars
 const startDate = ref(props.initialStart); // Lowest date on displayed timeline
@@ -91,7 +91,7 @@ const END_TICK_SZ = 4; // Size for MIN_DATE/MAX_DATE ticks
 const availLen = computed(() => props.vert ? height.value : width.value);
 
 // For initialisation
-function initTicks(): number[] {
+function initTicks(){
 	// Find smallest usable scale
 	for (let i = 0; i < SCALES.length; i++){
 		let dateLen = endDate.value - startDate.value;
@@ -196,7 +196,7 @@ function zoomTimeline(frac: number){
 		let innerOffset = 0; // Element-relative ptrOffset
 		if (rootRef.value != null){ // Can become null during dev-server hot-reload for some reason
 			let rect = rootRef.value.getBoundingClientRect();
-			innerOffset = ptrOffset - rect.top;
+			innerOffset = props.vert ? ptrOffset - rect.top : ptrOffset - rect.left;
 		}
 		let zoomCenter = startDate.value + (innerOffset / availLen.value) * oldDateLen;
 		newStart = zoomCenter - (zoomCenter - startDate.value) * frac;

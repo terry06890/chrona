@@ -1,7 +1,7 @@
 <template>
 <div class="absolute left-0 top-0 w-screen h-screen overflow-hidden flex flex-col" style="bg-stone-800" >
 	<!-- Title bar -->
-	<div class="flex shadow gap-2 p-2 bg-stone-900 text-yellow-500">
+	<div class="flex gap-2 p-2 bg-stone-900 text-yellow-500">
 		<h1 class="my-auto ml-2 text-4xl">Histplorer</h1>
 		<div class="mx-auto"/> <!-- Spacer -->
 		<!-- Icons -->
