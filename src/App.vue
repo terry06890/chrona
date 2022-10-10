@@ -16,18 +16,9 @@
 		</icon-button>
 	</div>
 	<!-- Content area -->
-	<div class="grow min-h-0 bg-stone-800 relative" ref="contentAreaRef">
+	<div class="grow min-h-0 bg-stone-800 flex" :class="{'flex-col': !vert}" ref="contentAreaRef">
 		<time-line v-for="(data, idx) in timelineData" :key="data"
-			:style="{
-				position: 'absolute',
-				top: (vert ? 0 : idx * contentHeight / timelineData.length) + 'px',
-				left: (vert ? idx * contentWidth / timelineData.length : 0) + 'px',
-				outline: 'black solid 1px',
-			}"
-			:width="vert ? contentWidth / timelineData.length : contentWidth"
-			:height="vert ? contentHeight : contentHeight / timelineData.length"
-			:vert="vert"
-			@close="onTimelineClose(idx)"/>
+			class="grow basis-full min-h-0 outline outline-1" :vert="vert" @close="onTimelineClose(idx)"/>
 	</div>
 </div>
 </template>

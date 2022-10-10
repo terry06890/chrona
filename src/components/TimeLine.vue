@@ -1,11 +1,10 @@
 <template>
 <div class="touch-none relative"
-	:style="{minWidth: width + 'px', maxWidth: width + 'px', maxHeight: height + 'px', minHeight: height + 'px'}"
 	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel"
 	@pointerdown.prevent="onPointerDown" @pointermove.prevent="onPointerMove" @pointerup.prevent="onPointerUp"
 	@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp"
 	ref="rootRef">
-	<svg :viewBox="`0 0 ${width} ${height}`" width="100%" height="100%">
+	<svg :viewBox="`0 0 ${width} ${height}`">
 		<line stroke="yellow" stroke-width="2px"
 			:x1="vert2 ? width/2 :     0" :y1="vert2 ?      0 : height/2"
 			:x2="vert2 ? width/2 : width" :y2="vert2 ? height : height/2"/>
@@ -45,11 +44,25 @@ const rootRef = ref(null as HTMLElement | null);
 
 // Props + events
 const props = defineProps({
-	width: {type: Number, required: true},
-	height: {type: Number, required: true},
 	vert: {type: Boolean, default: false},
 });
 const emit = defineEmits(['close']);
+
+// For size tracking
+const width = ref(0);
+const height = ref(0);
+const WRITING_MODE_HORZ = window.getComputedStyle(document.body)['writing-mode'].startsWith('horizontal');
+const resizeObserver = new ResizeObserver((entries) => {
+	for (const entry of entries){
+		if (entry.contentBoxSize){
+			const boxSize = Array.isArray(entry.contentBoxSize) ? entry.contentBoxSize[0] : entry.contentBoxSize;
+			width.value = WRITING_MODE_HORZ ? boxSize.inlineSize : boxSize.blockSize;
+			height.value = WRITING_MODE_HORZ ? boxSize.blockSize : boxSize.inlineSize;
+			console.log(`Resize to: ${width.value} x ${height.value}`)
+		}
+	}
+});
+onMounted(() => resizeObserver.observe(rootRef.value));
 
 // Vars
 const MIN_DATE = -1000; // Lowest date that gets marked
@@ -66,7 +79,7 @@ const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further into les
 const padUnits = computed(() => vert2.value ? 0.5 : 1); // Amount of extra scale units to add before/after min/max date
 const TICK_LEN = 8;
 const END_TICK_SZ = 4; // Size for MIN_DATE/MAX_DATE ticks
-const availLen = computed(() => vert2.value ? props.height : props.width);
+const availLen = computed(() => vert2.value ? height.value : width.value);
 
 // For skipping transitions on horz/vert swap
 const vert2 = ref(props.vert); // Used in place of 'vert', and only updated after disabling transitions
@@ -323,7 +336,7 @@ function onPointerUp(evt: PointerEvent){
 		vUpdater = 0;
 		if (lastPinchDiff == -1 && Math.abs(dragVelocity) > 10){
 			let scrollChg = dragVelocity * 0.1;
-			shiftTimeline(-scrollChg / props.height);
+			shiftTimeline(-scrollChg / availLen.value);
 		}
 	}
 	//
@@ -361,8 +374,8 @@ function tickStyles(tick: number){
 	}
 	return {
 		transform: vert2.value ?
-			`translate(${props.width/2}px,  ${offset}px) scale(${scale})` :
-			`translate(${offset}px, ${props.height/2}px) scale(${scale})`,
+			`translate(${width.value/2}px,  ${offset}px) scale(${scale})` :
+			`translate(${offset}px, ${height.value/2}px) scale(${scale})`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
 		transitionDuration: '300ms',
 		transitionTimingFunction: 'ease-out',
@@ -374,8 +387,8 @@ function tickLabelStyles(tick: number){
 	let labelSz = vert2.value ? 10 : 30;
 	return {
 		transform: vert2.value ?
-			`translate(${props.width / 2 + 20}px, ${offset}px)` :
-			`translate(${offset}px, ${props.height / 2 + 30}px)`,
+			`translate(${width.value / 2 + 20}px, ${offset}px)` :
+			`translate(${offset}px, ${height.value / 2 + 30}px)`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
 		transitionDuration: '300ms',
 		transitionTimingFunction: 'ease-out',
