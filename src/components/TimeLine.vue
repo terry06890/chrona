@@ -20,7 +20,7 @@
 		<text fill="#606060" v-for="n in ticks" :key="n"
 			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
 			:style="tickLabelStyles(n)" class="text-sm animate-fadein">
-			{{n}}
+			{{Math.floor(n * 10) / 10}}
 		</text>
 	</svg>
 	<!-- Icons -->
@@ -43,7 +43,7 @@ const rootRef = ref(null as HTMLElement | null);
 
 // Props + events
 const props = defineProps({
-	vert: {type: Boolean, default: false},
+	vert: {type: Boolean, required: true},
 });
 const emit = defineEmits(['close']);
 

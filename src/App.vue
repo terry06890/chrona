@@ -19,6 +19,7 @@
 	<div class="grow min-h-0 bg-stone-800 flex" :class="{'flex-col': !vert}" ref="contentAreaRef">
 		<time-line v-for="(data, idx) in timelineData" :key="data"
 			class="grow basis-full min-h-0 outline outline-1" :vert="vert" @close="onTimelineClose(idx)"/>
+		<base-line :vert="vert" :timelineData="[]"/>
 	</div>
 </div>
 </template>
@@ -27,6 +28,7 @@
 import {ref, computed, onMounted, onUnmounted} from 'vue';
 // Components
 import TimeLine from './components/TimeLine.vue';
+import BaseLine from './components/BaseLine.vue';
 import IconButton from './components/IconButton.vue';
 // Icons
 import PlusIcon from './components/icon/PlusIcon.vue';
