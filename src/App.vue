@@ -48,10 +48,8 @@ const contentAreaRef = ref(null as HTMLElement | null);
 const store = useStore();
 
 // For content sizing (used to decide between horizontal and vertical mode)
-const contentWidth = ref(window.innerWidth);
-const contentHeight = ref(window.innerHeight);
-	// Setting this and contentWidth to 0 makes it likely that 'vert' will change on startup,
-		// and trigger unwanted transitions (like baseline spans changing size)
+const contentWidth = ref(0);
+const contentHeight = ref(0);
 const vert = computed(() => contentHeight.value > contentWidth.value);
 function updateAreaDims(){
 	let contentAreaEl = contentAreaRef.value!;

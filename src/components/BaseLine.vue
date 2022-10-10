@@ -37,6 +37,10 @@ const periods: Ref<Period[]> = ref([
 	{label: 'Three', len: 1},
 ]);
 
+// For skipping transitions on startup
+const skipTransition = ref(true);
+onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
+
 // For size tracking (used to prevent time spans shrinking below 1 pixel)
 const width = ref(0);
 const height = ref(0);
@@ -89,7 +93,7 @@ function spanStyles(range: TimelineRange){
 	}
 	return {
 		...styles,
-		transition: 'all 300ms ease-out',
+		transition: skipTransition.value ? 'none' : 'all 300ms ease-out',
 		color: 'black',
 		backgroundColor: store.color.alt,
 		opacity: 0.3,
