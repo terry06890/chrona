@@ -32,7 +32,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, computed, watch, nextTick} from 'vue';
+import {ref, onMounted, computed, watch} from 'vue';
 import {MIN_DATE, MAX_DATE} from '../lib';
 // Components
 import IconButton from './IconButton.vue';
@@ -80,7 +80,6 @@ const startDate = ref(props.initialStart); // Lowest date on displayed timeline
 const endDate = ref(props.initialEnd);
 const SCALES = [200, 50, 10, 1, 0.2]; // The timeline get divided into units of SCALES[0], then SCALES[1], etc
 let scaleIdx = 0; // Index of current scale in SCALES
-const ticks = ref(null); // Holds date value for each tick
 const SCROLL_SHIFT_CHG = 0.2; // Proportion of timeline length to shift by upon scroll
 const ZOOM_RATIO = 1.5; // When zooming out, the timeline length gets multiplied by this ratio
 const MIN_TICK_SEP = 30; // Smallest px separation between ticks
@@ -90,32 +89,20 @@ const TICK_LEN = 8;
 const END_TICK_SZ = 4; // Size for MIN_DATE/MAX_DATE ticks
 const availLen = computed(() => props.vert ? height.value : width.value);
 
-// For initialisation
-function initTicks(){
-	// Find smallest usable scale
+// Initialise to smallest usable scale
+function initScale(){
+	let dateLen = endDate.value - startDate.value;
 	for (let i = 0; i < SCALES.length; i++){
-		let dateLen = endDate.value - startDate.value;
 		if (availLen.value * (SCALES[i] / dateLen) > MIN_TICK_SEP){
 			scaleIdx = i;
 		} else {
 			break;
 		}
 	}
-	// Get tick values
-	let newTicks = [];
-	let next = startDate.value;
-	while (next <= endDate.value){
-		newTicks.push(next);
-		next += SCALES[scaleIdx];
-	}
-	ticks.value = newTicks;
-	updateTicks();
 }
-onMounted(() => nextTick(initTicks));
+onMounted(initScale);
 
-// Adds extra ticks outside the visible area (which might transition in upon shift/zoom),
-// and adds/removes ticks upon a scale change
-function updateTicks(){
+const ticks = computed((): number[] => { // Holds date value for each tick
 	let dateLen = endDate.value - startDate.value;
 	let shiftChg = dateLen * SCROLL_SHIFT_CHG;
 	let scaleChg = dateLen * (ZOOM_RATIO - 1) / 2;
@@ -146,8 +133,9 @@ function updateTicks(){
 		}
 	}
 	//
-	ticks.value = [].concat(tempTicks2, tempTicks, tempTicks3);
-}
+	return [].concat(tempTicks2, tempTicks, tempTicks3);
+});
+
 // Performs a shift action
 function shiftTimeline(n: number){
 	let dateLen = endDate.value - startDate.value;
@@ -175,7 +163,6 @@ function shiftTimeline(n: number){
 		startDate.value += chg;
 		endDate.value += chg;
 	}
-	updateTicks();
 }
 // Performs a zoom action
 function zoomTimeline(frac: number){
@@ -250,7 +237,6 @@ function zoomTimeline(frac: number){
 	//
 	startDate.value = newStart;
 	endDate.value = newEnd;
-	updateTicks();
 }
 
 // For mouse/etc handling
