@@ -24,7 +24,7 @@
 		</text>
 	</svg>
 	<!-- Icons -->
-	<icon-button :size="30" class="absolute bottom-2 right-2 text-stone-50 bg-yellow-600"
+	<icon-button :size="30" class="absolute top-2 right-2 text-stone-50 bg-yellow-600"
 		@click="onClose" title="Remove timeline">
 		<minus-icon/>
 	</icon-button>
@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 import {ref, onMounted, computed, watch} from 'vue';
-import {MIN_DATE, MAX_DATE} from '../lib';
+import {MIN_DATE, MAX_DATE, SCALES} from '../lib';
 // Components
 import IconButton from './IconButton.vue';
 // Icons
@@ -78,7 +78,6 @@ onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 // Vars
 const startDate = ref(props.initialStart); // Lowest date on displayed timeline
 const endDate = ref(props.initialEnd);
-const SCALES = [200, 50, 10, 1, 0.2]; // The timeline get divided into units of SCALES[0], then SCALES[1], etc
 let scaleIdx = 0; // Index of current scale in SCALES
 const SCROLL_SHIFT_CHG = 0.2; // Proportion of timeline length to shift by upon scroll
 const ZOOM_RATIO = 1.5; // When zooming out, the timeline length gets multiplied by this ratio
@@ -228,7 +227,7 @@ function zoomTimeline(frac: number){
 				scaleIdx++;
 			}
 		} else {
-			if (newDateLen / tickDiff < MIN_LAST_TICKS){
+			if (availLen.value / tickDiff < MIN_LAST_TICKS){
 				console.log('INFO: Reached zoom in limit');
 				return;
 			}
