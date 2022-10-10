@@ -8,16 +8,16 @@
 		<line stroke="yellow" stroke-width="2px" x1="0" y1="0" x2="1" y2="0" :style="mainlineStyles"/>
 		<template v-for="n in ticks" :key="n">
 			<line v-if="n == MIN_DATE || n == MAX_DATE"
-				:x1="vert2 ? -END_TICK_SZ : 0" :y1="vert2 ? 0 : -END_TICK_SZ"
-				:x2="vert2 ?  END_TICK_SZ : 0" :y2="vert2 ? 0 :  END_TICK_SZ"
+				:x1="vert ? -END_TICK_SZ : 0" :y1="vert ? 0 : -END_TICK_SZ"
+				:x2="vert ?  END_TICK_SZ : 0" :y2="vert ? 0 :  END_TICK_SZ"
 				stroke="yellow" :stroke-width="`${END_TICK_SZ * 2}px`" :style="tickStyles(n)" class="animate-fadein"/>
 			<line v-else
-				:x1="vert2 ? -TICK_LEN : 0" :y1="vert2 ? 0 : -TICK_LEN"
-				:x2="vert2 ?  TICK_LEN : 0" :y2="vert2 ? 0 :  TICK_LEN"
+				:x1="vert ? -TICK_LEN : 0" :y1="vert ? 0 : -TICK_LEN"
+				:x2="vert ?  TICK_LEN : 0" :y2="vert ? 0 :  TICK_LEN"
 				stroke="yellow" stroke-width="1px" :style="tickStyles(n)" class="animate-fadein"/>
 		</template>
 		<text fill="#606060" v-for="n in ticks" :key="n"
-			x="0" y="0" :text-anchor="vert2 ? 'start' : 'middle'" dominant-baseline="middle"
+			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
 			:style="tickLabelStyles(n)" class="text-sm animate-fadein">
 			{{n}}
 		</text>
@@ -31,7 +31,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, computed, watch, nextTick} from 'vue';
+import {ref, onMounted, computed, nextTick} from 'vue';
 // Components
 import IconButton from './IconButton.vue';
 // Icons
@@ -46,6 +46,10 @@ const props = defineProps({
 });
 const emit = defineEmits(['close']);
 
+// For skipping transitions on horz/vert swap
+const skipTransition = ref(false);
+const prevVert = ref(props.vert);
+
 // For size tracking
 const width = ref(0);
 const height = ref(0);
@@ -56,7 +60,11 @@ const resizeObserver = new ResizeObserver((entries) => {
 			const boxSize = Array.isArray(entry.contentBoxSize) ? entry.contentBoxSize[0] : entry.contentBoxSize;
 			width.value = WRITING_MODE_HORZ ? boxSize.inlineSize : boxSize.blockSize;
 			height.value = WRITING_MODE_HORZ ? boxSize.blockSize : boxSize.inlineSize;
-			console.log(`Resize to: ${width.value} x ${height.value}`)
+			if (props.vert != prevVert.value){
+				skipTransition.value = true;
+				setTimeout(() => {skipTransition.value = false}, 100); // Note: Using nextTick() doesn't work
+				prevVert.value = props.vert;
+			}
 		}
 	}
 });
@@ -74,20 +82,10 @@ const SCROLL_SHIFT_CHG = 0.2; // Proportion of timeline length to shift by upon 
 const ZOOM_RATIO = 1.5; // When zooming out, the timeline length gets multiplied by this ratio
 const MIN_TICK_SEP = 30; // Smallest px separation between ticks
 const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further into less than this many ticks
-const padUnits = computed(() => vert2.value ? 0.5 : 1); // Amount of extra scale units to add before/after min/max date
+const padUnits = computed(() => props.vert ? 0.5 : 1); // Amount of extra scale units to add before/after min/max date
 const TICK_LEN = 8;
 const END_TICK_SZ = 4; // Size for MIN_DATE/MAX_DATE ticks
-const availLen = computed(() => vert2.value ? height.value : width.value);
-
-// For skipping transitions on horz/vert swap
-const vert2 = ref(props.vert); // Used in place of 'vert', and only updated after disabling transitions
-const skipTransition = ref(false);
-watch(() => props.vert, async (newVal: boolean) => {
-	skipTransition.value = true;
-	await nextTick();
-	vert2.value = newVal;
-	setTimeout(() => {skipTransition.value = false}, 0); // Using nextTick() here doesn't work
-});
+const availLen = computed(() => props.vert ? height.value : width.value);
 
 // For initialisation
 function initTicks(): number[] {
@@ -190,7 +188,7 @@ function zoomTimeline(frac: number){
 	// Get new bounds
 	let newStart: number;
 	let newEnd: number;
-	let ptrOffset = vert2.value ? pointerY : pointerX;
+	let ptrOffset = props.vert ? pointerY : pointerX;
 	if (ptrOffset == null){
 		let lenChg = newDateLen - oldDateLen
 		newStart = startDate.value - lenChg / 2;
@@ -280,11 +278,11 @@ function onPointerDown(evt: PointerEvent){
 	vUpdater = setInterval(() => {
 		if (vPrevPointer != null){
 			let time = Date.now();
-			let ptrDiff = (vert2.value ? pointerY : pointerX) - vPrevPointer;
+			let ptrDiff = (props.vert ? pointerY : pointerX) - vPrevPointer;
 			dragVelocity = ptrDiff / (time - vUpdateTime) * 1000;
 			vUpdateTime = time;
 		}
-		vPrevPointer = (vert2.value ? pointerY : pointerX);
+		vPrevPointer = (props.vert ? pointerY : pointerX);
 	}, 50);
 }
 function onPointerMove(evt: PointerEvent){
@@ -294,7 +292,7 @@ function onPointerMove(evt: PointerEvent){
 	//
 	if (ptrEvtCache.length == 1){
 		// Handle pointer dragging
-		dragDiff += vert2.value ? evt.clientY - pointerY : evt.clientX - pointerX;
+		dragDiff += props.vert ? evt.clientY - pointerY : evt.clientX - pointerX;
 		if (dragHandler == 0){
 			dragHandler = setTimeout(() => {
 				if (Math.abs(dragDiff) > 2){
@@ -306,7 +304,7 @@ function onPointerMove(evt: PointerEvent){
 		}
 	} else if (ptrEvtCache.length == 2){
 		// Handle pinch-zoom
-		const pinchDiff = Math.abs(vert2.value ?
+		const pinchDiff = Math.abs(props.vert ?
 			ptrEvtCache[0].clientY - ptrEvtCache[1].clientY :
 			ptrEvtCache[0].clientX - ptrEvtCache[1].clientX);
 		if (lastPinchDiff > 0){
@@ -345,7 +343,7 @@ function onPointerUp(evt: PointerEvent){
 }
 function onWheel(evt: WheelEvent){
 	let shiftDir = evt.deltaY > 0 ? 1 : -1;
-	if (!vert2.value){
+	if (!props.vert){
 		shiftDir *= -1;
 	}
 	shiftTimeline(shiftDir * SCROLL_SHIFT_CHG);
@@ -365,7 +363,7 @@ function onClose(){
 
 // Styles
 const mainlineStyles = computed(() => ({
-	transform: vert2.value ?
+	transform: props.vert ?
 		`translate(${width.value/2}px, 0) rotate(90deg) scale(${height.value},1)` :
 		`translate(0, ${height.value/2}px) scale(${width.value},1)`,
 	transitionProperty: skipTransition.value ? 'none' : 'transform',
@@ -379,7 +377,7 @@ function tickStyles(tick: number){
 		scale = 2;
 	}
 	return {
-		transform: vert2.value ?
+		transform: props.vert ?
 			`translate(${width.value/2}px,  ${offset}px) scale(${scale})` :
 			`translate(${offset}px, ${height.value/2}px) scale(${scale})`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
@@ -390,9 +388,9 @@ function tickStyles(tick: number){
 }
 function tickLabelStyles(tick: number){
 	let offset = (tick - startDate.value) / (endDate.value - startDate.value) * availLen.value;
-	let labelSz = vert2.value ? 10 : 30;
+	let labelSz = props.vert ? 10 : 30;
 	return {
-		transform: vert2.value ?
+		transform: props.vert ?
 			`translate(${width.value / 2 + 20}px, ${offset}px)` :
 			`translate(${offset}px, ${height.value / 2 + 30}px)`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
