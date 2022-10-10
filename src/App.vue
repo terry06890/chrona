@@ -41,8 +41,10 @@ import HelpIcon from './components/icon/HelpIcon.vue';
 const contentAreaRef = ref(null as HTMLElement | null);
 
 // For content sizing
-const contentWidth = ref(0);
-const contentHeight = ref(0);
+const contentWidth = ref(window.innerWidth);
+const contentHeight = ref(window.innerHeight);
+	// Setting this and contentWidth to 0 makes it likely that 'vert' will change on startup,
+		// and trigger unwanted transitions (like baseline spans changing size)
 function updateAreaDims(){
 	let contentAreaEl = contentAreaRef.value!;
 	contentWidth.value = contentAreaEl.offsetWidth;

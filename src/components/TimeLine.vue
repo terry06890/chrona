@@ -50,13 +50,14 @@ const props = defineProps({
 });
 const emit = defineEmits(['close', 'bound-chg']);
 
-// For skipping transitions on horz/vert swap
-const skipTransition = ref(false);
-const prevVert = ref(props.vert);
+// For skipping transitions on startup (and horz/vert switch)
+const skipTransition = ref(true);
+onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
 
 // For size tracking
 const width = ref(0);
 const height = ref(0);
+const prevVert = ref(props.vert);
 const WRITING_MODE_HORZ = window.getComputedStyle(document.body)['writing-mode'].startsWith('horizontal');
 const resizeObserver = new ResizeObserver((entries) => {
 	for (const entry of entries){
