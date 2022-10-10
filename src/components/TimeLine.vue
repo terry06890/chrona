@@ -5,7 +5,8 @@
 	@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp"
 	ref="rootRef">
 	<svg :viewBox="`0 0 ${width} ${height}`">
-		<line stroke="yellow" stroke-width="2px" x1="0" y1="0" x2="1" y2="0" :style="mainlineStyles"/>
+		<line stroke="yellow" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
+			<!-- Line from (0,0) to (0,1), with extra length to avoid gaps during resize transitions -->
 		<template v-for="n in ticks" :key="n">
 			<line v-if="n == MIN_DATE || n == MAX_DATE"
 				:x1="vert ? -END_TICK_SZ : 0" :y1="vert ? 0 : -END_TICK_SZ"
