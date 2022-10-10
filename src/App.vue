@@ -1,33 +1,34 @@
 <template>
-<div class="absolute left-0 top-0 w-screen h-screen overflow-hidden flex flex-col" style="bg-stone-800" >
+<div class="absolute left-0 top-0 w-screen h-screen overflow-hidden flex flex-col">
 	<!-- Title bar -->
-	<div class="flex gap-2 p-2 bg-stone-900 text-yellow-500">
-		<h1 class="my-auto ml-2 text-4xl">Histplorer</h1>
+	<div class="flex gap-2 p-2" :style="{backgroundColor: store.color.bgDark2}">
+		<h1 class="my-auto ml-2 text-4xl" :style="{color: store.color.altDark}">Histplorer</h1>
 		<div class="mx-auto"/> <!-- Spacer -->
 		<!-- Icons -->
-		<icon-button :size="45" class="text-stone-50 bg-yellow-600" @click="onTimelineAdd" title="Add a timeline">
+		<icon-button :size="45" :style="buttonStyles" @click="onTimelineAdd" title="Add a timeline">
 			<plus-icon/>
 		</icon-button>
-		<icon-button :size="45" class="text-stone-50 bg-yellow-600">
+		<icon-button :size="45" :style="buttonStyles">
 			<settings-icon/>
 		</icon-button>
-		<icon-button :size="45" class="text-stone-50 bg-yellow-600">
+		<icon-button :size="45" :style="buttonStyles">
 			<help-icon/>
 		</icon-button>
 	</div>
 	<!-- Content area -->
-	<div class="grow min-h-0 bg-stone-800 flex" :class="{'flex-col': !vert}" ref="contentAreaRef">
-		<time-line v-for="(data, idx) in timelineData" :key="data"
-			:vert="vert" :initialStart="data.start" :initialEnd="data.end"
+	<div class="grow min-h-0 flex" :class="{'flex-col': !vert}"
+			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
+		<time-line v-for="(range, idx) in timelineRanges" :key="range.id"
+			:vert="vert" :initialStart="range.start" :initialEnd="range.end"
 			class="grow basis-full min-h-0 outline outline-1"
-			@close="onTimelineClose(idx)" @bound-chg="onBoundChg($event, idx)"/>
-		<base-line :vert="vert" :timelineData="timelineData"/>
+			@remove="onTimelineRemove(idx)" @range-chg="onRangeChg($event, idx)"/>
+		<base-line :vert="vert" :timelineRanges="timelineRanges"/>
 	</div>
 </div>
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onUnmounted} from 'vue';
+import {ref, computed, onMounted, onUnmounted, Ref} from 'vue';
 // Components
 import TimeLine from './components/TimeLine.vue';
 import BaseLine from './components/BaseLine.vue';
@@ -36,15 +37,22 @@ import IconButton from './components/IconButton.vue';
 import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
+// Other
+import {TimelineRange} from './lib';
+import {useStore} from './store';
 
 // Refs
 const contentAreaRef = ref(null as HTMLElement | null);
 
-// For content sizing
+// Global store
+const store = useStore();
+
+// For content sizing (used to decide between horizontal and vertical mode)
 const contentWidth = ref(window.innerWidth);
 const contentHeight = ref(window.innerHeight);
 	// Setting this and contentWidth to 0 makes it likely that 'vert' will change on startup,
 		// and trigger unwanted transitions (like baseline spans changing size)
+const vert = computed(() => contentHeight.value > contentWidth.value);
 function updateAreaDims(){
 	let contentAreaEl = contentAreaRef.value!;
 	contentWidth.value = contentAreaEl.offsetWidth;
@@ -52,35 +60,36 @@ function updateAreaDims(){
 }
 onMounted(updateAreaDims)
 
-// For multiple timelines
-const vert = computed(() => contentHeight.value > contentWidth.value);
-const timelineData = ref([]);
+// Timeline data
+const timelineRanges: Ref<TimelineRange[]> = ref([]);
 let nextTimelineId = 1;
-function genTimelineData(){
-	let data = {id: nextTimelineId, start: -500, end: 500};
+function addNewTimelineRange(){
+	timelineRanges.value.push({id: nextTimelineId, start: -500, end: 500});
 	nextTimelineId++;
-	return data;
 }
-timelineData.value.push(genTimelineData());
+addNewTimelineRange();
+function onRangeChg(newBounds: [number, number], idx: number){
+	let range = timelineRanges.value[idx];
+	range.start = newBounds[0];
+	range.end = newBounds[1];
+}
+
+// For timeline addition/removal
+const MIN_TIMELINE_BREADTH = 150;
 function onTimelineAdd(){
-	if (vert.value && contentWidth.value / (timelineData.value.length + 1) < 150 ||
-		!vert.value && contentHeight.value / (timelineData.value.length + 1) < 150){
-		console.log('Reached timeline min size');
+	if (vert.value && contentWidth.value / (timelineRanges.value.length + 1) < MIN_TIMELINE_BREADTH ||
+		!vert.value && contentHeight.value / (timelineRanges.value.length + 1) < MIN_TIMELINE_BREADTH){
+		console.log('Reached timeline minimum breadth');
 		return;
 	}
-	timelineData.value.push(genTimelineData());
+	addNewTimelineRange();
 }
-function onTimelineClose(idx: number){
-	if (timelineData.value.length == 1){
-		console.log('Ignored close for last timeline')
+function onTimelineRemove(idx: number){
+	if (timelineRanges.value.length == 1){
+		console.log('Ignored removal of last timeline')
 		return;
 	}
-	timelineData.value.splice(idx, 1);
-}
-function onBoundChg(newBounds: [number, number], idx: number){
-	let data = timelineData.value[idx];
-	data.start = newBounds[0];
-	data.end = newBounds[1];
+	timelineRanges.value.splice(idx, 1);
 }
 
 // For resize handling
@@ -107,4 +116,10 @@ async function onResize(){
 }
 onMounted(() => window.addEventListener('resize', onResize));
 onUnmounted(() => window.removeEventListener('resize', onResize));
+
+// Styles
+const buttonStyles = computed(() => ({
+	color: store.color.text,
+	backgroundColor: store.color.altDark2,
+}));
 </script>
