@@ -38,7 +38,7 @@ import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
-import {TimelineRange} from './lib';
+import {HistDate, TimelineRange} from './lib';
 import {useStore} from './store';
 
 // Refs
@@ -62,11 +62,11 @@ onMounted(updateAreaDims)
 const timelineRanges: Ref<TimelineRange[]> = ref([]);
 let nextTimelineId = 1;
 function addNewTimelineRange(){
-	timelineRanges.value.push({id: nextTimelineId, start: -500, end: 500});
+	timelineRanges.value.push({id: nextTimelineId, start: new HistDate(1900, 1, 1), end: new HistDate(2000, 1, 1)});
 	nextTimelineId++;
 }
 addNewTimelineRange();
-function onRangeChg(newBounds: [number, number], idx: number){
+function onRangeChg(newBounds: [HistDate, HistDate], idx: number){
 	let range = timelineRanges.value[idx];
 	range.start = newBounds[0];
 	range.end = newBounds[1];

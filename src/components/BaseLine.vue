@@ -4,7 +4,7 @@
 	<div v-for="p in periods" :key="p.label" :style="periodStyles(p)">
 		<div :style="labelStyles">{{p.label}}</div>
 	</div>
-	<TransitionGroup name="fade">
+	<TransitionGroup name="fade" v-if="mounted">
 		<div v-for="range in timelineRanges" :key="range.id" class="absolute" :style="spanStyles(range)">
 			{{range.id}}
 		</div>
@@ -32,9 +32,11 @@ const props = defineProps({
 // Static time periods
 type Period = {label: string, len: number};
 const periods: Ref<Period[]> = ref([
-	{label: 'One', len: 1},
-	{label: 'Two', len: 2},
-	{label: 'Three', len: 1},
+	{label: 'Pre Hadean', len: 8},
+	{label: 'Hadean', len: 1},
+	{label: 'Archaean', len: 1.5},
+	{label: 'Proterozoic', len: 2},
+	{label: 'Phanerozoic', len: 0.5},
 ]);
 
 // For skipping transitions on startup
@@ -44,6 +46,13 @@ onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
 // For size tracking (used to prevent time spans shrinking below 1 pixel)
 const width = ref(0);
 const height = ref(0);
+const mounted = ref(false);
+onMounted(() => {
+	let rootEl = rootRef.value!;
+	width.value = rootEl.offsetWidth;
+	height.value = rootEl.offsetHeight;
+	mounted.value = true;
+})
 const resizeObserver = new ResizeObserver((entries) => {
 	for (const entry of entries){
 		if (entry.contentBoxSize){
@@ -71,11 +80,13 @@ const labelStyles = computed((): Record<string, string> => ({
 function spanStyles(range: TimelineRange){
 	let styles: Record<string,string>;
 	let availLen = props.vert ? height.value : width.value;
-	let startFrac = (range.start - MIN_DATE) / (MAX_DATE - MIN_DATE);
-	let lenFrac = (range.end - range.start) / (MAX_DATE - MIN_DATE);
+	// Determine positions in full timeline (only considers year values)
+	let startFrac = (range.start.year - MIN_DATE.year) / (MAX_DATE.year - MIN_DATE.year);
+	let lenFrac = (range.end.year - range.start.year) / (MAX_DATE.year - MIN_DATE.year);
 	let startPx = Math.max(0, availLen * startFrac); // Prevent negatives due to end-padding
 	let lenPx = Math.min(availLen - startPx, availLen * lenFrac);
-	lenPx = Math.max(1, lenPx);
+	lenPx = Math.max(1, lenPx); // Prevent zero length
+	//
 	if (props.vert){
 		styles = {
 			top: startPx + 'px',
