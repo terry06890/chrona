@@ -119,7 +119,7 @@ export class HistDate {
 		if (yearDiff == 0){
 			return later.month - earlier.month;
 		} else {
-			return (13 - earlier.month) + (yearDiff * 12) + later.month - 1;
+			return (13 - earlier.month) + (yearDiff - 1) * 12 + later.month - 1;
 		}
 	}
 	clone(){
@@ -131,6 +131,7 @@ export class HistDate {
 const currentDate = new Date();
 export const MIN_DATE = new HistDate(-13.8e9);
 export const MAX_DATE = new HistDate(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate());
+export const JDN_EPOCH = -4713; // The year where julian day numbers start (and where we can represent months+days)
 export const MONTH_SCALE = -1;
 export const DAY_SCALE = -2;
 export const SCALES = [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE];
@@ -156,6 +157,10 @@ if (DEBUG){
 }
 export function stepDate(date: HistDate, scale: number, {forward=true, count=1, inplace=false} = {}): HistDate {
 	const newDate = inplace ? date : date.clone();
+	if (count < 0){
+		count = -count;
+		forward = !forward;
+	}
 	for (let i = 0; i < count; i++){
 		if (scale == DAY_SCALE){
 			if (forward && newDate.day < 28){
@@ -200,6 +205,20 @@ export function inDateScale(date: HistDate, scale: number): boolean {
 	} else {
 		return date.year % scale == 0 && date.month == 1 && date.day == 1;
 	}
+}
+export function getScaleRatio(scale: number, scale2: number){
+	// Returns upper number of units in 'scale' per unit in 'scale2'
+	if (scale == DAY_SCALE){
+		scale = 1 / 12 / 31;
+	} else if (scale == MONTH_SCALE){
+		scale = 1 / 12;
+	}
+	if (scale2 == DAY_SCALE){
+		scale2 = 1 / 12 / 31;
+	} else if (scale2 == MONTH_SCALE){
+		scale2 = 1 / 12;
+	}
+	return scale2 / scale;
 }
 
 // For sending timeline-bound data to BaseLine

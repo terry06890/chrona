@@ -14,20 +14,18 @@
 				:x2="vert ?  END_TICK_SZ : 0" :y2="vert ? 0 :  END_TICK_SZ"
 				:stroke="store.color.alt" :stroke-width="`${END_TICK_SZ * 2}px`"
 				:style="tickStyles(idx)" class="animate-fadein"/>
-			<line v-else-if="idx >= ticks.vStartIdx && idx <= ticks.vEndIdx"
+			<line v-else
 				:x1="vert ? -TICK_LEN : 0" :y1="vert ? 0 : -TICK_LEN"
 				:x2="vert ?  TICK_LEN : 0" :y2="vert ? 0 :  TICK_LEN"
 				:stroke="store.color.alt" stroke-width="1px"
 				:style="tickStyles(idx)" class="animate-fadein"/>
 		</template>
 		<!-- Tick labels -->
-		<template v-for="date, idx in ticks.dates" :key="date.toInt()">
-			<text v-if="idx >= ticks.vStartIdx && idx <= ticks.vEndIdx" :fill="store.color.textDark"
-				x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
-				:style="tickLabelStyles(idx)" class="text-sm animate-fadein">
-				{{date}}
-			</text>
-		</template>
+		<text v-for="date, idx in ticks.dates" :key="date.toInt()"
+			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
+			:fill="store.color.textDark" :style="tickLabelStyles(idx)" class="text-sm animate-fadein">
+			{{date}}
+		</text>
 	</svg>
 	<!-- Buttons -->
 	<icon-button :size="30" class="absolute top-2 right-2"
@@ -45,8 +43,8 @@ import IconButton from './IconButton.vue';
 // Icons
 import MinusIcon from './icon/MinusIcon.vue';
 // Other
-import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES,
-	HistDate, stepDate, inDateScale} from '../lib';
+import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, JDN_EPOCH,
+	HistDate, stepDate, inDateScale, getScaleRatio} from '../lib';
 import {useStore} from '../store';
 
 // Refs
@@ -94,22 +92,27 @@ const resizeObserver = new ResizeObserver((entries) => {
 onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 
 // Timeline data
-const startDate = ref(props.initialStart); // Lowest date on displayed timeline
+const startDate = ref(props.initialStart); // Earliest date to display
 const endDate = ref(props.initialEnd);
+const INITIAL_EXTRA_OFFSET = 0.5;
+const startOffset = ref(INITIAL_EXTRA_OFFSET); // Fraction of a scale unit before startDate to show
+	// Note: Without this, the timeline can only move if the distance is over one unit, which makes dragging awkward,
+		// can cause unexpected jumps when zooming, and limits display when a unit has many ticks on the next scale
+const endOffset = ref(INITIAL_EXTRA_OFFSET);
 const scaleIdx = ref(0); // Index of current scale in SCALES
 const scale = computed(() => SCALES[scaleIdx.value])
 // Initialise to smallest usable scale
 function initScale(){
-	if (startDate.value.year < -4713){ // If a bound is before the Julian period start of 4713 BCE, use a yearly scale
+	if (startDate.value.year < JDN_EPOCH){ // If unable to use JDNs, use a yearly scale
 		scaleIdx.value = getYearlyScale(startDate.value, endDate.value, availLen.value);
 	} else {
-		let dayDiff = startDate.value.getDayDiff(endDate.value);
+		let dayDiff = startDate.value.getDayDiff(endDate.value) + startOffset.value + endOffset.value;
 		// Check for day scale usability
 		if (availLen.value / dayDiff >= MIN_TICK_SEP){
 			scaleIdx.value = SCALES.findIndex(s => s == DAY_SCALE);
 		} else {
 			// Check for month scale usability
-			let monthDiff = startDate.value.getMonthDiff(endDate.value);
+			let monthDiff = startDate.value.getMonthDiff(endDate.value) + startOffset.value + endOffset.value;
 			if (availLen.value / monthDiff >= MIN_TICK_SEP){
 				scaleIdx.value = SCALES.findIndex(s => s == MONTH_SCALE);
 			} else { // Use a yearly scale
@@ -122,11 +125,17 @@ function getYearlyScale(startDate: HistDate, endDate: HistDate, availLen: number
 	// Get the smallest yearly scale that divides a date range, without making ticks too close
 	let yearDiff = endDate.year - startDate.year;
 	let idx = 0;
-	while (SCALES[idx] > yearDiff){
-		idx++;
+	while (SCALES[idx] >= yearDiff){ // Get scale with units smaller than yearDiff
+		idx += 1;
 	}
-	while (idx < SCALES.length - 1 && availLen * SCALES[idx + 1] / yearDiff > MIN_TICK_SEP){
-		idx++;
+	while (idx < SCALES.length - 1){ // Check for usable smaller scales
+		let nextScale = SCALES[idx + 1]
+		let adjustedYearDiff = yearDiff + startOffset.value * nextScale + endOffset.value * nextScale;
+		if (availLen / (adjustedYearDiff / nextScale) >= MIN_TICK_SEP){
+			idx += 1;
+		} else {
+			break;
+		}
 	}
 	return idx;
 }
@@ -135,154 +144,191 @@ onMounted(initScale);
 // Tick data
 const TICK_LEN = 8;
 const END_TICK_SZ = 4; // Size for MIN_DATE/MAX_DATE ticks
-const MIN_TICK_SEP = 5; // Smallest px separation between ticks
+const MIN_TICK_SEP = 30; // Smallest px separation between ticks
 const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further into less than this many ticks
-function getNumTimeUnits(): number {
+type Ticks = {
+	dates: HistDate[], // One for each tick to render
+	startIdx: number,
+		// Index of first visible tick (hidden ticks are used for smoother transitions)
+		// Ignored if 'dates' is empty
+	endIdx: number, // Index of last visible tick
+};
+function getNumVisibleUnits(): number {
+	let numUnits: number;
 	if (scale.value == DAY_SCALE){
-		return startDate.value.getDayDiff(endDate.value);
+		numUnits = startDate.value.getDayDiff(endDate.value);
 	} else if (scale.value == MONTH_SCALE){
-		return startDate.value.getMonthDiff(endDate.value);
+		numUnits = startDate.value.getMonthDiff(endDate.value);
 	} else {
-		return Math.floor((endDate.value.year - startDate.value.year) / scale.value);
+		numUnits = (endDate.value.year - startDate.value.year) / scale.value;
 	}
+	return numUnits + startOffset.value + endOffset.value;
 }
-const ticks = computed((): {dates: HistDate[], startIdx: number, endIdx: number,
-		vStartIdx: number, vEndIdx: number} => {
-		if (!mounted.value){
-		return {dates: [], startIdx: 0, endIdx: 0, vStartIdx: 0, vEndIdx: 0};
-		}
-		// The result holds tick dates, and indexes indicating where the startDate and endDate are
-		let numUnits = getNumTimeUnits();
-		let tempTicks: HistDate[] = [];
-		let startIdx: number;
-		let endIdx: number;
-		let panUnits = Math.floor(numUnits * store.scrollRatio);
-		// Get hidden preceding ticks
-		let next: HistDate;
-		if (MIN_DATE.isEarlier(startDate.value, scale.value)){
-		next = startDate.value;
+const ticks = computed((): Ticks => {
+	if (!mounted.value){
+		return {dates: [], startIdx: 0, endIdx: 0};
+	}
+	let numUnits = getNumVisibleUnits();
+	let dates: HistDate[] = [];
+	let startIdx: number;
+	let endIdx: number;
+	// Get hidden preceding ticks
+	let panUnits = Math.floor(numUnits * store.scrollRatio); // Potential distance shifted upon a pan action
+	if (MIN_DATE.isEarlier(startDate.value, scale.value)){
+		let date = startDate.value;
 		for (let i = 0; i < panUnits; i++){
-		next = stepDate(next, scale.value, {forward: false});
-		tempTicks.push(next);
-		if (MIN_DATE.equals(next, scale.value)){
-		break;
-		}
-		}
-		tempTicks.reverse();
-		}
-		startIdx = tempTicks.length;
-		// Get ticks between bounds
-		next = startDate.value.clone();
-		for (let i = 0; i < numUnits + 1; i++){
-			tempTicks.push(next);
-			next = stepDate(next, scale.value);
-		}
-		endIdx = tempTicks.length - 1;
-		// Get hidden following ticks
-		if (next.isEarlier(MAX_DATE, scale.value)){
-			for (let i = 0; i < panUnits; i++){
-				next = stepDate(next, scale.value);
-				tempTicks.push(next)
-					if (MAX_DATE.equals(next, scale.value)){
-						break;
-					}
+			date = stepDate(date, scale.value, {forward: false});
+			dates.push(date);
+			if (MIN_DATE.equals(date, scale.value)){
+				break;
 			}
 		}
-		// Get hidden ticks that might transition in after zooming
-		let tempTicks2: HistDate[] = [];
-		let tempTicks3: HistDate[] = [];
-		if (scaleIdx.value > 0 &&
-				availLen.value / (numUnits * store.zoomRatio) < MIN_TICK_SEP){ // If zoom-out would decrease scale
-			let newNumUnits = Math.floor(numUnits * store.zoomRatio) - numUnits - panUnits * 2;
-			let zoomedScale = SCALES[scaleIdx.value-1]
-				let unitsPerZoomedUnit = zoomedScale / scale.value;
-			let next = tempTicks[0];
-			if (MIN_DATE.isEarlier(next, scale.value)){
-				for (let i = 0; i < newNumUnits / unitsPerZoomedUnit; i++){ // Get preceding ticks
-					next = stepDate(next, zoomedScale, {forward: false});
-					tempTicks2.push(next);
-					if (MIN_DATE.equals(next, scale.value)){
-						break;
-					}
+		dates.reverse();
+	}
+	startIdx = dates.length;
+	// Get visible ticks
+	let date = startDate.value.clone()
+	dates.push(date);
+	for (let i = 0; i < Math.round(numUnits - startOffset.value - endOffset.value); i++){
+		date = stepDate(date, scale.value);
+		dates.push(date);
+	}
+	endIdx = dates.length - 1;
+	// Get hidden following ticks
+	if (date.isEarlier(MAX_DATE, scale.value)){
+		for (let i = 0; i < panUnits; i++){
+			date = stepDate(date, scale.value);
+			dates.push(date);
+			if (MAX_DATE.equals(date, scale.value)){
+				break;
+			}
+		}
+	}
+	// Get hidden ticks that might transition in after zooming
+	let datesBefore: HistDate[] = [];
+	let datesAfter: HistDate[] = [];
+	if (scaleIdx.value > 0 &&
+			availLen.value / (numUnits * store.zoomRatio) < MIN_TICK_SEP){ // If zoom-out would decrease scale
+		let zoomUnits = numUnits * (store.zoomRatio - 1); // Potential distance shifted upon a zoom-out
+		if (zoomUnits > panUnits){
+			let zoomedScale = SCALES[scaleIdx.value-1];
+			let unitsPerZoomedUnit = getScaleRatio(scale.value, zoomedScale);
+			date = dates[0];
+			// Get preceding ticks
+			for (let i = 0; i < (zoomUnits - panUnits) / unitsPerZoomedUnit; i++){
+				date = stepDate(date, zoomedScale, {forward: false});
+				if (date.isEarlier(MIN_DATE, scale.value)){
+					break;
 				}
-				tempTicks2.reverse();
+				datesBefore.push(date);
 			}
-			next = tempTicks[tempTicks.length - 1];
-			if (next.isEarlier(MAX_DATE, scale.value)){
-				for (let i = 0; i < newNumUnits / unitsPerZoomedUnit; i++){ // Get preceding ticks
-					next = stepDate(next, zoomedScale);
-					tempTicks3.push(next);
-					if (MAX_DATE.equals(next, scale.value)){
-						break;
-					}
+			datesBefore.reverse();
+			// Get following ticks
+			date = dates[dates.length - 1];
+			for (let i = 0; i < (zoomUnits - panUnits) / unitsPerZoomedUnit; i++){
+				date = stepDate(date, zoomedScale);
+				if (MAX_DATE.isEarlier(date, scale.value)){
+					break;
 				}
+				datesAfter.push(date);
 			}
 		}
-		// Join into single array
-		let vStartIdx = startIdx;
-		while (tempTicks[vStartIdx].isEarlier(MIN_DATE, scale.value)){
-			vStartIdx += 1;
-		}
-		let vEndIdx = endIdx;
-		while (MAX_DATE.isEarlier(tempTicks[vEndIdx], scale.value)){
-			vEndIdx -= 1;
-		}
-		startIdx += tempTicks2.length;
-		endIdx += tempTicks2.length;
-		vStartIdx += tempTicks2.length;
-		vEndIdx += tempTicks2.length;
-		let dates = [...tempTicks2, ...tempTicks, ...tempTicks3];
-		return {dates, startIdx, endIdx, vStartIdx, vEndIdx};
-		});
+	}
+	//
+	dates = [...datesBefore, ...dates, ...datesAfter];
+	startIdx += datesBefore.length;
+	endIdx += datesBefore.length;
+	return {dates, startIdx, endIdx};
+});
 
 // For panning/zooming
-function panTimeline(scrollRatio: number): boolean {
-	let numUnits = getNumTimeUnits();
-	let chgUnits = Math.trunc(numUnits * scrollRatio);
-	if (chgUnits == 0){
-		return false;
+function panTimeline(scrollRatio: number){
+	let numUnits = getNumVisibleUnits();
+	let chgUnits = numUnits * scrollRatio;
+	let [numStartSteps, numEndSteps, newStartOffset, newEndOffset] = getMovedBounds(chgUnits, chgUnits);
+	if (scrollRatio > 0){
+		while (true){
+			if (endDate.value.equals(MAX_DATE, scale.value)){
+				let extraChg = INITIAL_EXTRA_OFFSET - endOffset.value;
+				if (extraChg == 0){
+					console.log('Reached maximum date limit');
+					newStartOffset = startOffset.value;
+					newEndOffset = endOffset.value;
+				} else {
+					let extraStartSteps: number;
+					[extraStartSteps, , newStartOffset, ] = getMovedBounds(extraChg, extraChg);
+					newEndOffset = INITIAL_EXTRA_OFFSET;
+					stepDate(startDate.value, scale.value, {count: extraStartSteps, inplace: true});
+				}
+				numStartSteps = 0;
+				break;
+			}
+			if (numEndSteps > 0){
+				stepDate(endDate.value, scale.value, {inplace: true});
+				numEndSteps -= 1;
+				if (numStartSteps > 0){
+					stepDate(startDate.value, scale.value, {inplace: true});
+					numStartSteps -= 1;
+				}
+			} else {
+				if (numStartSteps > 0){
+					stepDate(startDate.value, scale.value, {count: numStartSteps, inplace: true});
+				}
+				break;
+			}
+		}
+	} else {
+		while (true){
+			if (MIN_DATE.equals(startDate.value, scale.value)){
+				let extraChg = INITIAL_EXTRA_OFFSET - startOffset.value;
+				if (extraChg == 0){
+					console.log('Reached minimum date limit');
+					newStartOffset = startOffset.value;
+					newEndOffset = endOffset.value;
+				} else {
+					let extraEndSteps: number;
+					[, extraEndSteps, , newEndOffset] = getMovedBounds(extraChg, extraChg);
+					newStartOffset = INITIAL_EXTRA_OFFSET;
+					stepDate(endDate.value, scale.value, {count: extraEndSteps, inplace: true});
+				}
+				numEndSteps = 0;
+				break;
+			}
+			if (numStartSteps < 0){
+				stepDate(startDate.value, scale.value, {forward: false, inplace: true});
+				numStartSteps += 1;
+				if (numEndSteps < 0){
+					stepDate(endDate.value, scale.value, {forward: false, inplace: true});
+					numEndSteps += 1;
+				}
+			} else {
+				if (numEndSteps < 0){
+					stepDate(endDate.value, scale.value, {count: numEndSteps, inplace: true});
+				}
+				break;
+			}
+		}
 	}
-	let paddedMinDate = stepDate(MIN_DATE, scale.value, {forward: false});
-	let paddedMaxDate = stepDate(MAX_DATE, scale.value);
-	if (scrollRatio < 0 && startDate.value.equals(paddedMinDate, scale.value)){
-		console.log('Reached minimum date limit');
-		return true;
-	}
-	if (scrollRatio > 0 && endDate.value.equals(paddedMaxDate, scale.value)){
-		console.log('Reached maximum date limit');
-		return true;
-	}
-	while (chgUnits < 0 && paddedMinDate.isEarlier(startDate.value, scale.value)){
-		stepDate(startDate.value, scale.value, {forward: false, inplace: true});
-		stepDate(endDate.value, scale.value, {forward: false, inplace: true});
-		chgUnits += 1;
-	}
-	while (chgUnits > 0 && endDate.value.isEarlier(paddedMaxDate, scale.value)){
-		stepDate(startDate.value, scale.value, {inplace: true});
-		stepDate(endDate.value, scale.value, {inplace: true});
-		chgUnits -= 1;
-	}
-	return true;
+	startOffset.value = newStartOffset;
+	endOffset.value = newEndOffset;
 }
 function zoomTimeline(zoomRatio: number){
-	let paddedMinDate = stepDate(MIN_DATE, scale.value, {forward: false});
-	let paddedMaxDate = stepDate(MAX_DATE, scale.value);
 	if (zoomRatio > 1
-			&& startDate.value.equals(paddedMinDate, scale.value)
-			&& endDate.value.equals(paddedMaxDate, scale.value)){
+			&& startDate.value.equals(MIN_DATE, scale.value)
+			&& endDate.value.equals(MAX_DATE, scale.value)){
 		console.log('Reached upper scale limit');
 		return;
 	}
-	let numUnits = getNumTimeUnits();
-	let newNumUnits = Math.floor(numUnits * zoomRatio);
+	let numUnits = getNumVisibleUnits();
+	let newNumUnits = numUnits * zoomRatio;
 	// Get tentative bound changes
 	let startChg: number;
 	let endChg: number;
 	let ptrOffset = props.vert ? pointerY : pointerX;
 	if (ptrOffset == null){
-		let unitChg = Math.abs(newNumUnits - numUnits);
-		startChg = Math.ceil(unitChg / 2);
-		endChg = Math.floor(unitChg / 2);
+		let unitChg = newNumUnits - numUnits;
+		startChg = unitChg / 2;
+		endChg = unitChg / 2;
 	} else { // Pointer-centered zoom
 		// Get element-relative ptrOffset
 		let innerOffset = 0;
@@ -290,32 +336,39 @@ function zoomTimeline(zoomRatio: number){
 			let rect = rootRef.value.getBoundingClientRect();
 			innerOffset = props.vert ? ptrOffset - rect.top : ptrOffset - rect.left;
 		}
-		//
+		// Get bound changes
 		let zoomCenter = numUnits * (innerOffset / availLen.value);
-		startChg = Math.round(Math.abs(zoomCenter * (zoomRatio - 1)));
-		endChg = Math.abs(newNumUnits - numUnits) - startChg;
+		startChg = -(zoomCenter * (zoomRatio - 1));
+		endChg = (numUnits - zoomCenter) * (zoomRatio - 1)
 	}
 	// Get new bounds
 	let newStart = startDate.value.clone();
 	let newEnd = endDate.value.clone();
+	let [numStartSteps, numEndSteps, newStartOffset, newEndOffset] = getMovedBounds(startChg, endChg);
 	if (zoomRatio <= 1){
-		stepDate(newStart, scale.value, {inplace: true, count: startChg});
-		stepDate(newEnd, scale.value, {forward: false, inplace: true, count: endChg});
+		stepDate(newStart, scale.value, {count: numStartSteps, inplace: true});
+		stepDate(newEnd, scale.value, {count: numEndSteps, inplace: true});
 	} else {
-		while (startChg > 0 && paddedMinDate.isEarlier(newStart, scale.value)){
+		newNumUnits = numUnits;
+		while (numStartSteps < 0){
+			if (MIN_DATE.equals(newStart, scale.value)){
+				newStartOffset = INITIAL_EXTRA_OFFSET;
+				break;
+			}
 			stepDate(newStart, scale.value, {forward: false, inplace: true});
-			startChg -= 1;
+			numStartSteps += 1;
+			newNumUnits += 1;
 		}
-		endChg += startChg; // Transfer excess into end expansion
-		while (endChg > 0 && newEnd.isEarlier(paddedMaxDate, scale.value)){
+		while (numEndSteps > 0){
+			if (MAX_DATE.equals(newEnd, scale.value)){
+				newEndOffset = INITIAL_EXTRA_OFFSET;
+				break;
+			}
 			stepDate(newEnd, scale.value, {inplace: true});
-			endChg -= 1;
+			numEndSteps -= 1;
+			newNumUnits += 1;
 		}
-		while (endChg > 0 && paddedMinDate.isEarlier(newStart, scale.value)){ // Transfer excess into start expansion
-			stepDate(newStart, scale.value, {forward: false, inplace: true});
-			endChg -= 1;
-		}
-		newNumUnits -= endChg;
+		newNumUnits += newStartOffset + newEndOffset;
 	}
 	// Possibly change the scale
 	let tickDiff = availLen.value / newNumUnits;
@@ -324,7 +377,11 @@ function zoomTimeline(zoomRatio: number){
 			console.log('INFO: Reached zoom out limit');
 			return;
 		} else {
+			let oldUnitsPerNew = getScaleRatio(SCALES[scaleIdx.value], SCALES[scaleIdx.value - 1]);
 			scaleIdx.value -= 1;
+			// Update offsets
+			newStartOffset /= oldUnitsPerNew;
+			newEndOffset /= oldUnitsPerNew;
 		}
 	} else { // Possibly zoom in
 		if (scaleIdx.value == SCALES.length - 1){
@@ -333,23 +390,47 @@ function zoomTimeline(zoomRatio: number){
 				return;
 			}
 		} else {
-			let nextScale = SCALES[scaleIdx.value + 1];
-			let zoomedTickDiff: number;
-			if (nextScale == MONTH_SCALE){
-				zoomedTickDiff = tickDiff / 12;
-			} else if (nextScale == DAY_SCALE){
-				zoomedTickDiff = tickDiff / 31;
-			} else {
-				zoomedTickDiff = tickDiff / (scale.value / nextScale);
-			}
+			let newUnitsPerOld = getScaleRatio(SCALES[scaleIdx.value + 1], SCALES[scaleIdx.value]);
+			let zoomedTickDiff = tickDiff / newUnitsPerOld;
 			if (zoomedTickDiff > MIN_TICK_SEP){
 				scaleIdx.value += 1;
+				// Update offsets
+				newStartOffset *= newUnitsPerOld;
+				stepDate(newStart, scale.value, {forward: false, count: Math.floor(newStartOffset), inplace: true});
+				newStartOffset %= 1;
+				newEndOffset *= newUnitsPerOld;
+				stepDate(newEnd, scale.value, {count: Math.floor(newEndOffset), inplace: true});
+				newEndOffset %= 1;
 			}
 		}
 	}
 	//
 	startDate.value = newStart;
 	endDate.value = newEnd;
+	startOffset.value = newStartOffset;
+	endOffset.value = newEndOffset;
+}
+function getMovedBounds(startChg: number, endChg: number): [number, number, number, number] {
+	// Returns a number of start and end steps to take, and new start and end offset values
+	let numStartSteps: number;
+	let numEndSteps: number;
+	let newStartOffset: number;
+	let newEndOffset: number;
+	if (startChg >= 0){
+		numStartSteps = Math.ceil(startChg - startOffset.value);
+		newStartOffset = (startOffset.value - startChg) - Math.floor(startOffset.value - startChg);
+	} else {
+		numStartSteps = Math.ceil(startChg - startOffset.value);
+		newStartOffset = Math.abs((startChg - startOffset.value) % 1);
+	}
+	if (endChg >= 0){
+		numEndSteps = Math.floor(endChg + endOffset.value);
+		newEndOffset = (endOffset.value + endChg) % 1;
+	} else {
+		numEndSteps = Math.floor(endChg + endOffset.value);
+		newEndOffset = (endOffset.value + endChg) - Math.floor(endOffset.value + endChg);
+	}
+	return [numStartSteps, numEndSteps, newStartOffset, newEndOffset];
 }
 
 // For mouse/etc handling
@@ -394,10 +475,8 @@ function onPointerMove(evt: PointerEvent){
 		if (dragHandler == 0){
 			dragHandler = setTimeout(() => {
 				if (Math.abs(dragDiff) > 2){
-					const moved = panTimeline(-dragDiff / availLen.value);
-					if (moved){
-						dragDiff = 0;
-					}
+					panTimeline(-dragDiff / availLen.value);
+					dragDiff = 0;
 				}
 				dragHandler = 0;
 			}, 50);
@@ -474,7 +553,9 @@ const mainlineStyles = computed(() => ({
 	transitionTimingFunction,
 }));
 function tickStyles(idx: number){
-	let offset = (idx - ticks.value.startIdx) / (ticks.value.endIdx - ticks.value.startIdx) * availLen.value;
+	let offset =
+		(idx - ticks.value.startIdx + startOffset.value) /
+		(ticks.value.endIdx - ticks.value.startIdx + startOffset.value + endOffset.value) * availLen.value;
 	let scaleFactor = 1;
 	if (scaleIdx.value > 0 &&
 			inDateScale(ticks.value.dates[idx], SCALES[scaleIdx.value-1])){ // If tick exists on larger scale
@@ -491,7 +572,9 @@ function tickStyles(idx: number){
 	}
 }
 function tickLabelStyles(idx: number){
-	let offset = (idx - ticks.value.startIdx) / (ticks.value.endIdx - ticks.value.startIdx) * availLen.value;
+	let offset =
+		(idx - ticks.value.startIdx + startOffset.value) /
+		(ticks.value.endIdx - ticks.value.startIdx + startOffset.value + endOffset.value) * availLen.value;
 	let labelSz = props.vert ? 10 : 30;
 	return {
 		transform: props.vert ?
