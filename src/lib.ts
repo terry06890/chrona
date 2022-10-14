@@ -131,7 +131,7 @@ export class HistDate {
 const currentDate = new Date();
 export const MIN_DATE = new HistDate(-13.8e9);
 export const MAX_DATE = new HistDate(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate());
-export const JDN_EPOCH = -4713; // The year where julian day numbers start (and where we can represent months+days)
+export const MIN_CAL_DATE = new HistDate(-4700, 1, 1); // Date after which months/day scales are usable
 export const MONTH_SCALE = -1;
 export const DAY_SCALE = -2;
 export const SCALES = [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE];

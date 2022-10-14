@@ -43,7 +43,7 @@ import IconButton from './IconButton.vue';
 // Icons
 import MinusIcon from './icon/MinusIcon.vue';
 // Other
-import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, JDN_EPOCH,
+import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_DATE,
 	HistDate, stepDate, inDateScale, getScaleRatio} from '../lib';
 import {useStore} from '../store';
 
@@ -103,7 +103,7 @@ const scaleIdx = ref(0); // Index of current scale in SCALES
 const scale = computed(() => SCALES[scaleIdx.value])
 // Initialise to smallest usable scale
 function initScale(){
-	if (startDate.value.year < JDN_EPOCH){ // If unable to use JDNs, use a yearly scale
+	if (startDate.value.isEarlier(MIN_CAL_DATE)){ // If unable to use JDNs, use a yearly scale
 		scaleIdx.value = getYearlyScale(startDate.value, endDate.value, availLen.value);
 	} else {
 		let dayDiff = startDate.value.getDayDiff(endDate.value) + startOffset.value + endOffset.value;
@@ -245,10 +245,12 @@ const ticks = computed((): Ticks => {
 function panTimeline(scrollRatio: number){
 	let numUnits = getNumVisibleUnits();
 	let chgUnits = numUnits * scrollRatio;
+	let newStart = startDate.value.clone();
+	let newEnd = endDate.value.clone();
 	let [numStartSteps, numEndSteps, newStartOffset, newEndOffset] = getMovedBounds(chgUnits, chgUnits);
 	if (scrollRatio > 0){
 		while (true){
-			if (endDate.value.equals(MAX_DATE, scale.value)){
+			if (newEnd.equals(MAX_DATE, scale.value)){
 				let extraChg = INITIAL_EXTRA_OFFSET - endOffset.value;
 				if (extraChg == 0){
 					console.log('Reached maximum date limit');
@@ -258,28 +260,28 @@ function panTimeline(scrollRatio: number){
 					let extraStartSteps: number;
 					[extraStartSteps, , newStartOffset, ] = getMovedBounds(extraChg, extraChg);
 					newEndOffset = INITIAL_EXTRA_OFFSET;
-					stepDate(startDate.value, scale.value, {count: extraStartSteps, inplace: true});
+					stepDate(newStart, scale.value, {count: extraStartSteps, inplace: true});
 				}
 				numStartSteps = 0;
 				break;
 			}
 			if (numEndSteps > 0){
-				stepDate(endDate.value, scale.value, {inplace: true});
+				stepDate(newEnd, scale.value, {inplace: true});
 				numEndSteps -= 1;
 				if (numStartSteps > 0){
-					stepDate(startDate.value, scale.value, {inplace: true});
+					stepDate(newStart, scale.value, {inplace: true});
 					numStartSteps -= 1;
 				}
 			} else {
 				if (numStartSteps > 0){
-					stepDate(startDate.value, scale.value, {count: numStartSteps, inplace: true});
+					stepDate(newStart, scale.value, {count: numStartSteps, inplace: true});
 				}
 				break;
 			}
 		}
 	} else {
 		while (true){
-			if (MIN_DATE.equals(startDate.value, scale.value)){
+			if (MIN_DATE.equals(newStart, scale.value)){
 				let extraChg = INITIAL_EXTRA_OFFSET - startOffset.value;
 				if (extraChg == 0){
 					console.log('Reached minimum date limit');
@@ -289,26 +291,32 @@ function panTimeline(scrollRatio: number){
 					let extraEndSteps: number;
 					[, extraEndSteps, , newEndOffset] = getMovedBounds(extraChg, extraChg);
 					newStartOffset = INITIAL_EXTRA_OFFSET;
-					stepDate(endDate.value, scale.value, {count: extraEndSteps, inplace: true});
+					stepDate(newEnd, scale.value, {count: extraEndSteps, inplace: true});
 				}
 				numEndSteps = 0;
 				break;
 			}
 			if (numStartSteps < 0){
-				stepDate(startDate.value, scale.value, {forward: false, inplace: true});
+				stepDate(newStart, scale.value, {forward: false, inplace: true});
 				numStartSteps += 1;
 				if (numEndSteps < 0){
-					stepDate(endDate.value, scale.value, {forward: false, inplace: true});
+					stepDate(newEnd, scale.value, {forward: false, inplace: true});
 					numEndSteps += 1;
 				}
 			} else {
 				if (numEndSteps < 0){
-					stepDate(endDate.value, scale.value, {count: numEndSteps, inplace: true});
+					stepDate(newEnd, scale.value, {count: numEndSteps, inplace: true});
 				}
 				break;
 			}
 		}
 	}
+	if (newStart.isEarlier(MIN_CAL_DATE, scale.value) && (scale.value == MONTH_SCALE || scale.value == DAY_SCALE)){
+		console.log('Unable to pan into dates where months/days are invalid');
+		return;
+	}
+	startDate.value = newStart;
+	endDate.value = newEnd;
 	startOffset.value = newStartOffset;
 	endOffset.value = newEndOffset;
 }
@@ -345,12 +353,17 @@ function zoomTimeline(zoomRatio: number){
 	let newStart = startDate.value.clone();
 	let newEnd = endDate.value.clone();
 	let [numStartSteps, numEndSteps, newStartOffset, newEndOffset] = getMovedBounds(startChg, endChg);
-	if (zoomRatio <= 1){
+	if (zoomRatio <= 1){ // Zooming in
 		stepDate(newStart, scale.value, {count: numStartSteps, inplace: true});
 		stepDate(newEnd, scale.value, {count: numEndSteps, inplace: true});
-	} else {
+	} else { // Zooming out
 		newNumUnits = numUnits;
 		while (numStartSteps < 0){
+			if (newStart.equals(MIN_CAL_DATE, scale.value) && (scale.value == MONTH_SCALE || scale.value == DAY_SCALE)){
+				console.log('Restricting new range to dates where month/day scale is usable');
+				newStartOffset = INITIAL_EXTRA_OFFSET;
+				break;
+			}
 			if (MIN_DATE.equals(newStart, scale.value)){
 				newStartOffset = INITIAL_EXTRA_OFFSET;
 				break;
@@ -374,33 +387,39 @@ function zoomTimeline(zoomRatio: number){
 	let tickDiff = availLen.value / newNumUnits;
 	if (tickDiff < MIN_TICK_SEP){ // Possibly zoom out
 		if (scaleIdx.value == 0){
-			console.log('INFO: Reached zoom out limit');
+			console.log('Reached zoom out limit');
 			return;
 		} else {
-			let oldUnitsPerNew = getScaleRatio(SCALES[scaleIdx.value], SCALES[scaleIdx.value - 1]);
-			scaleIdx.value -= 1;
-			// Update offsets
+			let newScale = SCALES[scaleIdx.value - 1];
+			let oldUnitsPerNew = getScaleRatio(scale.value, newScale);
 			newStartOffset /= oldUnitsPerNew;
 			newEndOffset /= oldUnitsPerNew;
+			scaleIdx.value -= 1;
 		}
 	} else { // Possibly zoom in
 		if (scaleIdx.value == SCALES.length - 1){
 			if (newNumUnits < MIN_LAST_TICKS){
-				console.log('INFO: Reached zoom in limit');
+				console.log('Reached zoom in limit');
 				return;
 			}
 		} else {
-			let newUnitsPerOld = getScaleRatio(SCALES[scaleIdx.value + 1], SCALES[scaleIdx.value]);
+			let newScale = SCALES[scaleIdx.value + 1];
+			let newUnitsPerOld = getScaleRatio(newScale, scale.value);
 			let zoomedTickDiff = tickDiff / newUnitsPerOld;
 			if (zoomedTickDiff > MIN_TICK_SEP){
-				scaleIdx.value += 1;
 				// Update offsets
 				newStartOffset *= newUnitsPerOld;
-				stepDate(newStart, scale.value, {forward: false, count: Math.floor(newStartOffset), inplace: true});
+				stepDate(newStart, newScale, {forward: false, count: Math.floor(newStartOffset), inplace: true});
 				newStartOffset %= 1;
 				newEndOffset *= newUnitsPerOld;
-				stepDate(newEnd, scale.value, {count: Math.floor(newEndOffset), inplace: true});
+				stepDate(newEnd, newScale, {count: Math.floor(newEndOffset), inplace: true});
 				newEndOffset %= 1;
+				//
+				if (newStart.isEarlier(MIN_CAL_DATE, newScale) && (newScale == MONTH_SCALE || newScale == DAY_SCALE)){
+					console.log('Unable to zoom into range where month/day scale is invalid');
+					return;
+				}
+				scaleIdx.value += 1;
 			}
 		}
 	}
