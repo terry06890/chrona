@@ -251,16 +251,23 @@ function panTimeline(scrollRatio: number){
 	if (scrollRatio > 0){
 		while (true){
 			if (newEnd.equals(MAX_DATE, scale.value)){
-				let extraChg = INITIAL_EXTRA_OFFSET - endOffset.value;
-				if (extraChg == 0){
+				// Pan up to an offset of INITIAL_EXTRA_OFFSET
+				if (INITIAL_EXTRA_OFFSET == endOffset.value){
 					console.log('Reached maximum date limit');
 					newStartOffset = startOffset.value;
 					newEndOffset = endOffset.value;
 				} else {
-					let extraStartSteps: number;
-					[extraStartSteps, , newStartOffset, ] = getMovedBounds(extraChg, extraChg);
-					newEndOffset = INITIAL_EXTRA_OFFSET;
-					stepDate(newStart, scale.value, {count: extraStartSteps, inplace: true});
+					if (numEndSteps > 0 || newEndOffset >= INITIAL_EXTRA_OFFSET){
+						chgUnits = INITIAL_EXTRA_OFFSET - endOffset.value;
+						newEndOffset = INITIAL_EXTRA_OFFSET;
+						let extraStartSteps: number;
+						[extraStartSteps, , newStartOffset, ] = getMovedBounds(chgUnits, chgUnits);
+						stepDate(newStart, scale.value, {count: extraStartSteps, inplace: true});
+					} else {
+						if (numStartSteps > 0){
+							stepDate(newStart, scale.value, {count: numStartSteps, inplace: true});
+						}
+					}
 				}
 				numStartSteps = 0;
 				break;
@@ -282,16 +289,23 @@ function panTimeline(scrollRatio: number){
 	} else {
 		while (true){
 			if (MIN_DATE.equals(newStart, scale.value)){
-				let extraChg = INITIAL_EXTRA_OFFSET - startOffset.value;
-				if (extraChg == 0){
+				// Pan up to an offset of INITIAL_EXTRA_OFFSET
+				if (INITIAL_EXTRA_OFFSET == startOffset.value){
 					console.log('Reached minimum date limit');
 					newStartOffset = startOffset.value;
 					newEndOffset = endOffset.value;
 				} else {
-					let extraEndSteps: number;
-					[, extraEndSteps, , newEndOffset] = getMovedBounds(extraChg, extraChg);
-					newStartOffset = INITIAL_EXTRA_OFFSET;
-					stepDate(newEnd, scale.value, {count: extraEndSteps, inplace: true});
+					if (numStartSteps < 0 || newStartOffset >= INITIAL_EXTRA_OFFSET){
+						chgUnits = -INITIAL_EXTRA_OFFSET + startOffset.value;
+						newStartOffset = INITIAL_EXTRA_OFFSET;
+						let extraEndSteps: number;
+						[, extraEndSteps, , newEndOffset] = getMovedBounds(chgUnits, chgUnits);
+						stepDate(newEnd, scale.value, {count: extraEndSteps, inplace: true});
+					} else {
+						if (numEndSteps < 0){
+							stepDate(newEnd, scale.value, {count: numEndSteps, inplace: true});
+						}
+					}
 				}
 				numEndSteps = 0;
 				break;
