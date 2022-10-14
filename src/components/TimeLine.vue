@@ -123,7 +123,7 @@ function initScale(){
 }
 function getYearlyScale(startDate: HistDate, endDate: HistDate, availLen: number){
 	// Get the smallest yearly scale that divides a date range, without making ticks too close
-	let yearDiff = endDate.year - startDate.year;
+	let yearDiff = startDate.getYearDiff(endDate);
 	let idx = 0;
 	while (SCALES[idx] >= yearDiff){ // Get scale with units smaller than yearDiff
 		idx += 1;
@@ -160,7 +160,7 @@ function getNumVisibleUnits(): number {
 	} else if (scale.value == MONTH_SCALE){
 		numUnits = startDate.value.getMonthDiff(endDate.value);
 	} else {
-		numUnits = (endDate.value.year - startDate.value.year) / scale.value;
+		numUnits = startDate.value.getYearDiff(endDate.value) / scale.value;
 	}
 	return numUnits + startOffset.value + endOffset.value;
 }

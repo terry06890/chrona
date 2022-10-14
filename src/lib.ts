@@ -115,12 +115,19 @@ export class HistDate {
 			later = this as HistDate;
 		}
 		//
-		const yearDiff = later.year - earlier.year;
+		const yearDiff = earlier.getYearDiff(later);
 		if (yearDiff == 0){
 			return later.month - earlier.month;
 		} else {
 			return (13 - earlier.month) + (yearDiff - 1) * 12 + later.month - 1;
 		}
+	}
+	getYearDiff(other: HistDate){
+		let yearDiff = Math.abs(this.year - other.year);
+		if (this.year * other.year < 0){ // Account for no 0 CE
+			yearDiff -= 1;
+		}
+		return yearDiff;
 	}
 	clone(){
 		return new HistDate(this.year, this.month, this.day);
@@ -181,6 +188,9 @@ export function stepDate(date: HistDate, scale: number, {forward=true, count=1, 
 					newDate.month += 1;
 				} else {
 					newDate.year += 1;
+					if (newDate.year == 0){
+						newDate.year = 1;
+					}
 					newDate.month = 1;
 				}
 			} else {
@@ -188,11 +198,26 @@ export function stepDate(date: HistDate, scale: number, {forward=true, count=1, 
 					newDate.month -= 1;
 				} else {
 					newDate.year -= 1;
+					if (newDate.year == 0){
+						newDate.year = -1;
+					}
 					newDate.month = 12;
 				}
 			}
 		} else {
-			newDate.year += forward ? scale : -scale;
+			let newYear;
+			if (forward){
+				newYear = newDate.year + scale;
+				if (newDate.year < 0 && newYear >= 0){ // If different sign, account for there being no 0 CE
+					newYear += 1;
+				}
+			} else {
+				newYear = newDate.year - scale;
+				if (newDate.year > 0 && newYear <= 0){
+					newYear -= 1;
+				}
+			}
+			newDate.year = newYear;
 		}
 	}
 	return newDate;
