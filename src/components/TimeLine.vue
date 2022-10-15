@@ -491,6 +491,10 @@ function zoomTimeline(zoomRatio: number){
 					console.log('Unable to zoom into range where month/day scale is invalid');
 					return;
 				}
+				if (newStart.isEarlier(MIN_DATE, newScale) || MAX_DATE.isEarlier(newEnd, newScale)){
+					console.log('Disallowing zooming in beyond min/max dates');
+					return;
+				}
 				scaleIdx.value += 1;
 			}
 		}
