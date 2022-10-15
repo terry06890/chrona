@@ -414,6 +414,8 @@ function zoomTimeline(zoomRatio: number){
 			newStartOffset /= oldUnitsPerNew;
 			newEndOffset /= oldUnitsPerNew;
 			// Shift starting and ending points to align with new scale
+				// Note: There is some distortion due to not accounting for no year 0 CE here
+					// But the result seems tolerable, and resolving it adds a fair bit of code complexity
 			let newStartSubUnits =
 				(scale.value == DAY_SCALE) ? getDaysInMonth(newStart.year, newStart.month) :
 				(scale.value == MONTH_SCALE) ? 12 :
@@ -455,6 +457,13 @@ function zoomTimeline(zoomRatio: number){
 			} else {
 				newStart.year = Math.floor(newStart.year / newScale) * newScale;
 				newEnd.year = Math.floor(newEnd.year / newScale) * newScale;
+				// Account for no 0 CE
+				if (newStart.year == 0){
+					newStart.year = 1;
+				}
+				if (newEnd.year == 0){
+					newEnd.year = 1;
+				}
 			}
 			//
 			scaleIdx.value -= 1;

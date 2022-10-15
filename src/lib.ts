@@ -216,12 +216,16 @@ export function stepDate(date: HistDate, scale: number, {forward=true, count=1, 
 			let newYear;
 			if (forward){
 				newYear = newDate.year + scale;
-				if (newDate.year < 0 && newYear >= 0){ // If different sign, account for there being no 0 CE
-					newYear += 1;
+				if (newYear == 0){ // Account for there being no 0 CE
+					newYear = 1;
+				} else if (newDate.year == 1 && scale > 1){
+					newYear -= 1;
 				}
 			} else {
 				newYear = newDate.year - scale;
-				if (newDate.year > 0 && newYear <= 0){
+				if (newYear == 0 && scale > 1){
+					newYear = 1;
+				} else if (newDate.year == 1){
 					newYear -= 1;
 				}
 			}
@@ -236,7 +240,7 @@ export function inDateScale(date: HistDate, scale: number): boolean {
 	} else if (scale == MONTH_SCALE){
 		return date.day == 1;
 	} else {
-		return date.year % scale == 0 && date.month == 1 && date.day == 1;
+		return (date.year == 1 || date.year % scale == 0) && date.month == 1 && date.day == 1;
 	}
 }
 export function getScaleRatio(scale: number, scale2: number){
