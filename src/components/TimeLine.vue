@@ -599,7 +599,7 @@ function onPointerMove(evt: PointerEvent){
 }
 function onPointerUp(evt: PointerEvent){
 	// Ignore if dragging between div elements
-	if (evt.relatedTarget != null && rootRef.value.contains(evt.relatedTarget)){
+	if (evt.relatedTarget != null && rootRef.value!.contains(evt.relatedTarget as HTMLElement)){
 		return;
 	}
 	// Remove from event cache
@@ -634,13 +634,13 @@ function onShiftWheel(evt: WheelEvent){
 
 // For bound-change signalling
 watch(startDate, () => {
-	let startYear = startDate.value.year;
-	let endYear = endDate.value.year;
+	let start = startDate.value.clone();
+	let end = endDate.value.clone();
 	if (scale.value != MONTH_SCALE && scale.value != DAY_SCALE){ // Possibly incorporate offsets
-		startYear -= startOffset.value * scale.value;
-		endYear += endOffset.value * scale.value;
+		stepDate(start, 1, {forward: false, count: Math.floor(startOffset.value * scale.value)});
+		stepDate(end, 1, {count: Math.floor(endOffset.value * scale.value)});
 	}
-	emit('range-chg', [startYear, endYear]);
+	emit('range-chg', [start, end]);
 });
 
 // For skipping transitions on startup (and on horz/vert swap)

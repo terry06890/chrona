@@ -179,11 +179,11 @@ export function stepDate(date: HistDate, scale: number, {forward=true, count=1, 
 	while (count > 0){
 		if (scale == DAY_SCALE){
 			if (forward && newDate.day < 28){
-				let chg = Math.min(28 - newDate.day, count);
+				const chg = Math.min(28 - newDate.day, count);
 				newDate.day += chg;
 				count -= chg;
 			} else if (!forward && newDate.day > 1){
-				let chg = Math.min(newDate.day - 1, count);
+				const chg = Math.min(newDate.day - 1, count);
 				newDate.day -= chg;
 				count -= chg;
 			} else {
@@ -195,7 +195,7 @@ export function stepDate(date: HistDate, scale: number, {forward=true, count=1, 
 		} else if (scale == MONTH_SCALE){
 			if (forward){
 				if (newDate.month < 12){
-					let chg = Math.min(12 - newDate.month, count);
+					const chg = Math.min(12 - newDate.month, count);
 					newDate.month += chg;
 					count -= chg;
 				} else {
@@ -208,7 +208,7 @@ export function stepDate(date: HistDate, scale: number, {forward=true, count=1, 
 				}
 			} else {
 				if (newDate.month > 1){
-					let chg = Math.min(newDate.month - 1, count);
+					const chg = Math.min(newDate.month - 1, count);
 					newDate.month -= chg;
 					count -= chg;
 				} else {
@@ -270,8 +270,8 @@ export function getScaleRatio(scale: number, scale2: number){
 // For sending timeline-bound data to BaseLine
 export type TimelineRange = {
 	id: number,
-	startYear: number,
-	endYear: number,
+	start: HistDate,
+	end: HistDate,
 };
 
 export type HistEvent = {

@@ -19,7 +19,7 @@
 	<div class="grow min-h-0 flex" :class="{'flex-col': !vert}"
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
 		<time-line v-for="(range, idx) in timelineRanges" :key="range.id"
-			:vert="vert" :initialStart="INITIAL_START_DATE" :initialEnd="INITIAL_END_DATE"
+			:vert="vert" :initialStart="range.start" :initialEnd="range.end"
 			class="grow basis-full min-h-0 outline outline-1"
 			@remove="onTimelineRemove(idx)" @range-chg="onRangeChg($event, idx)"/>
 		<base-line :vert="vert" :timelineRanges="timelineRanges"/>
@@ -64,14 +64,19 @@ const INITIAL_START_DATE = new HistDate(1900, 1, 1);
 const INITIAL_END_DATE = new HistDate(2000, 1, 1);
 let nextTimelineId = 1;
 function addNewTimelineRange(){
-	timelineRanges.value.push({id: nextTimelineId, startYear: 1900, endYear: 2000});
+	if (timelineRanges.value.length == 0){
+		timelineRanges.value.push({id: nextTimelineId, start: INITIAL_START_DATE, end: INITIAL_END_DATE});
+	} else {
+		let lastRange = timelineRanges.value[timelineRanges.value.length - 1];
+		timelineRanges.value.push({id: nextTimelineId, start: lastRange.start, end: lastRange.end});
+	}
 	nextTimelineId++;
 }
 addNewTimelineRange();
-function onRangeChg(newBounds: [number, number], idx: number){
+function onRangeChg(newBounds: [HistDate, HistDate], idx: number){
 	let range = timelineRanges.value[idx];
-	range.startYear = newBounds[0];
-	range.endYear = newBounds[1];
+	range.start = newBounds[0];
+	range.end = newBounds[1];
 }
 
 // For timeline addition/removal

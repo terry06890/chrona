@@ -81,8 +81,8 @@ function spanStyles(range: TimelineRange){
 	let styles: Record<string,string>;
 	let availLen = props.vert ? height.value : width.value;
 	// Determine positions in full timeline
-	let startFrac = (range.startYear - MIN_DATE.year) / (MAX_DATE.year - MIN_DATE.year);
-	let lenFrac = (range.endYear - range.startYear) / (MAX_DATE.year - MIN_DATE.year);
+	let startFrac = (range.start.year - MIN_DATE.year) / (MAX_DATE.year - MIN_DATE.year);
+	let lenFrac = (range.end.year - range.start.year) / (MAX_DATE.year - MIN_DATE.year);
 	let startPx = Math.max(0, availLen * startFrac); // Prevent negatives due to end-padding
 	let lenPx = Math.min(availLen - startPx, availLen * lenFrac);
 	lenPx = Math.max(1, lenPx); // Prevent zero length
