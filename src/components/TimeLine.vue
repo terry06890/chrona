@@ -44,7 +44,7 @@ import IconButton from './IconButton.vue';
 import MinusIcon from './icon/MinusIcon.vue';
 // Other
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_DATE,
-	HistDate, stepDate, inDateScale, getScaleRatio, getDaysInMonth, moduloPositive} from '../lib';
+	HistDate, stepDate, inDateScale, getScaleRatio, getDaysInMonth, moduloPositive, TimelineState} from '../lib';
 import {useStore} from '../store';
 
 // Refs
@@ -56,10 +56,9 @@ const store = useStore();
 // Props + events
 const props = defineProps({
 	vert: {type: Boolean, required: true},
-	initialStart: {type: Object as PropType<HistDate>, required: true},
-	initialEnd: {type: Object as PropType<HistDate>, required: true},
+	initialState: {type: Object as PropType<TimelineState>, required: true},
 });
-const emit = defineEmits(['remove', 'range-chg']);
+const emit = defineEmits(['remove', 'state-chg']);
 
 // For size tracking
 const width = ref(0);
@@ -92,17 +91,29 @@ const resizeObserver = new ResizeObserver((entries) => {
 onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 
 // Timeline data
-const startDate = ref(props.initialStart); // Earliest date to display
-const endDate = ref(props.initialEnd);
+const ID = props.initialState.id;
+const startDate = ref(props.initialState.startDate); // Earliest date to display
+const endDate = ref(props.initialState.endDate);
 const INITIAL_EXTRA_OFFSET = 0.5;
 const startOffset = ref(INITIAL_EXTRA_OFFSET); // Fraction of a scale unit before startDate to show
 	// Note: Without this, the timeline can only move if the distance is over one unit, which makes dragging awkward,
 		// can cause unexpected jumps when zooming, and limits display when a unit has many ticks on the next scale
+if (props.initialState.startOffset != null){
+	startOffset.value = props.initialState.startOffset as number;
+}
 const endOffset = ref(INITIAL_EXTRA_OFFSET);
+if (props.initialState.endOffset != null){
+	endOffset.value = props.initialState.endOffset as number;
+}
 const scaleIdx = ref(0); // Index of current scale in SCALES
+if (props.initialState.scaleIdx != null){
+	scaleIdx.value = props.initialState.scaleIdx as number;
+} else {
+	onMounted(initScale);
+}
 const scale = computed(() => SCALES[scaleIdx.value])
-// Initialise to smallest usable scale
-function initScale(){
+//
+function initScale(){ // Initialises to smallest usable scale
 	if (startDate.value.isEarlier(MIN_CAL_DATE)){ // If unable to use JDNs, use a yearly scale
 		scaleIdx.value = getYearlyScale(startDate.value, endDate.value, availLen.value);
 	} else {
@@ -139,7 +150,6 @@ function getYearlyScale(startDate: HistDate, endDate: HistDate, availLen: number
 	}
 	return idx;
 }
-onMounted(initScale);
 
 // Tick data
 const TICK_LEN = 8;
@@ -634,13 +644,9 @@ function onShiftWheel(evt: WheelEvent){
 
 // For bound-change signalling
 watch(startDate, () => {
-	let start = startDate.value.clone();
-	let end = endDate.value.clone();
-	if (scale.value != MONTH_SCALE && scale.value != DAY_SCALE){ // Possibly incorporate offsets
-		stepDate(start, 1, {forward: false, count: Math.floor(startOffset.value * scale.value)});
-		stepDate(end, 1, {count: Math.floor(endOffset.value * scale.value)});
-	}
-	emit('range-chg', [start, end]);
+	emit('state-chg', new TimelineState(
+		ID, startDate.value, endDate.value, startOffset.value, endOffset.value, scaleIdx.value
+	));
 });
 
 // For skipping transitions on startup (and on horz/vert swap)

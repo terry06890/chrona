@@ -268,10 +268,22 @@ export function getScaleRatio(scale: number, scale2: number){
 }
 
 // For sending timeline-bound data to BaseLine
-export type TimelineRange = {
-	id: number,
-	start: HistDate,
-	end: HistDate,
+export class TimelineState {
+	id: number;
+	startDate: HistDate;
+	endDate: HistDate;
+	startOffset: number | null;
+	endOffset: number | null;
+	scaleIdx: number | null;
+	constructor(id: number, startDate: HistDate, endDate: HistDate,
+			startOffset: number | null = null, endOffset: number | null = null, scaleIdx: number | null = null){
+		this.id = id;
+		this.startDate = startDate;
+		this.endDate = endDate;
+		this.startOffset = startOffset;
+		this.endOffset = endOffset;
+		this.scaleIdx = scaleIdx;
+	}
 };
 
 export type HistEvent = {

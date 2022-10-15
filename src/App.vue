@@ -18,11 +18,10 @@
 	<!-- Content area -->
 	<div class="grow min-h-0 flex" :class="{'flex-col': !vert}"
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
-		<time-line v-for="(range, idx) in timelineRanges" :key="range.id"
-			:vert="vert" :initialStart="range.start" :initialEnd="range.end"
-			class="grow basis-full min-h-0 outline outline-1"
-			@remove="onTimelineRemove(idx)" @range-chg="onRangeChg($event, idx)"/>
-		<base-line :vert="vert" :timelineRanges="timelineRanges"/>
+		<time-line v-for="(state, idx) in timelines" :key="state.id"
+			:vert="vert" :initialState="state" class="grow basis-full min-h-0 outline outline-1"
+			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)"/>
+		<base-line :vert="vert" :timelines="timelines"/>
 	</div>
 </div>
 </template>
@@ -38,7 +37,7 @@ import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
-import {HistDate, TimelineRange} from './lib';
+import {HistDate, TimelineState} from './lib';
 import {useStore} from './store';
 
 // Refs
@@ -59,42 +58,43 @@ function updateAreaDims(){
 onMounted(updateAreaDims)
 
 // Timeline data
-const timelineRanges: Ref<TimelineRange[]> = ref([]);
+const timelines: Ref<TimelineState[]> = ref([]);
 const INITIAL_START_DATE = new HistDate(1900, 1, 1);
 const INITIAL_END_DATE = new HistDate(2000, 1, 1);
 let nextTimelineId = 1;
-function addNewTimelineRange(){
-	if (timelineRanges.value.length == 0){
-		timelineRanges.value.push({id: nextTimelineId, start: INITIAL_START_DATE, end: INITIAL_END_DATE});
+function addTimeline(){
+	if (timelines.value.length == 0){
+		timelines.value.push(new TimelineState(nextTimelineId, INITIAL_START_DATE, INITIAL_END_DATE));
 	} else {
-		let lastRange = timelineRanges.value[timelineRanges.value.length - 1];
-		timelineRanges.value.push({id: nextTimelineId, start: lastRange.start, end: lastRange.end});
+		let last = timelines.value[timelines.value.length - 1];
+		timelines.value.push(new TimelineState(
+			nextTimelineId, last.startDate,
+			last.endDate, last.startOffset, last.endOffset, last.scaleIdx
+		));
 	}
 	nextTimelineId++;
 }
-addNewTimelineRange();
-function onRangeChg(newBounds: [HistDate, HistDate], idx: number){
-	let range = timelineRanges.value[idx];
-	range.start = newBounds[0];
-	range.end = newBounds[1];
+addTimeline();
+function onTimelineChg(state: TimelineState, idx: number){
+	timelines.value[idx] = state;
 }
 
 // For timeline addition/removal
 const MIN_TIMELINE_BREADTH = 150;
 function onTimelineAdd(){
-	if (vert.value && contentWidth.value / (timelineRanges.value.length + 1) < MIN_TIMELINE_BREADTH ||
-		!vert.value && contentHeight.value / (timelineRanges.value.length + 1) < MIN_TIMELINE_BREADTH){
+	if (vert.value && contentWidth.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH ||
+		!vert.value && contentHeight.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH){
 		console.log('Reached timeline minimum breadth');
 		return;
 	}
-	addNewTimelineRange();
+	addTimeline();
 }
 function onTimelineRemove(idx: number){
-	if (timelineRanges.value.length == 1){
+	if (timelines.value.length == 1){
 		console.log('Ignored removal of last timeline')
 		return;
 	}
-	timelineRanges.value.splice(idx, 1);
+	timelines.value.splice(idx, 1);
 }
 
 // For resize handling

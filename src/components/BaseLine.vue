@@ -5,8 +5,8 @@
 		<div :style="labelStyles">{{p.label}}</div>
 	</div>
 	<TransitionGroup name="fade" v-if="mounted">
-		<div v-for="range in timelineRanges" :key="range.id" class="absolute" :style="spanStyles(range)">
-			{{range.id}}
+		<div v-for="state in timelines" :key="state.id" class="absolute" :style="spanStyles(state)">
+			{{state.id}}
 		</div>
 	</TransitionGroup>
 </div>
@@ -14,7 +14,7 @@
 
 <script setup lang="ts">
 import {ref, computed, onMounted, PropType, Ref} from 'vue';
-import {MIN_DATE, MAX_DATE, WRITING_MODE_HORZ, TimelineRange} from '../lib';
+import {MIN_DATE, MAX_DATE, SCALES, MONTH_SCALE, DAY_SCALE, WRITING_MODE_HORZ, TimelineState, stepDate} from '../lib';
 import {useStore} from '../store';
 
 // Refs
@@ -26,7 +26,7 @@ const store = useStore();
 // Props
 const props = defineProps({
 	vert: {type: Boolean, required: true},
-	timelineRanges: {type: Object as PropType<TimelineRange[]>, required: true},
+	timelines: {type: Object as PropType<TimelineState[]>, required: true},
 });
 
 // Static time periods
@@ -77,12 +77,23 @@ const labelStyles = computed((): Record<string, string> => ({
 	width: props.vert ? '40px' : 'auto',
 	padding: props.vert ? '0' : '4px',
 }));
-function spanStyles(range: TimelineRange){
+function spanStyles(state: TimelineState){
 	let styles: Record<string,string>;
 	let availLen = props.vert ? height.value : width.value;
-	// Determine positions in full timeline
-	let startFrac = (range.start.year - MIN_DATE.year) / (MAX_DATE.year - MIN_DATE.year);
-	let lenFrac = (range.end.year - range.start.year) / (MAX_DATE.year - MIN_DATE.year);
+	// Determine start/end date
+	if (state.startOffset == null || state.endOffset == null || state.scaleIdx == null){
+		return {display: 'none'};
+	}
+	let start = state.startDate.clone();
+	let end = state.endDate.clone();
+	let scale = SCALES[state.scaleIdx];
+	if (scale != MONTH_SCALE && scale != DAY_SCALE){ // Possibly incorporate offsets
+		stepDate(start, 1, {forward: false, count: Math.floor(state.startOffset * scale), inplace: true});
+		stepDate(end, 1, {count: Math.floor(state.endOffset * scale), inplace: true});
+	}
+	// Determine positions in full timeline (only uses year information)
+	let startFrac = (start.year - MIN_DATE.year) / (MAX_DATE.year - MIN_DATE.year);
+	let lenFrac = (end.year - start.year) / (MAX_DATE.year - MIN_DATE.year);
 	let startPx = Math.max(0, availLen * startFrac); // Prevent negatives due to end-padding
 	let lenPx = Math.min(availLen - startPx, availLen * lenFrac);
 	lenPx = Math.max(1, lenPx); // Prevent zero length
