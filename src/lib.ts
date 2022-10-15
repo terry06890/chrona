@@ -7,7 +7,12 @@ export const WRITING_MODE_HORZ =
 	window.getComputedStyle(document.body)['writing-mode' as any].startsWith('horizontal');
 	// Used with ResizeObserver callbacks, to determine which resized dimensions are width and height
 
-// For calendar conversion. Same as in backend/hist_data/cal.py
+// Similar to %, but for negative LHS, return a positive offset from a lower RHS multiple
+export function moduloPositive(x: number, y: number){
+	return x - Math.floor(x / y) * y;
+}
+
+// For calendar conversion. Mostly copied from backend/hist_data/cal.py
 export function gregorianToJdn(year: number, month: number, day: number): number {
 	if (year < 0){
 		year += 1;
@@ -60,6 +65,9 @@ export function julianToGregorian(year: number, month: number, day: number): [nu
 }
 export function gregorianToJulian(year: number, month: number, day: number): [number, number, number] {
 	return jdnToJulian(gregorianToJdn(year, month, day));
+}
+export function getDaysInMonth(year: number, month: number){
+	return gregorianToJdn(year, month + 1, 1) - gregorianToJdn(year, month, 1);
 }
 
 // For date representation

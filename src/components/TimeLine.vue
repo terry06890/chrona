@@ -44,7 +44,7 @@ import IconButton from './IconButton.vue';
 import MinusIcon from './icon/MinusIcon.vue';
 // Other
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_DATE,
-	HistDate, stepDate, inDateScale, getScaleRatio} from '../lib';
+	HistDate, stepDate, inDateScale, getScaleRatio, getDaysInMonth, moduloPositive} from '../lib';
 import {useStore} from '../store';
 
 // Refs
@@ -247,7 +247,8 @@ function panTimeline(scrollRatio: number){
 	let chgUnits = numUnits * scrollRatio;
 	let newStart = startDate.value.clone();
 	let newEnd = endDate.value.clone();
-	let [numStartSteps, numEndSteps, newStartOffset, newEndOffset] = getMovedBounds(chgUnits, chgUnits);
+	let [numStartSteps, numEndSteps, newStartOffset, newEndOffset] =
+		getMovedBounds(startOffset.value, endOffset.value, chgUnits, chgUnits);
 	if (scrollRatio > 0){
 		while (true){
 			if (newEnd.equals(MAX_DATE, scale.value)){
@@ -261,7 +262,8 @@ function panTimeline(scrollRatio: number){
 						chgUnits = INITIAL_EXTRA_OFFSET - endOffset.value;
 						newEndOffset = INITIAL_EXTRA_OFFSET;
 						let extraStartSteps: number;
-						[extraStartSteps, , newStartOffset, ] = getMovedBounds(chgUnits, chgUnits);
+						[extraStartSteps, , newStartOffset, ] =
+							getMovedBounds(startOffset.value, endOffset.value, chgUnits, chgUnits);
 						stepDate(newStart, scale.value, {count: extraStartSteps, inplace: true});
 					} else {
 						if (numStartSteps > 0){
@@ -299,7 +301,8 @@ function panTimeline(scrollRatio: number){
 						chgUnits = -INITIAL_EXTRA_OFFSET + startOffset.value;
 						newStartOffset = INITIAL_EXTRA_OFFSET;
 						let extraEndSteps: number;
-						[, extraEndSteps, , newEndOffset] = getMovedBounds(chgUnits, chgUnits);
+						[, extraEndSteps, , newEndOffset] =
+							getMovedBounds(startOffset.value, endOffset.value, chgUnits, chgUnits);
 						stepDate(newEnd, scale.value, {count: extraEndSteps, inplace: true});
 					} else {
 						if (numEndSteps < 0){
@@ -366,7 +369,8 @@ function zoomTimeline(zoomRatio: number){
 	// Get new bounds
 	let newStart = startDate.value.clone();
 	let newEnd = endDate.value.clone();
-	let [numStartSteps, numEndSteps, newStartOffset, newEndOffset] = getMovedBounds(startChg, endChg);
+	let [numStartSteps, numEndSteps, newStartOffset, newEndOffset] =
+		getMovedBounds(startOffset.value, endOffset.value, startChg, endChg);
 	if (zoomRatio <= 1){ // Zooming in
 		stepDate(newStart, scale.value, {count: numStartSteps, inplace: true});
 		stepDate(newEnd, scale.value, {count: numEndSteps, inplace: true});
@@ -404,10 +408,55 @@ function zoomTimeline(zoomRatio: number){
 			console.log('Reached zoom out limit');
 			return;
 		} else {
+			// Scale starting/ending offsets
 			let newScale = SCALES[scaleIdx.value - 1];
 			let oldUnitsPerNew = getScaleRatio(scale.value, newScale);
 			newStartOffset /= oldUnitsPerNew;
 			newEndOffset /= oldUnitsPerNew;
+			// Shift starting and ending points to align with new scale
+			let newStartSubUnits =
+				(scale.value == DAY_SCALE) ? getDaysInMonth(newStart.year, newStart.month) :
+				(scale.value == MONTH_SCALE) ? 12 :
+				getScaleRatio(scale.value, newScale);
+			let newStartIdx =
+				(scale.value == DAY_SCALE) ? newStart.day - 1 :
+				(scale.value == MONTH_SCALE) ? newStart.month - 1 :
+				moduloPositive(newStart.year, newScale) / scale.value;
+			let startChg = newStartIdx / newStartSubUnits;
+			if (newStartOffset >= startChg){
+				newStartOffset -= startChg;
+			} else {
+				startChg = 1 - startChg;
+				newStartOffset += startChg;
+				stepDate(newStart, newScale, {inplace: true});
+			}
+			let newEndSubUnits =
+				(scale.value == DAY_SCALE) ? getDaysInMonth(newEnd.year, newEnd.month) :
+				(scale.value == MONTH_SCALE) ? 12 :
+				getScaleRatio(scale.value, newScale);
+			let newEndIdx =
+				(scale.value == DAY_SCALE) ? newEnd.day - 1 :
+				(scale.value == MONTH_SCALE) ? newEnd.month - 1 :
+				moduloPositive(newEnd.year, newScale) / scale.value;
+			let endChg = newEndIdx / newEndSubUnits;
+			if (newEndOffset + endChg < 1){
+				newEndOffset += endChg;
+			} else {
+				endChg = 1 - endChg;
+				newEndOffset -= endChg;
+				stepDate(newEnd, newScale, {inplace: true});
+			}
+			if (scale.value == DAY_SCALE){
+				newStart.day = 1;
+				newEnd.day = 1;
+			} else if (scale.value == MONTH_SCALE){
+				newStart.month = 1;
+				newEnd.month = 1;
+			} else {
+				newStart.year = Math.floor(newStart.year / newScale) * newScale;
+				newEnd.year = Math.floor(newEnd.year / newScale) * newScale;
+			}
+			//
 			scaleIdx.value -= 1;
 		}
 	} else { // Possibly zoom in
@@ -443,25 +492,26 @@ function zoomTimeline(zoomRatio: number){
 	startOffset.value = newStartOffset;
 	endOffset.value = newEndOffset;
 }
-function getMovedBounds(startChg: number, endChg: number): [number, number, number, number] {
+function getMovedBounds(
+		startOffset: number, endOffset: number, startChg: number, endChg: number): [number, number, number, number] {
 	// Returns a number of start and end steps to take, and new start and end offset values
 	let numStartSteps: number;
 	let numEndSteps: number;
 	let newStartOffset: number;
 	let newEndOffset: number;
 	if (startChg >= 0){
-		numStartSteps = Math.ceil(startChg - startOffset.value);
-		newStartOffset = (startOffset.value - startChg) - Math.floor(startOffset.value - startChg);
+		numStartSteps = Math.ceil(startChg - startOffset);
+		newStartOffset = (startOffset - startChg) - Math.floor(startOffset - startChg);
 	} else {
-		numStartSteps = Math.ceil(startChg - startOffset.value);
-		newStartOffset = Math.abs((startChg - startOffset.value) % 1);
+		numStartSteps = Math.ceil(startChg - startOffset);
+		newStartOffset = Math.abs((startChg - startOffset) % 1);
 	}
 	if (endChg >= 0){
-		numEndSteps = Math.floor(endChg + endOffset.value);
-		newEndOffset = (endOffset.value + endChg) % 1;
+		numEndSteps = Math.floor(endChg + endOffset);
+		newEndOffset = (endOffset + endChg) % 1;
 	} else {
-		numEndSteps = Math.floor(endChg + endOffset.value);
-		newEndOffset = (endOffset.value + endChg) - Math.floor(endOffset.value + endChg);
+		numEndSteps = Math.floor(endChg + endOffset);
+		newEndOffset = (endOffset + endChg) - Math.floor(endOffset + endChg);
 	}
 	return [numStartSteps, numEndSteps, newStartOffset, newEndOffset];
 }
