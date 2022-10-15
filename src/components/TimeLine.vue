@@ -598,6 +598,10 @@ function onPointerMove(evt: PointerEvent){
 	pointerY = evt.clientY;
 }
 function onPointerUp(evt: PointerEvent){
+	// Ignore if dragging between div elements
+	if (evt.relatedTarget != null && rootRef.value.contains(evt.relatedTarget)){
+		return;
+	}
 	// Remove from event cache
 	const index = ptrEvtCache.findIndex((e) => e.pointerId == evt.pointerId);
 	ptrEvtCache.splice(index, 1);
