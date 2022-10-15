@@ -261,8 +261,8 @@ export function getScaleRatio(scale: number, scale2: number){
 // For sending timeline-bound data to BaseLine
 export type TimelineRange = {
 	id: number,
-	start: HistDate,
-	end: HistDate,
+	startYear: number,
+	endYear: number,
 };
 
 export type HistEvent = {

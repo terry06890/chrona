@@ -630,7 +630,13 @@ function onShiftWheel(evt: WheelEvent){
 
 // For bound-change signalling
 watch(startDate, () => {
-	emit('range-chg', [startDate.value, endDate.value]);
+	let startYear = startDate.value.year;
+	let endYear = endDate.value.year;
+	if (scale.value != MONTH_SCALE && scale.value != DAY_SCALE){ // Possibly incorporate offsets
+		startYear -= startOffset.value * scale.value;
+		endYear += endOffset.value * scale.value;
+	}
+	emit('range-chg', [startYear, endYear]);
 });
 
 // For skipping transitions on startup (and on horz/vert swap)
