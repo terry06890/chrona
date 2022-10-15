@@ -176,53 +176,61 @@ export function stepDate(date: HistDate, scale: number, {forward=true, count=1, 
 		count = -count;
 		forward = !forward;
 	}
-	for (let i = 0; i < count; i++){
+	while (count > 0){
 		if (scale == DAY_SCALE){
 			if (forward && newDate.day < 28){
-				newDate.day += 1;
+				let chg = Math.min(28 - newDate.day, count);
+				newDate.day += chg;
+				count -= chg;
 			} else if (!forward && newDate.day > 1){
-				newDate.day -= 1
+				let chg = Math.min(newDate.day - 1, count);
+				newDate.day -= chg;
+				count -= chg;
 			} else {
 				let jdn = gregorianToJdn(newDate.year, newDate.month, newDate.day)
 				jdn += forward ? 1 : -1;
-				const [year, month, day] = jdnToGregorian(jdn);
-				newDate.year = year;
-				newDate.month = month;
-				newDate.day = day;
+				[newDate.year, newDate.month, newDate.day] = jdnToGregorian(jdn);
+				count -= 1;
 			}
 		} else if (scale == MONTH_SCALE){
 			if (forward){
 				if (newDate.month < 12){
-					newDate.month += 1;
+					let chg = Math.min(12 - newDate.month, count);
+					newDate.month += chg;
+					count -= chg;
 				} else {
 					newDate.year += 1;
 					if (newDate.year == 0){
 						newDate.year = 1;
 					}
 					newDate.month = 1;
+					count -= 1;
 				}
 			} else {
 				if (newDate.month > 1){
-					newDate.month -= 1;
+					let chg = Math.min(newDate.month - 1, count);
+					newDate.month -= chg;
+					count -= chg;
 				} else {
 					newDate.year -= 1;
 					if (newDate.year == 0){
 						newDate.year = -1;
 					}
 					newDate.month = 12;
+					count -= 1;
 				}
 			}
 		} else {
 			let newYear;
 			if (forward){
-				newYear = newDate.year + scale;
+				newYear = newDate.year + count*scale;
 				if (newYear == 0){ // Account for there being no 0 CE
 					newYear = 1;
 				} else if (newDate.year == 1 && scale > 1){
 					newYear -= 1;
 				}
 			} else {
-				newYear = newDate.year - scale;
+				newYear = newDate.year - count*scale;
 				if (newYear == 0 && scale > 1){
 					newYear = 1;
 				} else if (newDate.year == 1){
@@ -230,6 +238,7 @@ export function stepDate(date: HistDate, scale: number, {forward=true, count=1, 
 				}
 			}
 			newDate.year = newYear;
+			count = 0;
 		}
 	}
 	return newDate;
