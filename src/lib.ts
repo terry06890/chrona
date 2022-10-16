@@ -266,6 +266,15 @@ export function getScaleRatio(scale: number, scale2: number){
 	}
 	return scale2 / scale;
 }
+export function getUnitDiff(date: HistDate, date2: HistDate, scale: number): number {
+	if (scale == DAY_SCALE){
+		return date.getDayDiff(date2);
+	} else if (scale == MONTH_SCALE){
+		return date.getMonthDiff(date2);
+	} else {
+		return date.getYearDiff(date2) / scale;
+	}
+}
 
 // For sending timeline-bound data to BaseLine
 export class TimelineState {
@@ -284,12 +293,13 @@ export class TimelineState {
 		this.endOffset = endOffset;
 		this.scaleIdx = scaleIdx;
 	}
-};
+}
 
 export type HistEvent = {
+	id: number,
 	title: string,
 	start: HistDate,
 	startUpper: HistDate | null,
-	end: HistDate,
+	end: HistDate | null,
 	endUpper: HistDate | null,
 };

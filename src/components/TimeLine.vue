@@ -27,6 +27,12 @@
 			{{date}}
 		</text>
 	</svg>
+	<!-- Events -->
+	<div v-for="id in eventIdToPos.keys()" :key="id"
+		class="absolute bg-black text-white border border-white rounded animate-fadein"
+		:style="eventStyles(id)">
+		{{eventMap.get(id)!.id}}
+	</div>
 	<!-- Buttons -->
 	<icon-button :size="30" class="absolute top-2 right-2"
 		:style="{color: store.color.text, backgroundColor: store.color.altDark2}"
@@ -37,18 +43,19 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, computed, watch, PropType} from 'vue';
+import {ref, onMounted, computed, watch, PropType, Ref, nextTick} from 'vue';
 // Components
 import IconButton from './IconButton.vue';
 // Icons
 import MinusIcon from './icon/MinusIcon.vue';
 // Other
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_DATE,
-	HistDate, stepDate, inDateScale, getScaleRatio, getDaysInMonth, moduloPositive, TimelineState} from '../lib';
+	HistDate, stepDate, inDateScale, getScaleRatio, getUnitDiff, getDaysInMonth, moduloPositive, TimelineState,
+	HistEvent} from '../lib';
 import {useStore} from '../store';
 
 // Refs
-const rootRef = ref(null as HTMLElement | null);
+const rootRef: Ref<HTMLElement | null> = ref(null);
 
 // Global store
 const store = useStore();
@@ -57,8 +64,9 @@ const store = useStore();
 const props = defineProps({
 	vert: {type: Boolean, required: true},
 	initialState: {type: Object as PropType<TimelineState>, required: true},
+	eventMap: {type: Object as PropType<Map<number, HistEvent>>, required: true},
 });
-const emit = defineEmits(['remove', 'state-chg']);
+const emit = defineEmits(['remove', 'state-chg', 'event-req']);
 
 // For size tracking
 const width = ref(0);
@@ -91,7 +99,7 @@ const resizeObserver = new ResizeObserver((entries) => {
 onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 
 // Timeline data
-const ID = props.initialState.id;
+const ID = props.initialState.id as number;
 const startDate = ref(props.initialState.startDate); // Earliest date to display
 const endDate = ref(props.initialState.endDate);
 const INITIAL_EXTRA_OFFSET = 0.5;
@@ -164,15 +172,8 @@ type Ticks = {
 	endIdx: number, // Index of last visible tick
 };
 function getNumVisibleUnits(): number {
-	let numUnits: number;
-	if (scale.value == DAY_SCALE){
-		numUnits = startDate.value.getDayDiff(endDate.value);
-	} else if (scale.value == MONTH_SCALE){
-		numUnits = startDate.value.getMonthDiff(endDate.value);
-	} else {
-		numUnits = startDate.value.getYearDiff(endDate.value) / scale.value;
-	}
-	return numUnits + startOffset.value + endOffset.value;
+	let unitDiff = getUnitDiff(startDate.value, endDate.value, scale.value);
+	return unitDiff + startOffset.value + endOffset.value;
 }
 const ticks = computed((): Ticks => {
 	if (!mounted.value){
@@ -249,6 +250,31 @@ const ticks = computed((): Ticks => {
 	startIdx += datesBefore.length;
 	endIdx += datesBefore.length;
 	return {dates, startIdx, endIdx};
+});
+
+// For displayed events
+const eventIdToPos = computed(() => { // Maps visible event IDs to x-pos, y-pos, width, and height
+	let idToPos: Map<number, [number, number, number, number]> = new Map();
+	// Find events to display, and do basic layouting
+	let numUnits = getNumVisibleUnits();
+	let minorAxisStep = 0;
+	for (let event of props.eventMap.values()){
+		if (event.start.isEarlier(startDate.value) || endDate.value.isEarlier(event.start)){
+			continue;
+		}
+		let unitOffset = getUnitDiff(event.start, startDate.value, scale.value) + startOffset.value;
+		let posFrac = unitOffset / numUnits;
+		let posX = props.vert ? minorAxisStep : availLen.value * posFrac;
+		let posY = props.vert ? availLen.value * posFrac : minorAxisStep;
+		idToPos.set(event.id, [posX, posY, 50, 50]);
+		minorAxisStep += 5;
+	}
+	// If more events could be displayed, notify parent
+	if (idToPos.size < 3){
+		nextTick(() => emit('event-req', startDate.value, endDate.value));
+	}
+	//
+	return idToPos;
 });
 
 // For panning/zooming
@@ -697,5 +723,17 @@ function tickLabelStyles(idx: number){
 		transitionTimingFunction,
 		opacity: (offset >= labelSz && offset <= availLen.value - labelSz) ? 1 : 0,
 	}
+}
+function eventStyles(eventId: number){
+	const [x, y, w, h] = eventIdToPos.value.get(eventId)!;
+	return {
+		left: x + 'px',
+		top: y + 'px',
+		width: w + 'px',
+		height: h + 'px',
+		transitionProperty: skipTransition.value ? 'none' : 'all',
+		transitionDuration,
+		transitionTimingFunction,
+	};
 }
 </script>

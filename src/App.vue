@@ -19,8 +19,9 @@
 	<div class="grow min-h-0 flex" :class="{'flex-col': !vert}"
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
-			:vert="vert" :initialState="state" class="grow basis-full min-h-0 outline outline-1"
-			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)"/>
+			:vert="vert" :initialState="state" :eventMap="eventMap"
+			class="grow basis-full min-h-0 outline outline-1"
+			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)" @event-req="onEventReq"/>
 		<base-line :vert="vert" :timelines="timelines"/>
 	</div>
 </div>
@@ -37,7 +38,7 @@ import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
-import {HistDate, TimelineState} from './lib';
+import {HistDate, TimelineState, HistEvent, getUnitDiff, MONTH_SCALE, DAY_SCALE, stepDate} from './lib';
 import {useStore} from './store';
 
 // Refs
@@ -95,6 +96,38 @@ function onTimelineRemove(idx: number){
 		return;
 	}
 	timelines.value.splice(idx, 1);
+}
+
+// Event data
+const eventMap: Ref<Map<number, HistEvent>> = ref(new Map()); // Maps event IDs to HistEvents
+let nextEventId = 0; // For generating placeholder events
+function onEventReq(startDate: HistDate, endDate: HistDate){
+	// Get number of existing events in range
+	let numExisting = 0;
+	for (let event of eventMap.value.values()){
+		if (!event.start.isEarlier(startDate) && !endDate.isEarlier(event.start)){
+			numExisting += 1;
+		}
+	}
+	// Possibly add new events
+	let tempScale = 1;
+	let numUnits = getUnitDiff(startDate, endDate, tempScale);
+	if (numUnits < 2){
+		tempScale = MONTH_SCALE;
+		numUnits = getUnitDiff(startDate, endDate, tempScale);
+		if (numUnits < 2){
+			tempScale = DAY_SCALE;
+			numUnits = getUnitDiff(startDate, endDate, tempScale);
+		}
+	}
+	for (let i = 0; i < 3 - numExisting; i++){
+		let start = startDate.clone();
+		let steps = Math.floor(Math.random() * (numUnits + 1));
+		stepDate(start, tempScale, {count: steps, inplace: true});
+		let event = {id: nextEventId, title: `Event ${nextEventId}`, start, startUpper: null, end: null, endUpper: null};
+		eventMap.value.set(event.id, event);
+		nextEventId += 1;
+	}
 }
 
 // For resize handling
