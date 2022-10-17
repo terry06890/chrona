@@ -7,9 +7,9 @@ export default defineConfig({
 	base: '/',
 	server: {
 		proxy: {'/data': 'http://localhost:8000', '/hist_data': 'http://localhost:8000'},
-	watch: {
-		ignored: ['**/backend', '**/public'],
-	},
+		watch: {
+			ignored: ['**/backend', '**/public'],
+		},
 	},
 	build: {
 		sourcemap: true,

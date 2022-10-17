@@ -12,6 +12,7 @@
   "author": "Terry Truong",
   "license": "MIT",
   "dependencies": {
+    "bintrees": "^1.0.2",
     "pinia": "^2.0.22",
     "vue": "^3.2.37"
   },
