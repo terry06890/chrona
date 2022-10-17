@@ -299,17 +299,39 @@ export class TimelineState {
 	}
 }
 
-export type HistEvent = {
-	id: number,
-	title: string,
-	start: HistDate,
-	startUpper: HistDate | null,
-	end: HistDate | null,
-	endUpper: HistDate | null,
-	ctg: string,
-	imgId: number,
-	pop: number,
-};
+export class HistEvent {
+	id: number;
+	title: string;
+	start: HistDate;
+	startUpper: HistDate | null;
+	end: HistDate | null;
+	endUpper: HistDate | null;
+	ctg: string;
+	imgId: number;
+	pop: number;
+	constructor(
+			id: number, title: string, start: HistDate, startUpper: HistDate | null = null,
+			end: HistDate | null = null, endUpper: HistDate | null = null, ctg='', imgId=0, pop=0){
+		this.id = id;
+		this.title = title;
+		this.start = start;
+		this.startUpper = startUpper;
+		this.end = end;
+		this.endUpper = endUpper;
+		this.ctg = ctg;
+		this.imgId = imgId;
+		this.pop = pop;
+	}
+}
+export function cmpHistEvent(event: HistEvent, event2: HistEvent){
+	if (event.start.isEarlier(event2.start)){
+		return -1;
+	} else if (!event.start.equals(event2.start)){
+		return 1;
+	} else {
+		return event.id - event2.id;
+	}
+}
 
 // For server requests
 const SERVER_DATA_URL = (new URL(window.location.href)).origin + '/data/'

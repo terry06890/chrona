@@ -28,10 +28,10 @@
 		</text>
 	</svg>
 	<!-- Events -->
-	<div v-for="id in eventIdToPos.keys()" :key="id"
+	<div v-for="id in idToEvent.keys()" :key="id"
 		class="absolute bg-black text-white border border-white rounded animate-fadein"
 		:style="eventStyles(id)">
-		{{eventMap.get(id)!.title}}
+		{{idToEvent.get(id)!.event.title}}
 	</div>
 	<!-- Buttons -->
 	<icon-button :size="30" class="absolute top-2 right-2"
@@ -53,6 +53,7 @@ import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, M
 	HistDate, stepDate, inDateScale, getScaleRatio, getUnitDiff, getDaysInMonth, moduloPositive, TimelineState,
 	HistEvent, getImagePath} from '../lib';
 import {useStore} from '../store';
+import {RBTree} from '../rbtree';
 
 // Refs
 const rootRef: Ref<HTMLElement | null> = ref(null);
@@ -64,7 +65,7 @@ const store = useStore();
 const props = defineProps({
 	vert: {type: Boolean, required: true},
 	initialState: {type: Object as PropType<TimelineState>, required: true},
-	eventMap: {type: Object as PropType<Map<number, HistEvent>>, required: true},
+	eventTree: {type: Object as PropType<RBTree<HistEvent>>, required: true},
 });
 const emit = defineEmits(['remove', 'state-chg', 'event-req']);
 
@@ -253,20 +254,23 @@ const ticks = computed((): Ticks => {
 });
 
 // For displayed events
-const eventIdToPos = computed(() => { // Maps visible event IDs to x-pos, y-pos, width, and height
-	let idToPos: Map<number, [number, number, number, number]> = new Map();
-	// Find events to display, and do basic layouting
+const idToEvent = computed(() => { // Maps visible event IDs to HistEvent, x-pos, y-pos, width, and height
+	let idToPos: Map<number, {event: HistEvent, x: number, y: number, w: number, h: number}> = new Map();
 	let numUnits = getNumVisibleUnits();
 	let minorAxisStep = 0;
-	for (let event of props.eventMap.values()){
-		if (event.start.isEarlier(startDate.value) || endDate.value.isEarlier(event.start)){
-			continue;
+	// Find events to display, and do basic layouting
+	let iter = props.eventTree.lowerBound(new HistEvent(0, '', startDate.value));
+	while (iter.data() != null){
+		let event = iter.data();
+		iter.next();
+		if (endDate.value.isEarlier(event.start)){
+			break;
 		}
 		let unitOffset = getUnitDiff(event.start, startDate.value, scale.value) + startOffset.value;
 		let posFrac = unitOffset / numUnits;
 		let posX = props.vert ? minorAxisStep : availLen.value * posFrac;
 		let posY = props.vert ? availLen.value * posFrac : minorAxisStep;
-		idToPos.set(event.id, [posX, posY, 100, 100]);
+		idToPos.set(event.id, {event, x: posX, y: posY, w: 100, h: 100});
 		minorAxisStep += 10;
 	}
 	// If more events could be displayed, notify parent
@@ -725,14 +729,13 @@ function tickLabelStyles(idx: number){
 	}
 }
 function eventStyles(eventId: number){
-	const [x, y, w, h] = eventIdToPos.value.get(eventId)!;
-	let event = props.eventMap.get(eventId)!;
+	const evt = idToEvent.value.get(eventId)!;
 	return {
-		left: x + 'px',
-		top: y + 'px',
-		width: w + 'px',
-		height: h + 'px',
-		backgroundImage: `url(${getImagePath(event.imgId)})`,
+		left: evt.x + 'px',
+		top: evt.y + 'px',
+		width: evt.w + 'px',
+		height: evt.h + 'px',
+		backgroundImage: `url(${getImagePath(evt.event.imgId)})`,
 		backgroundSize: 'cover',
 		transitionProperty: skipTransition.value ? 'none' : 'all',
 		transitionDuration,

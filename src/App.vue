@@ -19,7 +19,7 @@
 	<div class="grow min-h-0 flex" :class="{'flex-col': !vert}"
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
-			:vert="vert" :initialState="state" :eventMap="eventMap"
+			:vert="vert" :initialState="state" :eventTree="eventTree"
 			class="grow basis-full min-h-0 outline outline-1"
 			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)" @event-req="onEventReq"/>
 		<base-line :vert="vert" :timelines="timelines"/>
@@ -38,8 +38,9 @@ import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
-import {HistDate, TimelineState, HistEvent, queryServer, HistEventJson, jsonToHistEvent} from './lib';
+import {HistDate, TimelineState, HistEvent, queryServer, HistEventJson, jsonToHistEvent, cmpHistEvent} from './lib';
 import {useStore} from './store';
+import {RBTree} from './rbtree';
 
 // Refs
 const contentAreaRef = ref(null as HTMLElement | null);
@@ -99,7 +100,7 @@ function onTimelineRemove(idx: number){
 }
 
 // Event data
-const eventMap: Ref<Map<number, HistEvent>> = ref(new Map()); // Maps event IDs to HistEvents
+const eventTree: Ref<RBTree<HistEvent>> = ref(new RBTree(cmpHistEvent)); // Used to look up events by date range
 async function onEventReq(startDate: HistDate, endDate: HistDate){
 	// Get events from server
 	let urlParams = new URLSearchParams({type: 'events', range: `${startDate}.${endDate}`, limit: '10'});
@@ -109,9 +110,8 @@ async function onEventReq(startDate: HistDate, endDate: HistDate){
 	}
 	// Add to map
 	for (let eventObj of responseObj){
-		if (!eventMap.value.has(eventObj.id)){
-			eventMap.value.set(eventObj.id, jsonToHistEvent(eventObj));
-		}
+		let event = jsonToHistEvent(eventObj);
+		eventTree.value.insert(event);
 	}
 }
 
