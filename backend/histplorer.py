@@ -215,27 +215,29 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, ctg: str | None,
 	params: list[str | int] = []
 	# Constrain by start/end
 	if start is not None:
+		constraint = '(start >= ? AND fmt > 0 OR start >= ? AND fmt = 0)'
 		if start.gcal is None:
 			startJdn = gregorianToJdn(start.year, 1, 1) if start.year >= -4713 else 0
-			constraints.append('(start >= ? AND fmt > 0 OR start >= ? AND fmt = 0)')
+			constraints.append(constraint)
 			params.append(startJdn)
 			params.append(start.year)
 		else:
 			startJdn = gregorianToJdn(start.year, start.month, start.day)
-			constraints.append('(start >= ? AND fmt > 0 OR start >= ? AND fmt = 0)')
+			constraints.append(constraint)
 			params.append(startJdn)
 			params.append(start.year if start.month == 1 and start.day == 1 else start.year + 1)
 	if end is not None:
+		constraint = '((end IS NULL AND start <= ? AND fmt > 0 OR start <= ? AND fmt = 0) OR ' \
+			'(end IS NOT NULL AND end <= ? AND fmt > 0 OR end <= ? AND fmt = 0))'
 		if end.gcal is None:
 			endJdn = gregorianToJdn(end.year, 1, 1) if end.year >= -4713 else -1
-			constraints.append('(end <= ? AND fmt > 0 OR end <= ? AND fmt = 0)')
-			params.append(endJdn)
-			params.append(end.year)
+			constraints.append(constraint)
+			params.extend([endJdn, end.year, endJdn, end.year])
 		else:
 			endJdn = gregorianToJdn(end.year, end.month, end.day)
-			constraints.append('(end <= ? AND fmt > 0 OR end <= ? AND fmt = 0)')
-			params.append(endJdn)
-			params.append(end.year if end.month == 12 and end.day == 31 else end.year - 1)
+			constraints.append(constraint)
+			year = end.year if end.month == 12 and end.day == 31 else end.year - 1
+			params.extend([endJdn, year, endJdn, year])
 	# Constrain by event category
 	if ctg is not None:
 		constraints.append('ctg = ?')
