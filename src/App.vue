@@ -38,7 +38,7 @@ import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
-import {HistDate, TimelineState, HistEvent, getUnitDiff, MONTH_SCALE, DAY_SCALE, stepDate} from './lib';
+import {HistDate, TimelineState, HistEvent, queryServer, HistEventJson, jsonToHistEvent} from './lib';
 import {useStore} from './store';
 
 // Refs
@@ -100,33 +100,18 @@ function onTimelineRemove(idx: number){
 
 // Event data
 const eventMap: Ref<Map<number, HistEvent>> = ref(new Map()); // Maps event IDs to HistEvents
-let nextEventId = 0; // For generating placeholder events
-function onEventReq(startDate: HistDate, endDate: HistDate){
-	// Get number of existing events in range
-	let numExisting = 0;
-	for (let event of eventMap.value.values()){
-		if (!event.start.isEarlier(startDate) && !endDate.isEarlier(event.start)){
-			numExisting += 1;
-		}
+async function onEventReq(startDate: HistDate, endDate: HistDate){
+	// Get events from server
+	let urlParams = new URLSearchParams({type: 'events', range: `${startDate}.${endDate}`, limit: '10'});
+	let responseObj: HistEventJson[] = await queryServer(urlParams);
+	if (responseObj == null){
+		return;
 	}
-	// Possibly add new events
-	let tempScale = 1;
-	let numUnits = getUnitDiff(startDate, endDate, tempScale);
-	if (numUnits < 2){
-		tempScale = MONTH_SCALE;
-		numUnits = getUnitDiff(startDate, endDate, tempScale);
-		if (numUnits < 2){
-			tempScale = DAY_SCALE;
-			numUnits = getUnitDiff(startDate, endDate, tempScale);
+	// Add to map
+	for (let eventObj of responseObj){
+		if (!eventMap.value.has(eventObj.id)){
+			eventMap.value.set(eventObj.id, jsonToHistEvent(eventObj));
 		}
-	}
-	for (let i = 0; i < 3 - numExisting; i++){
-		let start = startDate.clone();
-		let steps = Math.floor(Math.random() * (numUnits + 1));
-		stepDate(start, tempScale, {count: steps, inplace: true});
-		let event = {id: nextEventId, title: `Event ${nextEventId}`, start, startUpper: null, end: null, endUpper: null};
-		eventMap.value.set(event.id, event);
-		nextEventId += 1;
 	}
 }
 

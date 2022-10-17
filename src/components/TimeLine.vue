@@ -31,7 +31,7 @@
 	<div v-for="id in eventIdToPos.keys()" :key="id"
 		class="absolute bg-black text-white border border-white rounded animate-fadein"
 		:style="eventStyles(id)">
-		{{eventMap.get(id)!.id}}
+		{{eventMap.get(id)!.title}}
 	</div>
 	<!-- Buttons -->
 	<icon-button :size="30" class="absolute top-2 right-2"
@@ -51,7 +51,7 @@ import MinusIcon from './icon/MinusIcon.vue';
 // Other
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_DATE,
 	HistDate, stepDate, inDateScale, getScaleRatio, getUnitDiff, getDaysInMonth, moduloPositive, TimelineState,
-	HistEvent} from '../lib';
+	HistEvent, getImagePath} from '../lib';
 import {useStore} from '../store';
 
 // Refs
@@ -266,8 +266,8 @@ const eventIdToPos = computed(() => { // Maps visible event IDs to x-pos, y-pos,
 		let posFrac = unitOffset / numUnits;
 		let posX = props.vert ? minorAxisStep : availLen.value * posFrac;
 		let posY = props.vert ? availLen.value * posFrac : minorAxisStep;
-		idToPos.set(event.id, [posX, posY, 50, 50]);
-		minorAxisStep += 5;
+		idToPos.set(event.id, [posX, posY, 100, 100]);
+		minorAxisStep += 10;
 	}
 	// If more events could be displayed, notify parent
 	if (idToPos.size < 3){
@@ -726,11 +726,14 @@ function tickLabelStyles(idx: number){
 }
 function eventStyles(eventId: number){
 	const [x, y, w, h] = eventIdToPos.value.get(eventId)!;
+	let event = props.eventMap.get(eventId)!;
 	return {
 		left: x + 'px',
 		top: y + 'px',
 		width: w + 'px',
 		height: h + 'px',
+		backgroundImage: `url(${getImagePath(event.imgId)})`,
+		backgroundSize: 'cover',
 		transitionProperty: skipTransition.value ? 'none' : 'all',
 		transitionDuration,
 		transitionTimingFunction,

@@ -107,7 +107,11 @@ export class HistDate {
 		return this.day + this.month * 50 + this.year * 1000;
 	}
 	toString(){
-		return `${this.year}-${this.month}-${this.day}`;
+		if (this.isEarlier(MIN_CAL_DATE)){
+			return `${this.year}`;
+		} else {
+			return `${this.year}-${this.month}-${this.day}`;
+		}
 	}
 	getDayDiff(other: HistDate){
 		const jdn2 = gregorianToJdn(this.year, this.month, this.day);
@@ -302,4 +306,63 @@ export type HistEvent = {
 	startUpper: HistDate | null,
 	end: HistDate | null,
 	endUpper: HistDate | null,
+	ctg: string,
+	imgId: number,
+	pop: number,
 };
+
+// For server requests
+const SERVER_DATA_URL = (new URL(window.location.href)).origin + '/data/'
+const SERVER_IMG_PATH = '/hist_data/img/'
+export async function queryServer(params: URLSearchParams){
+	// Construct URL
+	const url = new URL(SERVER_DATA_URL);
+	url.search = params.toString();
+	// Query server
+	let responseObj;
+	try {
+		const response = await fetch(url.toString());
+		responseObj = await response.json();
+	} catch (error){
+		console.log(`Error with querying ${url.toString()}: ${error}`);
+		return null;
+	}
+	return responseObj;
+}
+export function getImagePath(imgId: number): string {
+	return SERVER_IMG_PATH + String(imgId) + '.jpg';
+}
+// For server responses
+export type HistDateJson = {
+	gcal: boolean | null,
+	year: number,
+	month: number | null,
+	day: number | null,
+}
+export type HistEventJson = {
+	id: number,
+	title: string,
+	start: HistDateJson,
+	startUpper: HistDateJson | null,
+	end: HistDateJson | null,
+	endUpper: HistDateJson | null,
+	ctg: string,
+	imgId: number,
+	pop: number,
+}
+export function jsonToHistDate(json: HistDateJson){
+	return new HistDate(json.year, json.month == null ? 1 : json.month, json.day == null ? 1 : json.day);
+}
+export function jsonToHistEvent(json: HistEventJson){
+	return {
+		id: json.id,
+		title: json.title,
+		start: jsonToHistDate(json.start),
+		startUpper: json.startUpper == null ? null : jsonToHistDate(json.startUpper),
+		end: json.end == null ? null : jsonToHistDate(json.end),
+		endUpper: json.endUpper == null ? null : jsonToHistDate(json.endUpper),
+		ctg: json.ctg,
+		imgId: json.imgId,
+		pop: json.pop,
+	};
+}
