@@ -27,7 +27,7 @@ from hist_data.cal import gregorianToJdn, jdnToGregorian, jdnToJulian
 
 DB_FILE = 'hist_data/data.db'
 MAX_REQ_EVENTS = 100
-DEFAULT_REQ_EVENTS = 10
+DEFAULT_REQ_EVENTS = 20
 MAX_REQ_EXCLS = 100
 MAX_REQ_SUGGS = 50
 DEFAULT_REQ_SUGGS = 5

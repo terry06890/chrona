@@ -40,7 +40,7 @@ class Iterator<T> {
 	// otherwise, returns next node
 	next(): T | null{
 		if (this._cursor === null) {
-			let root = this._tree._root;
+			const root = this._tree._root;
 			if (root !== null) {
 				this._minNode(root);
 			}
@@ -68,12 +68,12 @@ class Iterator<T> {
 			}
 		}
 		return this._cursor !== null ? this._cursor.data : null;
-	};
+	}
 	// if null-iterator, returns last node
 	// otherwise, returns previous node
 	prev(): T | null {
 		if(this._cursor === null) {
-			let root = this._tree._root;
+			const root = this._tree._root;
 			if(root !== null) {
 				this._maxNode(root);
 			}
@@ -98,21 +98,21 @@ class Iterator<T> {
 			}
 		}
 		return this._cursor !== null ? this._cursor.data : null;
-	};
+	}
 	_minNode(start: Node<T>) {
 		while(start.left !== null) {
 			this._ancestors.push(start);
 			start = start.left;
 		}
 		this._cursor = start;
-	};
+	}
 	_maxNode(start: Node<T>) {
 		while(start.right !== null) {
 			this._ancestors.push(start);
 			start = start.right;
 		}
 		this._cursor = start;
-	};
+	}
 }
 
 export class RBTree<T> {
@@ -133,7 +133,7 @@ export class RBTree<T> {
 	find(data: T): T | null{
 		let res = this._root;
 		while (res !== null) {
-			let c = this._comparator(data, res.data);
+			const c = this._comparator(data, res.data);
 			if(c === 0) {
 				return res.data;
 			}
@@ -146,9 +146,9 @@ export class RBTree<T> {
 	// returns iterator to node if found, null otherwise
 	findIter(data: T): Iterator<T> | null {
 		let res = this._root;
-		let iter = this.iterator();
+		const iter = this.iterator();
 		while(res !== null) {
-			let c = this._comparator(data, res.data);
+			const c = this._comparator(data, res.data);
 			if(c === 0) {
 				iter._cursor = res;
 				return iter;
@@ -159,14 +159,14 @@ export class RBTree<T> {
 			}
 		}
 		return null;
-	};
+	}
 	// Returns an iterator to the tree node at or immediately after the item
 	lowerBound(item: T): Iterator<T> {
 		let cur = this._root;
-		let iter = this.iterator();
-		let cmp = this._comparator;
+		const iter = this.iterator();
+		const cmp = this._comparator;
 		while(cur !== null) {
-			let c = cmp(item, cur.data);
+			const c = cmp(item, cur.data);
 			if(c === 0) {
 				iter._cursor = cur;
 				return iter;
@@ -184,16 +184,16 @@ export class RBTree<T> {
 		}
 		iter._ancestors.length = 0;
 		return iter;
-	};
+	}
 	// Returns an iterator to the tree node immediately after the item
 	upperBound(item: T): Iterator<T> {
-		let iter = this.lowerBound(item);
-		let cmp = this._comparator;
+		const iter = this.lowerBound(item);
+		const cmp = this._comparator;
 		while(iter.data() !== null && cmp(iter.data()!, item) === 0) {
 			iter.next();
 		}
 		return iter;
-	};
+	}
 	// returns null if tree is empty
 	min(): T | null {
 		let res = this._root;
@@ -204,7 +204,7 @@ export class RBTree<T> {
 			res = res.left;
 		}
 		return res.data;
-	};
+	}
 	// returns null if tree is empty
 	max(): T | null {
 		let res = this._root;
@@ -215,30 +215,32 @@ export class RBTree<T> {
 			res = res.right;
 		}
 		return res.data;
-	};
+	}
 	// returns a null iterator
 	// call next() or prev() to point to an element
 	iterator() {
 		return new Iterator(this);
-	};
+	}
 	// calls cb on each node's data, in order
 	each(cb: (x: T) => boolean) {
-		let it=this.iterator(), data;
+		const it = this.iterator();
+		let data: T | null;
 		while((data = it.next()) !== null) {
 			if(cb(data) === false) {
 				return;
 			}
 		}
-	};
+	}
 	// calls cb on each node's data, in reverse order
 	reach(cb: (x: T) => boolean) {
-		var it=this.iterator(), data;
+		const it=this.iterator();
+		let data: T | null;
 		while((data = it.prev()) !== null) {
 			if(cb(data) === false) {
 				return;
 			}
 		}
-	};
+	}
 	// returns true if inserted, false if duplicate
 	insert(data: T): boolean {
 		let ret = false;
@@ -249,7 +251,7 @@ export class RBTree<T> {
 			this.size++;
 		}
 		else {
-			let head = new Node(undefined) as Node<T>; // fake tree root
+			const head = new Node(undefined) as Node<T>; // fake tree root
 			let dir = false;
 			let last = false;
 			// setup
@@ -275,7 +277,7 @@ export class RBTree<T> {
 				}
 				// fix red violation
 				if(is_red(node) && is_red(p)) {
-					let dir2 = ggp.right === gp;
+					const dir2 = ggp.right === gp;
 					if(node === p!.get_child(last)) {
 						ggp.set_child(dir2, single_rotate(gp!, !last));
 					}
@@ -283,7 +285,7 @@ export class RBTree<T> {
 						ggp.set_child(dir2, double_rotate(gp!, !last));
 					}
 				}
-				let cmp = this._comparator(node.data, data);
+				const cmp = this._comparator(node.data, data);
 				// stop if found
 				if(cmp === 0) {
 					break;
@@ -304,13 +306,13 @@ export class RBTree<T> {
 		// make root black
 		this._root!.red = false;
 		return ret;
-	};
+	}
 	// returns true if removed, false if not found
 	remove(data: T): boolean {
 		if(this._root === null) {
 			return false;
 		}
-		let head = new Node(undefined) as Node<T>; // fake tree root
+		const head = new Node(undefined) as Node<T>; // fake tree root
 		let node = head;
 		node.right = this._root;
 		let p: Node<T> | null = null; // parent
@@ -318,12 +320,12 @@ export class RBTree<T> {
 		let found: Node<T> | null = null; // found item
 		let dir = true;
 		while(node.get_child(dir) !== null) {
-			let last = dir;
+			const last = dir;
 			// update helpers
 			gp = p;
 			p = node;
 			node = node.get_child(dir)!;
-			let cmp = this._comparator(data, node.data);
+			const cmp = this._comparator(data, node.data);
 			dir = cmp > 0;
 			// save found node
 			if (cmp === 0) {
@@ -332,12 +334,12 @@ export class RBTree<T> {
 			// push the red node down
 			if (!is_red(node) && !is_red(node.get_child(dir))) {
 				if(is_red(node.get_child(!dir))) {
-					let sr = single_rotate(node, dir);
+					const sr = single_rotate(node, dir);
 					p.set_child(last, sr);
 					p = sr;
 				}
 				else if(!is_red(node.get_child(!dir))) {
-					let sibling = p.get_child(!last);
+					const sibling = p.get_child(!last);
 					if(sibling !== null) {
 						if(!is_red(sibling.get_child(!last)) && !is_red(sibling.get_child(last))) {
 							// color flip
@@ -346,7 +348,7 @@ export class RBTree<T> {
 							node.red = true;
 						}
 						else {
-							let dir2 = gp!.right === p;
+							const dir2 = gp!.right === p;
 							if(is_red(sibling.get_child(last))) {
 								gp!.set_child(dir2, double_rotate(p, last));
 							}
@@ -354,7 +356,7 @@ export class RBTree<T> {
 								gp!.set_child(dir2, single_rotate(p, last));
 							}
 							// ensure correct coloring
-							let gpc = gp!.get_child(dir2)!;
+							const gpc = gp!.get_child(dir2)!;
 							gpc.red = true;
 							node.red = true;
 							gpc.left!.red = false;
@@ -376,7 +378,7 @@ export class RBTree<T> {
 			this._root.red = false;
 		}
 		return found !== null;
-	};
+	}
 }
 
 function is_red<T>(node: Node<T> | null): boolean {
@@ -384,7 +386,7 @@ function is_red<T>(node: Node<T> | null): boolean {
 }
 
 function single_rotate<T>(root: Node<T>, dir: boolean): Node<T> {
-	let save = root.get_child(!dir)!;
+	const save = root.get_child(!dir)!;
 	root.set_child(!dir, save.get_child(dir));
 	save.set_child(dir, root);
 	root.red = true;
@@ -395,4 +397,11 @@ function single_rotate<T>(root: Node<T>, dir: boolean): Node<T> {
 function double_rotate<T>(root: Node<T>, dir: boolean): Node<T> {
 	root.set_child(!dir, single_rotate(root.get_child(!dir)!, !dir));
 	return single_rotate(root, dir);
+}
+
+export function rbtree_shallow_copy<T>(tree: RBTree<T>): RBTree<T> {
+	const newTree = new RBTree(tree._comparator);
+	newTree._root = tree._root;
+	newTree.size = tree.size;
+	return newTree;
 }

@@ -261,7 +261,7 @@ const idToEvent = computed(() => { // Maps visible event IDs to HistEvent, x-pos
 	// Find events to display, and do basic layouting
 	let iter = props.eventTree.lowerBound(new HistEvent(0, '', startDate.value));
 	while (iter.data() != null){
-		let event = iter.data();
+		let event = iter.data()!;
 		iter.next();
 		if (endDate.value.isEarlier(event.start)){
 			break;

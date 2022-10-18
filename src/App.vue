@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onUnmounted, Ref} from 'vue';
+import {ref, computed, onMounted, onUnmounted, Ref, shallowRef, ShallowRef} from 'vue';
 // Components
 import TimeLine from './components/TimeLine.vue';
 import BaseLine from './components/BaseLine.vue';
@@ -40,7 +40,7 @@ import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
 import {HistDate, TimelineState, HistEvent, queryServer, HistEventJson, jsonToHistEvent, cmpHistEvent} from './lib';
 import {useStore} from './store';
-import {RBTree} from './rbtree';
+import {RBTree, rbtree_shallow_copy} from './rbtree';
 
 // Refs
 const contentAreaRef = ref(null as HTMLElement | null);
@@ -100,7 +100,7 @@ function onTimelineRemove(idx: number){
 }
 
 // Event data
-const eventTree: Ref<RBTree<HistEvent>> = ref(new RBTree(cmpHistEvent)); // Used to look up events by date range
+const eventTree: ShallowRef<RBTree<HistEvent>> = shallowRef(new RBTree(cmpHistEvent)); // Used to look up events by date range
 async function onEventReq(startDate: HistDate, endDate: HistDate){
 	// Get events from server
 	let urlParams = new URLSearchParams({type: 'events', range: `${startDate}.${endDate}`, limit: '10'});
@@ -109,9 +109,15 @@ async function onEventReq(startDate: HistDate, endDate: HistDate){
 		return;
 	}
 	// Add to map
+	let added = false;
 	for (let eventObj of responseObj){
 		let event = jsonToHistEvent(eventObj);
-		eventTree.value.insert(event);
+		let success = eventTree.value.insert(event);
+		added = added || success;
+	}
+	// Notify components if new events were added
+	if (added){
+		eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
 	}
 }
 
