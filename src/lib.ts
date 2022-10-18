@@ -89,6 +89,15 @@ export class HistDate {
 			return Math.floor(this.year / scale) == Math.floor(other.year / scale);
 		}
 	}
+	cmp(other: HistDate, scale=DAY_SCALE){
+		if (this.isEarlier(other)){
+			return -1;
+		} else if (!this.equals(other)){
+			return 1;
+		} else {
+			return 0;
+		}
+	}
 	isEarlier(other: HistDate, scale=DAY_SCALE){
 		const yearlyScale = scale != DAY_SCALE && scale != MONTH_SCALE;
 		const thisYear = yearlyScale ? Math.floor(this.year / scale) : this.year;
@@ -324,13 +333,8 @@ export class HistEvent {
 	}
 }
 export function cmpHistEvent(event: HistEvent, event2: HistEvent){
-	if (event.start.isEarlier(event2.start)){
-		return -1;
-	} else if (!event.start.equals(event2.start)){
-		return 1;
-	} else {
-		return event.id - event2.id;
-	}
+	let cmp = event.start.cmp(event2.start);
+	return cmp != 0 ? cmp : event.id - event2.id;;
 }
 
 // For server requests

@@ -99,11 +99,95 @@ function onTimelineRemove(idx: number){
 	timelines.value.splice(idx, 1);
 }
 
-// Event data
-const eventTree: ShallowRef<RBTree<HistEvent>> = shallowRef(new RBTree(cmpHistEvent)); // Used to look up events by date range
+// For storing and looking up events
+const eventTree: ShallowRef<RBTree<HistEvent>> = shallowRef(new RBTree(cmpHistEvent));
+// For tracking ranges for which the server has no more events
+let exhaustedRanges = new RBTree(cmpDatePairs);
+function cmpDatePairs(datePair1: [HistDate, HistDate], datePair2: [HistDate, HistDate]){
+	return datePair1[0].cmp(datePair2[0]);
+}
+function isExhaustedRange(startDate: HistDate, endDate: HistDate): boolean {
+	// Check if input range is contained in a stored exhausted range
+	let itr = exhaustedRanges.lowerBound([startDate, new HistDate(1)]);
+	let datePair = itr.data();
+	if (datePair == null){
+		datePair = itr.prev();
+		if (datePair == null){
+			return false;
+		} else {
+			return !datePair[1].isEarlier(endDate);
+		}
+	} else {
+		if (startDate.isEarlier(datePair[0])){
+			return false;
+		} else {
+			return !datePair[1].isEarlier(endDate);
+		}
+	}
+}
+function addExhaustedRange(startDate: HistDate, endDate: HistDate){
+	let rangesToRemove: HistDate[] = []; // Holds starts of ranges to remove
+	// Find ranges to remove
+	let itr = exhaustedRanges.lowerBound([startDate, new HistDate(1)]);
+	let prevRange = itr.prev();
+	if (prevRange != null){ // Check for start-overlapping range
+		if (prevRange[1].isEarlier(startDate)){
+			prevRange = null;
+		} else {
+			rangesToRemove.push(prevRange[0]);
+		}
+	}
+	let datePair = itr.next();
+	while (datePair != null && !endDate.isEarlier(datePair[1])){ // Check for included ranges
+		rangesToRemove.push(datePair[0]);
+		datePair = itr.next();
+	}
+	let nextRange = itr.data();
+	if (nextRange != null){ // Check for end-overlapping range
+		if (endDate.isEarlier(nextRange[0])){
+			nextRange = null;
+		} else {
+			rangesToRemove.push(nextRange[0])
+		}
+	}
+	// Remove included/overlapping ranges
+	for (let start of rangesToRemove){
+		exhaustedRanges.remove([start, new HistDate(1)]);
+	}
+	// Add possibly-merged range
+	if (prevRange != null){
+		startDate = prevRange[0];
+	}
+	if (nextRange != null){
+		endDate = nextRange[1];
+	}
+	exhaustedRanges.insert([startDate, endDate]);
+}
+// For getting events from server
+const EVENT_REQ_LIMIT = 10;
 async function onEventReq(startDate: HistDate, endDate: HistDate){
+	// Exclude exhausted range
+	if (isExhaustedRange(startDate, endDate)){
+		return;
+	}
+	// Get existing events in range
+	let existingEventIds: number[] = [];
+	let itr = eventTree.value.lowerBound(new HistEvent(0, '', startDate));
+	while (itr.data() != null){
+		let event = itr.data()!;
+		itr.next();
+		if (endDate.isEarlier(event.start)){
+			break;
+		}
+		existingEventIds.push(event.id);
+	}
 	// Get events from server
-	let urlParams = new URLSearchParams({type: 'events', range: `${startDate}.${endDate}`, limit: '10'});
+	let urlParams = new URLSearchParams({
+		type: 'events',
+		range: `${startDate}.${endDate}`,
+		limit: String(EVENT_REQ_LIMIT),
+		excl: existingEventIds.join('.'),
+	});
 	let responseObj: HistEventJson[] = await queryServer(urlParams);
 	if (responseObj == null){
 		return;
@@ -118,6 +202,8 @@ async function onEventReq(startDate: HistDate, endDate: HistDate){
 	// Notify components if new events were added
 	if (added){
 		eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
+	} else {
+		addExhaustedRange(startDate, endDate); // Mark as exhausted range
 	}
 }
 

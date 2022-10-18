@@ -28,10 +28,10 @@
 		</text>
 	</svg>
 	<!-- Events -->
-	<div v-for="id in idToEvent.keys()" :key="id"
+	<div v-for="id in idToPos.keys()" :key="id"
 		class="absolute bg-black text-white border border-white rounded animate-fadein"
 		:style="eventStyles(id)">
-		{{idToEvent.get(id)!.event.title}}
+		{{idToEvent.get(id)!.title}}
 	</div>
 	<!-- Buttons -->
 	<icon-button :size="30" class="absolute top-2 right-2"
@@ -43,7 +43,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, computed, watch, PropType, Ref, nextTick} from 'vue';
+import {ref, onMounted, computed, watch, PropType, Ref} from 'vue';
 // Components
 import IconButton from './IconButton.vue';
 // Icons
@@ -254,31 +254,41 @@ const ticks = computed((): Ticks => {
 });
 
 // For displayed events
-const idToEvent = computed(() => { // Maps visible event IDs to HistEvent, x-pos, y-pos, width, and height
-	let idToPos: Map<number, {event: HistEvent, x: number, y: number, w: number, h: number}> = new Map();
-	let numUnits = getNumVisibleUnits();
-	let minorAxisStep = 0;
-	// Find events to display, and do basic layouting
-	let iter = props.eventTree.lowerBound(new HistEvent(0, '', startDate.value));
-	while (iter.data() != null){
-		let event = iter.data()!;
-		iter.next();
+let pendingReq = false;
+const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
+	let map: Map<number, HistEvent> = new Map();
+	// Find events to display
+	let itr = props.eventTree.lowerBound(new HistEvent(0, '', startDate.value));
+	while (itr.data() != null){
+		let event = itr.data()!;
+		itr.next();
 		if (endDate.value.isEarlier(event.start)){
 			break;
 		}
+		map.set(event.id, event);
+	}
+	pendingReq = false;
+	return map;
+});
+const idToPos = computed(() => {
+	let map: Map<number, [number, number, number, number]> = new Map(); // Maps visible event IDs to x/y/w/h
+	let numUnits = getNumVisibleUnits();
+	let minorAxisStep = 0;
+	for (let event of idToEvent.value.values()){
 		let unitOffset = getUnitDiff(event.start, startDate.value, scale.value) + startOffset.value;
 		let posFrac = unitOffset / numUnits;
 		let posX = props.vert ? minorAxisStep : availLen.value * posFrac;
 		let posY = props.vert ? availLen.value * posFrac : minorAxisStep;
-		idToPos.set(event.id, {event, x: posX, y: posY, w: 100, h: 100});
+		map.set(event.id, [posX, posY, 100, 100]);
 		minorAxisStep += 10;
 	}
 	// If more events could be displayed, notify parent
-	if (idToPos.size < 3){
-		nextTick(() => emit('event-req', startDate.value, endDate.value));
+	if (map.size < 3 && !pendingReq){
+		emit('event-req', startDate.value, endDate.value);
 	}
+	pendingReq = true;
 	//
-	return idToPos;
+	return map;
 });
 
 // For panning/zooming
@@ -729,13 +739,14 @@ function tickLabelStyles(idx: number){
 	}
 }
 function eventStyles(eventId: number){
-	const evt = idToEvent.value.get(eventId)!;
+	const event = idToEvent.value.get(eventId)!;
+	const [x, y, w, h] = idToPos.value.get(eventId)!;
 	return {
-		left: evt.x + 'px',
-		top: evt.y + 'px',
-		width: evt.w + 'px',
-		height: evt.h + 'px',
-		backgroundImage: `url(${getImagePath(evt.event.imgId)})`,
+		left: x + 'px',
+		top: y + 'px',
+		width: w + 'px',
+		height: h + 'px',
+		backgroundImage: `url(${getImagePath(event.imgId)})`,
 		backgroundSize: 'cover',
 		transitionProperty: skipTransition.value ? 'none' : 'all',
 		transitionDuration,
