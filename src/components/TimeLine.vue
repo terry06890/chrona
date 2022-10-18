@@ -281,8 +281,9 @@ const idToPos = computed(() => {
 	}
 	let map: Map<number, [number, number, number, number]> = new Map(); // Maps visible event IDs to x/y/w/h
 	// Do basic grid-like layout
-	let spacing = 10, sz = 80, midOffset = [10, 40];
+	let spacing = 10, sz = 100, midOffset = [10, 40];
 	let posX = spacing, posY = spacing;
+	let full = false;
 	for (let event of idToEvent.value.values()){
 		map.set(event.id, [posX, posY, sz, sz]);
 		if (props.vert){
@@ -297,6 +298,7 @@ const idToPos = computed(() => {
 				}
 				// If finished last row
 				if (posX + sz + spacing > availBreadth.value){
+					full = true;
 					break;
 				}
 			}
@@ -312,13 +314,14 @@ const idToPos = computed(() => {
 				}
 				// If finished last column
 				if (posY + sz + spacing > availBreadth.value){
+					full = true;
 					break;
 				}
 			}
 		}
 	}
 	// If more events could be displayed, notify parent
-	if (map.size < 3){
+	if (!full){
 		emit('event-req', startDate.value, endDate.value);
 	} else { // Send displayed event IDs to parent
 		emit('event-display', [...idToEvent.value.keys()], ID);
@@ -443,8 +446,12 @@ function panTimeline(scrollRatio: number){
 		console.log('Unable to pan into dates where months/days are invalid');
 		return;
 	}
-	startDate.value = newStart;
-	endDate.value = newEnd;
+	if (!newStart.equals(startDate.value)){
+		startDate.value = newStart;
+	}
+	if (!newEnd.equals(endDate.value)){
+		endDate.value = newEnd;
+	}
 	startOffset.value = newStartOffset;
 	endOffset.value = newEndOffset;
 }
