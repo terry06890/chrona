@@ -11,6 +11,10 @@ export const WRITING_MODE_HORZ =
 export function moduloPositive(x: number, y: number){
 	return x - Math.floor(x / y) * y;
 }
+// Used to async-await for until after a timeout
+export async function timeout(ms: number){
+	return new Promise(resolve => setTimeout(resolve, ms))
+}
 
 // For calendar conversion. Mostly copied from backend/hist_data/cal.py
 export function gregorianToJdn(year: number, month: number, day: number): number {

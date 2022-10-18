@@ -254,7 +254,6 @@ const ticks = computed((): Ticks => {
 });
 
 // For displayed events
-let pendingReq = false;
 const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
 	let map: Map<number, HistEvent> = new Map();
 	// Find events to display
@@ -267,10 +266,12 @@ const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
 		}
 		map.set(event.id, event);
 	}
-	pendingReq = false;
 	return map;
 });
 const idToPos = computed(() => {
+	if (!mounted.value){
+		return new Map();
+	}
 	let map: Map<number, [number, number, number, number]> = new Map(); // Maps visible event IDs to x/y/w/h
 	let numUnits = getNumVisibleUnits();
 	let minorAxisStep = 0;
@@ -283,12 +284,11 @@ const idToPos = computed(() => {
 		minorAxisStep += 10;
 	}
 	// If more events could be displayed, notify parent
-	if (map.size < 3 && !pendingReq){
+	if (map.size < 3){
 		emit('event-req', startDate.value, endDate.value);
 	} else { // Send displayed event IDs to parent
 		emit('event-display', [...idToEvent.value.keys()], ID);
 	}
-	pendingReq = true;
 	//
 	return map;
 });

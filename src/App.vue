@@ -39,7 +39,8 @@ import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
-import {HistDate, TimelineState, HistEvent, queryServer, HistEventJson, jsonToHistEvent, cmpHistEvent} from './lib';
+import {HistDate, TimelineState, HistEvent, queryServer, HistEventJson, jsonToHistEvent, cmpHistEvent,
+	timeout} from './lib';
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
 
@@ -191,7 +192,12 @@ function reduceEvents(){
 }
 // For getting events from server
 const EVENT_REQ_LIMIT = 10;
+let pendingReq = false; // Used to serialise event-req handling
 async function onEventReq(startDate: HistDate, endDate: HistDate){
+	while (pendingReq){
+		await timeout(100);
+	}
+	pendingReq = true;
 	// Exclude exhausted range
 	if (isExhaustedRange(startDate, endDate)){
 		return;
@@ -238,6 +244,7 @@ async function onEventReq(startDate: HistDate, endDate: HistDate){
 	if (eventTree.value.size > EXCESS_EVENTS_THRESHOLD){
 		reduceEvents();
 	}
+	pendingReq = false;
 }
 
 // For resize handling
