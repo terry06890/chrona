@@ -5,8 +5,6 @@
 	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel"
 	ref="rootRef">
 	<svg :viewBox="`0 0 ${width} ${height}`">
-		<!-- Main line (unit horizontal line that gets transformed, with extra length to avoid gaps when panning) -->
-		<line :stroke="store.color.alt" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
 		<!-- Tick markers -->
 		<template v-for="date, idx in ticks.dates" :key="date.toInt()">
 			<line v-if="date.equals(MIN_DATE, scale) || date.equals(MAX_DATE, scale)"
@@ -20,16 +18,22 @@
 				:stroke="store.color.alt" stroke-width="1px"
 				:style="tickStyles(idx)" class="animate-fadein"/>
 		</template>
+		<!-- Event lines -->
+		<line v-for="id in eventLines.keys()" :key="id"
+			x1="0" y1="0" x2="1" y2="0" :stroke="store.color.altDark2" stroke-width="1px"
+			:style="eventLineStyles(id)" class="animate-fadein"/>
 		<!-- Tick labels -->
 		<text v-for="date, idx in ticks.dates" :key="date.toInt()"
 			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
 			:fill="store.color.textDark" :style="tickLabelStyles(idx)" class="text-sm animate-fadein">
 			{{date}}
 		</text>
+		<!-- Main line (unit horizontal line that gets transformed, with extra length to avoid gaps when panning) -->
+		<line :stroke="store.color.alt" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
 	</svg>
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id"
-		class="absolute bg-black text-white border border-white rounded animate-fadein"
+		class="absolute bg-black text-white rounded animate-fadein text-sm"
 		:style="eventStyles(id)">
 		{{idToEvent.get(id)!.title}}
 	</div>
@@ -55,6 +59,8 @@ import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, M
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 
+const SCRIM_GRADIENT = 'linear-gradient(to bottom, rgba(0,0,0,0.4), #0000 40%)';
+
 // Refs
 const rootRef: Ref<HTMLElement | null> = ref(null);
 
@@ -73,6 +79,7 @@ const emit = defineEmits(['remove', 'state-chg', 'event-req', 'event-display']);
 const width = ref(0);
 const height = ref(0);
 const availLen = computed(() => props.vert ? height.value : width.value);
+const availBreadth = computed(() => props.vert ? width.value : height.value);
 const prevVert = ref(props.vert); // For skipping transitions on horz/vert swap
 const mounted = ref(false);
 onMounted(() => {
@@ -273,15 +280,42 @@ const idToPos = computed(() => {
 		return new Map();
 	}
 	let map: Map<number, [number, number, number, number]> = new Map(); // Maps visible event IDs to x/y/w/h
-	let numUnits = getNumVisibleUnits();
-	let minorAxisStep = 0;
+	// Do basic grid-like layout
+	let spacing = 10, sz = 80, midOffset = [10, 40];
+	let posX = spacing, posY = spacing;
 	for (let event of idToEvent.value.values()){
-		let unitOffset = getUnitDiff(event.start, startDate.value, scale.value) + startOffset.value;
-		let posFrac = unitOffset / numUnits;
-		let posX = props.vert ? minorAxisStep : availLen.value * posFrac;
-		let posY = props.vert ? availLen.value * posFrac : minorAxisStep;
-		map.set(event.id, [posX, posY, 100, 100]);
-		minorAxisStep += 10;
+		map.set(event.id, [posX, posY, sz, sz]);
+		if (props.vert){
+			posY += sz + spacing;
+			if (posY + sz + spacing > availLen.value){ // If at end of column
+				posY = spacing;
+				posX += sz + spacing;
+				// Avoid collision with timeline
+				if (posX <= availBreadth.value / 2 + midOffset[1] &&
+						posX + sz >= availBreadth.value / 2 - midOffset[0]){
+					posX = availBreadth.value / 2 + midOffset[1];
+				}
+				// If finished last row
+				if (posX + sz + spacing > availBreadth.value){
+					break;
+				}
+			}
+		} else {
+			posX += sz + spacing;
+			if (posX + sz + spacing > availLen.value){ // If at end of row
+				posX = spacing;
+				posY += sz + spacing;
+				// Avoid collision with timeline
+				if (posY <= availBreadth.value / 2 + midOffset[1] &&
+						posY + sz >= availBreadth.value / 2 - midOffset[0]){
+					posY = availBreadth.value / 2 + midOffset[1];
+				}
+				// If finished last column
+				if (posY + sz + spacing > availBreadth.value){
+					break;
+				}
+			}
+		}
 	}
 	// If more events could be displayed, notify parent
 	if (map.size < 3){
@@ -291,6 +325,31 @@ const idToPos = computed(() => {
 	}
 	//
 	return map;
+});
+const eventLines = computed(() => {
+	let lineCoords: Map<number, [number, number, number, number]> = new Map();
+		// Maps event ID to x, y, length, and angle
+	let numUnits = getNumVisibleUnits();
+	for (let [id, [eventX, eventY, eventW, eventH]] of idToPos.value){
+		let x = eventX + eventW/2;
+		let y = eventY + eventH/2;
+		let x2: number;
+		let y2: number;
+		let event = idToEvent.value.get(id)!;
+		let unitOffset = getUnitDiff(event.start, startDate.value, scale.value) + startOffset.value;
+		let posFrac = unitOffset / numUnits;
+		if (props.vert){
+			x2 = availBreadth.value / 2;
+			y2 = posFrac * availLen.value;
+		} else {
+			x2 = posFrac * availLen.value;
+			y2 = availBreadth.value / 2;
+		}
+		let l = Math.sqrt((x-x2)**2 + (y-y2)**2);
+		let a = Math.atan2(y2-y, x2-x) * 180 / Math.PI;
+		lineCoords.set(id, [x, y, l, a]);
+	}
+	return lineCoords;
 });
 
 // For panning/zooming
@@ -748,9 +807,18 @@ function eventStyles(eventId: number){
 		top: y + 'px',
 		width: w + 'px',
 		height: h + 'px',
-		backgroundImage: `url(${getImagePath(event.imgId)})`,
+		backgroundImage: `${SCRIM_GRADIENT},url(${getImagePath(event.imgId)})`,
 		backgroundSize: 'cover',
 		transitionProperty: skipTransition.value ? 'none' : 'all',
+		transitionDuration,
+		transitionTimingFunction,
+	};
+}
+function eventLineStyles(eventId: number){
+	const [x, y, l, a] = eventLines.value.get(eventId)!;
+	return {
+		transform: `translate(${x}px, ${y}px) rotate(${a}deg) scaleX(${l})`,
+		transitionProperty: skipTransition.value ? 'none' : 'transform',
 		transitionDuration,
 		transitionTimingFunction,
 	};

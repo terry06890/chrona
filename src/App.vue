@@ -191,7 +191,7 @@ function reduceEvents(){
 	exhaustedRanges.clear();
 }
 // For getting events from server
-const EVENT_REQ_LIMIT = 10;
+const EVENT_REQ_LIMIT = 30;
 let pendingReq = false; // Used to serialise event-req handling
 async function onEventReq(startDate: HistDate, endDate: HistDate){
 	while (pendingReq){
