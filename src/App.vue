@@ -21,7 +21,8 @@
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
 			:vert="vert" :initialState="state" :eventTree="eventTree"
 			class="grow basis-full min-h-0 outline outline-1"
-			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)" @event-req="onEventReq"/>
+			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)"
+			@event-req="onEventReq" @event-display="onEventDisplay($event, idx)"/>
 		<base-line :vert="vert" :timelines="timelines"/>
 	</div>
 </div>
@@ -101,6 +102,7 @@ function onTimelineRemove(idx: number){
 
 // For storing and looking up events
 const eventTree: ShallowRef<RBTree<HistEvent>> = shallowRef(new RBTree(cmpHistEvent));
+let idToEvent: Map<number, HistEvent> = new Map();
 // For tracking ranges for which the server has no more events
 let exhaustedRanges = new RBTree(cmpDatePairs);
 function cmpDatePairs(datePair1: [HistDate, HistDate], datePair2: [HistDate, HistDate]){
@@ -163,6 +165,30 @@ function addExhaustedRange(startDate: HistDate, endDate: HistDate){
 	}
 	exhaustedRanges.insert([startDate, endDate]);
 }
+// For keeping event data under a memory limit
+const EXCESS_EVENTS_THRESHOLD = 10000;
+let displayedEvents: Map<number, number[]> = new Map(); // Maps TimeLine IDs to IDs of displayed events
+function onEventDisplay(eventIds: number[], timelineId: number){
+	displayedEvents.set(timelineId, eventIds);
+}
+function reduceEvents(){
+	// Get events to keep
+	let eventsToKeep: Map<number, HistEvent> = new Map();
+	for (let [, ids] of displayedEvents){
+		for (let id of ids){
+			eventsToKeep.set(id, idToEvent.get(id)!);
+		}
+	}
+	// Create new event tree
+	let newTree = new RBTree(cmpHistEvent);
+	for (let [, event] of eventsToKeep){
+		newTree.insert(event);
+	}
+	// Replace old data
+	eventTree.value = newTree;
+	idToEvent = eventsToKeep;
+	exhaustedRanges.clear();
+}
 // For getting events from server
 const EVENT_REQ_LIMIT = 10;
 async function onEventReq(startDate: HistDate, endDate: HistDate){
@@ -197,13 +223,20 @@ async function onEventReq(startDate: HistDate, endDate: HistDate){
 	for (let eventObj of responseObj){
 		let event = jsonToHistEvent(eventObj);
 		let success = eventTree.value.insert(event);
-		added = added || success;
+		if (success){
+			added = true;
+			idToEvent.set(event.id, event);
+		}
 	}
 	// Notify components if new events were added
 	if (added){
 		eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
 	} else {
 		addExhaustedRange(startDate, endDate); // Mark as exhausted range
+	}
+	// Check memory limit
+	if (eventTree.value.size > EXCESS_EVENTS_THRESHOLD){
+		reduceEvents();
 	}
 }
 

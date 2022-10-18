@@ -67,7 +67,7 @@ const props = defineProps({
 	initialState: {type: Object as PropType<TimelineState>, required: true},
 	eventTree: {type: Object as PropType<RBTree<HistEvent>>, required: true},
 });
-const emit = defineEmits(['remove', 'state-chg', 'event-req']);
+const emit = defineEmits(['remove', 'state-chg', 'event-req', 'event-display']);
 
 // For size tracking
 const width = ref(0);
@@ -285,6 +285,8 @@ const idToPos = computed(() => {
 	// If more events could be displayed, notify parent
 	if (map.size < 3 && !pendingReq){
 		emit('event-req', startDate.value, endDate.value);
+	} else { // Send displayed event IDs to parent
+		emit('event-display', [...idToEvent.value.keys()], ID);
 	}
 	pendingReq = true;
 	//
