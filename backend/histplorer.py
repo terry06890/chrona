@@ -271,7 +271,8 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, ctg: str | None,
 			results.append(eventEntryToResults(row))
 	#
 	return results
-def eventEntryToResults(row: tuple[int, str, int, int | None, int | None, int | None, int, str, int, int]) -> Event:
+def eventEntryToResults(
+		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int, int | None]) -> Event:
 	eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, pop = row
 	""" Helper for converting an 'events' db entry into an Event object """
 	# Convert dates
@@ -291,6 +292,8 @@ def eventEntryToResults(row: tuple[int, str, int, int | None, int | None, int | 
 				newDates[i] = HistDate(False, *jdnToJulian(n))
 			else:
 				newDates[i] = HistDate(True, *jdnToGregorian(n))
+	if pop is None:
+		pop = 0
 	#
 	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
 
