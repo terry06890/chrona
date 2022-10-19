@@ -1,5 +1,5 @@
 <template>
-<div class="touch-none relative"
+<div class="touch-none relative overflow-hidden"
 	@pointerdown.prevent="onPointerDown" @pointermove.prevent="onPointerMove" @pointerup.prevent="onPointerUp"
 	@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp"
 	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel"
@@ -125,7 +125,7 @@ const eventMinorSz = computed(() => props.vert ? eventWidth.value : eventHeight.
 const SPACING = 10;
 const sideMainline = computed( // True if unable to fit mainline in middle with events on both sides
 	() => availBreadth.value < MAINLINE_WIDTH + (eventMinorSz.value + SPACING * 2) * 2);
-const mainlineOffset = computed(() => { // Distance from side of display area
+const mainlineOffset = computed(() => { // Distance mainline-area line to side of display area
 	if (!sideMainline.value){
 		return availBreadth.value / 2 - MAINLINE_WIDTH /2 + LARGE_TICK_LEN;
 	} else {
@@ -312,43 +312,162 @@ const idToPos = computed(() => {
 		return new Map();
 	}
 	let map: Map<number, [number, number, number, number]> = new Map(); // Maps visible event IDs to x/y/w/h
-	// Do basic grid-like layout
-	let minorOffset = SPACING, majorOffset = SPACING; // Holds x and y for event element (or y and x if !props.vert)
-	let full = false;
-	for (let event of idToEvent.value.values()){
-		// Check if at end of column (or row if !props.vert)
-		if (majorOffset + eventMajorSz.value + SPACING > availLen.value){
-			majorOffset = SPACING;
-			minorOffset += eventMinorSz.value + SPACING;
-			// If finished last row
-			if (minorOffset + eventMinorSz.value + SPACING > availBreadth.value){
-				full = true;
+	// Determine columns to place event elements in (or rows if !props.vert)
+	let cols: [number, number][][] = []; // For each column, for each element, stores an ID and pixel offset
+	let colOffsets: number[] = []; // Stores the pixel offset of each column
+	let afterMainlineIdx: number | null = null; // Index of first column after the mainline, if there is one
+	if (!sideMainline.value){
+		// Get columns before mainline area
+		let columnOffset = availBreadth.value / 2 - MAINLINE_WIDTH / 2 - SPACING - eventMinorSz.value;
+		while (columnOffset >= SPACING){
+			cols.push([]);
+			colOffsets.push(columnOffset);
+			columnOffset -= eventMinorSz.value + SPACING;
+		}
+		colOffsets.reverse();
+		afterMainlineIdx = cols.length;
+		// Get columns after mainline area
+		columnOffset = availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING;
+		while (columnOffset + eventMinorSz.value + SPACING < availBreadth.value){
+			cols.push([]);
+			colOffsets.push(columnOffset);
+			columnOffset += eventMinorSz.value + SPACING;
+		}
+	} else {
+		// Get columns before mainline area
+		let columnOffset = mainlineOffset.value - SPACING - eventMinorSz.value - SPACING;
+		while (columnOffset >= SPACING){
+			cols.push([]);
+			colOffsets.push(columnOffset);
+			columnOffset -= eventMinorSz.value + SPACING;
+		}
+		colOffsets.reverse();
+	}
+	if (cols.length == 0){
+		console.log('WARNING: No space for events');
+		return map;
+	}
+	// Place events in columns, trying to minimise distance to points on mainline
+		// Note: Placing popular events first so the layout is more stable between event requests
+	let orderedEvents = [...idToEvent.value.values()];
+	orderedEvents.sort((x, y) => y.pop - x.pop);
+	let numUnits = getNumVisibleUnits();
+	for (let event of orderedEvents){
+		// Get preferred pixel offset in column
+		let unitOffset = getUnitDiff(event.start, startDate.value, scale.value) + startOffset.value;
+		let targetOffset = unitOffset / numUnits * availLen.value - eventMajorSz.value / 2;
+		// Find potential positions
+		let positions: [number, number, number][] = [];
+			// For each position, holds a column index, a within-column index to insert at, and an offset value
+		let colIdx = afterMainlineIdx == null ? cols.length - 1 : afterMainlineIdx - 1;
+			// Column index, used to iterate from columns closest to mainline outward
+		columnLoop:
+		while (colIdx >= 0){ // For each column
+			let bestOffset: number | null = null; // Best offset found so far
+			let bestIdx: number | null = null; // Index of insertion for bestOffset
+			// Check for empty column
+			if (cols[colIdx].length == 0){
+				let offset = Math.min(Math.max(SPACING, targetOffset), availLen.value - eventMajorSz.value - SPACING);
+				positions.push([colIdx, 0, offset]);
 				break;
 			}
-		}
-		// Avoid collision with timeline
-		if (!sideMainline.value){
-			if (minorOffset <= availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING &&
-					minorOffset + eventMinorSz.value >= availBreadth.value / 2 - MAINLINE_WIDTH / 2 - SPACING){
-				minorOffset = availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING;
+			// Check placement before first event in column
+			let offset = cols[colIdx][0][1] - eventMajorSz.value - SPACING;
+			if (offset >= SPACING){
+				if (offset >= targetOffset){
+					positions.push([colIdx, 0, Math.max(SPACING, targetOffset)]);
+					break;
+				} else {
+					bestOffset = offset;
+					bestIdx = 0;
+				}
 			}
-		} else if (minorOffset + eventMinorSz.value + SPACING > mainlineOffset.value){
-			break;
+			// Check placement after each event element in column
+			for (let elIdx = 0; elIdx < cols[colIdx].length; elIdx++){
+				offset = cols[colIdx][elIdx][1] + eventMajorSz.value + SPACING;
+				if (elIdx == cols[colIdx].length - 1){ // If last element in column
+					if (offset < availLen.value - eventMajorSz.value - SPACING){
+						// Check for better offset
+						if (bestOffset == null
+								|| Math.abs(targetOffset - offset) < Math.abs(targetOffset - bestOffset)){
+							if (offset <= targetOffset){
+								offset = Math.min(targetOffset, availLen.value - eventMajorSz.value - SPACING);
+								positions.push([colIdx, elIdx + 1, offset]);
+								break columnLoop;
+							} else {
+								bestOffset = offset;
+								bestIdx = elIdx + 1;
+							}
+						}
+					}
+				} else { // If not last event in column
+					// Check for space between this and next element
+					let nextOffset = cols[colIdx][elIdx + 1][1];
+					if (nextOffset - offset < eventMajorSz.value + SPACING){
+						continue;
+					}
+					// Check for better offset
+					if (bestOffset == null || Math.abs(targetOffset - offset) < Math.abs(targetOffset - bestOffset)){
+						if (offset <= targetOffset && targetOffset <= nextOffset - eventMajorSz.value - SPACING){
+							positions.push([colIdx, elIdx + 1, targetOffset]);
+							break columnLoop;
+						} else {
+							if (offset > targetOffset){
+								bestOffset = offset;
+							} else {
+								bestOffset = nextOffset - eventMajorSz.value - SPACING;
+							}
+							bestIdx = elIdx + 1;
+						}
+					} else {
+						break;
+					}
+				}
+			}
+			// Add potential position
+			if (bestOffset != null){
+				positions.push([colIdx, bestIdx!, bestOffset]);
+			}
+			// Update colIdx
+			if (afterMainlineIdx == null){
+				colIdx -= 1;
+			} else {
+				if (colIdx < afterMainlineIdx){ // Swap to 'right' of mainline
+					colIdx = afterMainlineIdx + (afterMainlineIdx - 1 - colIdx);
+				} else { // Swap to 'left' of mainline, and move 'outward'
+					colIdx = afterMainlineIdx - 1 - (colIdx - afterMainlineIdx) - 1;
+				}
+			}
 		}
-		// Add coords
-		if (props.vert){
-			map.set(event.id, [minorOffset, majorOffset, eventWidth.value, eventHeight.value]);
-		} else {
-			map.set(event.id, [majorOffset, minorOffset, eventWidth.value, eventHeight.value]);
+		// Choose position with minimal distance
+		if (positions.length > 0){
+			let bestPos = positions[0]!;
+			for (let i = 1; i < positions.length; i++){
+				if (Math.abs(targetOffset - positions[i][2]) < Math.abs(targetOffset - bestPos[2])){
+					bestPos = positions[i];
+				}
+			}
+			cols[bestPos[0]].splice(bestPos[1], 0, [event.id, bestPos[2]]);
 		}
-		// Update to next position
-		majorOffset += eventMajorSz.value + SPACING;
+	}
+	// Add events to map
+	for (let colIdx = 0; colIdx < cols.length; colIdx++){
+		let minorOffset = colOffsets[colIdx];
+		for (let [eventId, majorOffset] of cols[colIdx]){
+			if (props.vert){
+				map.set(eventId, [minorOffset, majorOffset, eventWidth.value, eventHeight.value]);
+			} else {
+				map.set(eventId, [majorOffset, minorOffset, eventWidth.value, eventHeight.value]);
+			}
+		}
 	}
 	// If more events could be displayed, notify parent
+	let colFillThreshold = (availLen.value - SPACING) / (eventMajorSz.value + SPACING) * 2/3;
+	let full = cols.every(col => col.length >= colFillThreshold);
 	if (!full){
 		emit('event-req', startDate.value, endDate.value);
 	} else { // Send displayed event IDs to parent
-		emit('event-display', [...idToEvent.value.keys()], ID);
+		emit('event-display', [...map.keys()], ID);
 	}
 	//
 	return map;
