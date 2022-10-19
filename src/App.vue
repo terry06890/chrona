@@ -200,6 +200,7 @@ async function onEventReq(startDate: HistDate, endDate: HistDate){
 	pendingReq = true;
 	// Exclude exhausted range
 	if (isExhaustedRange(startDate, endDate)){
+		pendingReq = false;
 		return;
 	}
 	// Get existing events in range
@@ -222,6 +223,7 @@ async function onEventReq(startDate: HistDate, endDate: HistDate){
 	});
 	let responseObj: HistEventJson[] = await queryServer(urlParams);
 	if (responseObj == null){
+		pendingReq = false;
 		return;
 	}
 	// Add to map
