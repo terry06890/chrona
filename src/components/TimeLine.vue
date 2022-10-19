@@ -113,6 +113,22 @@ const resizeObserver = new ResizeObserver((entries) => {
 });
 onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 
+//
+const MAINLINE_WIDTH = 80; // Breadth of mainline area (including ticks and labels)
+const EVENT_SIZE = 100; // Width/height of event elements
+const SPACING = 10;
+const sideMainline = computed( // True if unable to fit mainline in middle with events on both sides
+	() => availBreadth.value < MAINLINE_WIDTH + (EVENT_SIZE + SPACING * 2) * 2);
+const mainlineOffset = computed(() => { // Distance from side of display area
+	if (!sideMainline.value){
+		return availBreadth.value / 2 - MAINLINE_WIDTH /2 + LARGE_TICK_LEN;
+	} else if (props.vert){
+		return SPACING + LARGE_TICK_LEN;
+	} else {
+		return availBreadth.value - SPACING - tickLabelMargin.value - TICK_LABEL_HEIGHT;
+	}
+});
+
 // Timeline data
 const ID = props.initialState.id as number;
 const startDate = ref(props.initialState.startDate); // Earliest date to display
@@ -121,20 +137,20 @@ const INITIAL_EXTRA_OFFSET = 0.5;
 const startOffset = ref(INITIAL_EXTRA_OFFSET); // Fraction of a scale unit before startDate to show
 	// Note: Without this, the timeline can only move if the distance is over one unit, which makes dragging awkward,
 		// can cause unexpected jumps when zooming, and limits display when a unit has many ticks on the next scale
+const endOffset = ref(INITIAL_EXTRA_OFFSET);
+const scaleIdx = ref(0); // Index of current scale in SCALES
+const scale = computed(() => SCALES[scaleIdx.value])
 if (props.initialState.startOffset != null){
 	startOffset.value = props.initialState.startOffset as number;
 }
-const endOffset = ref(INITIAL_EXTRA_OFFSET);
 if (props.initialState.endOffset != null){
 	endOffset.value = props.initialState.endOffset as number;
 }
-const scaleIdx = ref(0); // Index of current scale in SCALES
 if (props.initialState.scaleIdx != null){
 	scaleIdx.value = props.initialState.scaleIdx as number;
 } else {
 	onMounted(initScale);
 }
-const scale = computed(() => SCALES[scaleIdx.value])
 //
 function initScale(){ // Initialises to smallest usable scale
 	if (startDate.value.isEarlier(MIN_CAL_DATE)){ // If unable to use JDNs, use a yearly scale
@@ -175,10 +191,14 @@ function getYearlyScale(startDate: HistDate, endDate: HistDate, availLen: number
 }
 
 // Tick data
-const TICK_LEN = 8;
+const TICK_LEN = 8; // Length of half of tick
+const LARGE_TICK_LEN = 16;
 const END_TICK_SZ = 4; // Size for MIN_DATE/MAX_DATE ticks
 const MIN_TICK_SEP = 30; // Smallest px separation between ticks
 const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further into less than this many ticks
+const TICK_LABEL_HEIGHT = 10;
+const tickLabelMargin = computed(() => props.vert ? 20 : 30); // Distance from label to mainline
+const tickLabelWidth = computed(() => MAINLINE_WIDTH - LARGE_TICK_LEN - tickLabelMargin.value);
 type Ticks = {
 	dates: HistDate[], // One for each tick to render
 	startIdx: number,
@@ -288,44 +308,44 @@ const idToPos = computed(() => {
 	}
 	let map: Map<number, [number, number, number, number]> = new Map(); // Maps visible event IDs to x/y/w/h
 	// Do basic grid-like layout
-	let spacing = 10, sz = 100, midOffset = [10, 40];
-	let posX = spacing, posY = spacing;
+	let posX = SPACING, posY = SPACING;
 	let full = false;
 	for (let event of idToEvent.value.values()){
-		map.set(event.id, [posX, posY, sz, sz]);
-		if (props.vert){
-			posY += sz + spacing;
-			if (posY + sz + spacing > availLen.value){ // If at end of column
-				posY = spacing;
-				posX += sz + spacing;
-				// Avoid collision with timeline
-				if (posX <= availBreadth.value / 2 + midOffset[1] &&
-						posX + sz >= availBreadth.value / 2 - midOffset[0]){
-					posX = availBreadth.value / 2 + midOffset[1];
-				}
-				// If finished last row
-				if (posX + sz + spacing > availBreadth.value){
-					full = true;
-					break;
-				}
+		// Layout as if props.vert
+		if (posY + EVENT_SIZE + SPACING > availLen.value){ // If at end of column
+			posY = SPACING;
+			posX += EVENT_SIZE + SPACING;
+			// If finished last row
+			if (posX + EVENT_SIZE + SPACING > availBreadth.value){
+				full = true;
+				break;
+			}
+		}
+		// Avoid collision with timeline
+		if (!sideMainline.value){
+			if (posX <= availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING &&
+					posX + EVENT_SIZE >= availBreadth.value / 2 - MAINLINE_WIDTH / 2 - SPACING){
+				posX = availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING;
 			}
 		} else {
-			posX += sz + spacing;
-			if (posX + sz + spacing > availLen.value){ // If at end of row
-				posX = spacing;
-				posY += sz + spacing;
-				// Avoid collision with timeline
-				if (posY <= availBreadth.value / 2 + midOffset[1] &&
-						posY + sz >= availBreadth.value / 2 - midOffset[0]){
-					posY = availBreadth.value / 2 + midOffset[1];
+			if (props.vert){
+				if (posX <= SPACING + MAINLINE_WIDTH + SPACING){
+					posX = SPACING + MAINLINE_WIDTH + SPACING;
 				}
-				// If finished last column
-				if (posY + sz + spacing > availBreadth.value){
-					full = true;
+			} else {
+				if (posX + EVENT_SIZE + SPACING > mainlineOffset.value){
 					break;
 				}
 			}
 		}
+		// Add coords
+		if (props.vert){
+			map.set(event.id, [posX, posY, EVENT_SIZE, EVENT_SIZE]);
+		} else {
+			map.set(event.id, [posY, posX, EVENT_SIZE, EVENT_SIZE]);
+		}
+		// Update to next position
+		posY += EVENT_SIZE + SPACING;
 	}
 	// If more events could be displayed, notify parent
 	if (!full){
@@ -352,11 +372,11 @@ watchEffect(() => { // Used instead of computed() in order to access old values
 		let unitOffset = getUnitDiff(event.start, startDate.value, scale.value) + startOffset.value;
 		let posFrac = unitOffset / numUnits;
 		if (props.vert){
-			x = availBreadth.value / 2;
+			x = mainlineOffset.value;
 			y = posFrac * availLen.value;
 		} else {
 			x = posFrac * availLen.value;
-			y = availBreadth.value / 2;
+			y = mainlineOffset.value;
 		}
 		x2 = eventX + eventW/2;
 		y2 = eventY + eventH/2;
@@ -791,14 +811,16 @@ onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
 // Styles
 const transitionDuration = '300ms';
 const transitionTimingFunction = 'ease-out';
-const mainlineStyles = computed(() => ({
-	transform: props.vert ?
-		`translate(${width.value/2}px, 0) rotate(90deg) scale(${height.value},1)` :
-		`translate(0, ${height.value/2}px) scale(${width.value},1)`,
-	transitionProperty: skipTransition.value ? 'none' : 'transform',
-	transitionDuration,
-	transitionTimingFunction,
-}));
+const mainlineStyles = computed(() => {
+	return {
+		transform: props.vert ?
+			`translate(${mainlineOffset.value}px, 0) rotate(90deg) scale(${availLen.value},1)` :
+			`translate(0, ${mainlineOffset.value}px) rotate(0deg) scale(${availLen.value},1)`,
+		transitionProperty: skipTransition.value ? 'none' : 'transform',
+		transitionDuration,
+		transitionTimingFunction,
+	};
+});
 function tickStyles(idx: number){
 	let offset =
 		(idx - ticks.value.startIdx + startOffset.value) /
@@ -806,12 +828,12 @@ function tickStyles(idx: number){
 	let scaleFactor = 1;
 	if (scaleIdx.value > 0 &&
 			inDateScale(ticks.value.dates[idx], SCALES[scaleIdx.value-1])){ // If tick exists on larger scale
-		scaleFactor = 2;
+		scaleFactor = LARGE_TICK_LEN / TICK_LEN;
 	}
 	return {
 		transform: props.vert ?
-			`translate(${width.value/2}px,  ${offset}px) scale(${scaleFactor})` :
-			`translate(${offset}px, ${height.value/2}px) scale(${scaleFactor})`,
+			`translate(${mainlineOffset.value}px,  ${offset}px) scale(${scaleFactor})` :
+			`translate(${offset}px, ${mainlineOffset.value}px) scale(${scaleFactor})`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
 		transitionDuration,
 		transitionTimingFunction,
@@ -822,11 +844,11 @@ function tickLabelStyles(idx: number){
 	let offset =
 		(idx - ticks.value.startIdx + startOffset.value) /
 		(ticks.value.endIdx - ticks.value.startIdx + startOffset.value + endOffset.value) * availLen.value;
-	let labelSz = props.vert ? 10 : 30;
+	let labelSz = props.vert ? TICK_LABEL_HEIGHT : tickLabelWidth.value;
 	return {
 		transform: props.vert ?
-			`translate(${width.value / 2 + 20}px, ${offset}px)` :
-			`translate(${offset}px, ${height.value / 2 + 30}px)`,
+			`translate(${mainlineOffset.value + tickLabelMargin.value}px, ${offset}px)` :
+			`translate(${offset}px, ${mainlineOffset.value + tickLabelMargin.value}px)`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
 		transitionDuration,
 		transitionTimingFunction,
