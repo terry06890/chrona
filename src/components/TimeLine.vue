@@ -40,12 +40,12 @@
 	</svg>
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein" :style="eventStyles(id)">
+		<!-- Image -->
+		<div class="rounded-full border border-yellow-500" :style="eventImgStyles(id)"></div>
 		<!-- Label -->
 		<div class="text-center text-stone-100 text-sm whitespace-nowrap text-ellipsis overflow-hidden">
 			{{idToEvent.get(id)!.title}}
 		</div>
-		<!-- Image -->
-		<div class="rounded-full border border-yellow-500" :style="eventImgStyles(id)"></div>
 	</div>
 	<!-- Buttons -->
 	<icon-button :size="30" class="absolute top-2 right-2"
@@ -117,7 +117,7 @@ onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 //
 const MAINLINE_WIDTH = 80; // Breadth of mainline area (including ticks and labels)
 const EVENT_IMG_SZ = 100; // Width/height of event images
-const EVENT_LABEL_HEIGHT = 15;
+const EVENT_LABEL_HEIGHT = 20;
 const eventWidth = computed(() => EVENT_IMG_SZ);
 const eventHeight = computed(() => EVENT_IMG_SZ + EVENT_LABEL_HEIGHT);
 const eventMajorSz = computed(() => props.vert ? eventHeight.value : eventWidth.value);
@@ -313,36 +313,36 @@ const idToPos = computed(() => {
 	}
 	let map: Map<number, [number, number, number, number]> = new Map(); // Maps visible event IDs to x/y/w/h
 	// Do basic grid-like layout
-	let posX = SPACING, posY = SPACING;
+	let minorOffset = SPACING, majorOffset = SPACING; // Holds x and y for event element (or y and x if !props.vert)
 	let full = false;
 	for (let event of idToEvent.value.values()){
-		// Layout as if props.vert
-		if (posY + eventMajorSz.value + SPACING > availLen.value){ // If at end of column
-			posY = SPACING;
-			posX += eventMinorSz.value + SPACING;
+		// Check if at end of column (or row if !props.vert)
+		if (majorOffset + eventMajorSz.value + SPACING > availLen.value){
+			majorOffset = SPACING;
+			minorOffset += eventMinorSz.value + SPACING;
 			// If finished last row
-			if (posX + eventMinorSz.value + SPACING > availBreadth.value){
+			if (minorOffset + eventMinorSz.value + SPACING > availBreadth.value){
 				full = true;
 				break;
 			}
 		}
 		// Avoid collision with timeline
 		if (!sideMainline.value){
-			if (posX <= availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING &&
-					posX + eventMinorSz.value >= availBreadth.value / 2 - MAINLINE_WIDTH / 2 - SPACING){
-				posX = availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING;
+			if (minorOffset <= availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING &&
+					minorOffset + eventMinorSz.value >= availBreadth.value / 2 - MAINLINE_WIDTH / 2 - SPACING){
+				minorOffset = availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING;
 			}
-		} else if (posX + eventMinorSz.value + SPACING > mainlineOffset.value){
+		} else if (minorOffset + eventMinorSz.value + SPACING > mainlineOffset.value){
 			break;
 		}
 		// Add coords
 		if (props.vert){
-			map.set(event.id, [posX, posY, eventWidth.value, eventHeight.value]);
+			map.set(event.id, [minorOffset, majorOffset, eventWidth.value, eventHeight.value]);
 		} else {
-			map.set(event.id, [posY, posX, eventWidth.value, eventHeight.value]);
+			map.set(event.id, [majorOffset, minorOffset, eventWidth.value, eventHeight.value]);
 		}
 		// Update to next position
-		posY += eventMajorSz.value + SPACING;
+		majorOffset += eventMajorSz.value + SPACING;
 	}
 	// If more events could be displayed, notify parent
 	if (!full){
@@ -353,6 +353,8 @@ const idToPos = computed(() => {
 	//
 	return map;
 });
+
+// For event lines
 type LineCoords = [number, number, number, number];
 const eventLines: ShallowRef<Map<number, LineCoords>> = shallowRef(new Map());
 	// Maps event ID to event line data (x, y, length, and angle)

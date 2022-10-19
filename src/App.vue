@@ -84,7 +84,7 @@ function onTimelineChg(state: TimelineState, idx: number){
 }
 
 // For timeline addition/removal
-const MIN_TIMELINE_BREADTH = 80 + 10 * 2 + 115; // TODO: Link with constants in components/TimeLine.vue
+const MIN_TIMELINE_BREADTH = 80 + 10 * 2 + 120; // TODO: Link with constants in components/TimeLine.vue
 function onTimelineAdd(){
 	if (vert.value && contentWidth.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH ||
 		!vert.value && contentHeight.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH){
@@ -192,6 +192,7 @@ function reduceEvents(){
 }
 // For getting events from server
 const EVENT_REQ_LIMIT = 30;
+const REQ_EXCLS_LIMIT = 100;
 let pendingReq = false; // Used to serialise event-req handling
 async function onEventReq(startDate: HistDate, endDate: HistDate){
 	while (pendingReq){
@@ -213,6 +214,11 @@ async function onEventReq(startDate: HistDate, endDate: HistDate){
 			break;
 		}
 		existingEventIds.push(event.id);
+	}
+	if (existingEventIds.length > REQ_EXCLS_LIMIT){
+		console.log('WARNING: Exceeded request exclusions limit');
+		pendingReq = false;
+		return;
 	}
 	// Get events from server
 	let urlParams = new URLSearchParams({
