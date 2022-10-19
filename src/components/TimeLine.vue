@@ -5,6 +5,12 @@
 	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel"
 	ref="rootRef">
 	<svg :viewBox="`0 0 ${width} ${height}`">
+		<defs>
+			<linearGradient id="eventLineGradient">
+				<stop offset="5%" stop-color="#a3691e"/>
+				<stop offset="95%" stop-color="gold"/>
+			</linearGradient>
+		</defs>
 		<!-- Tick markers -->
 		<template v-for="date, idx in ticks.dates" :key="date.toInt()">
 			<line v-if="date.equals(MIN_DATE, scale) || date.equals(MAX_DATE, scale)"
@@ -20,8 +26,9 @@
 		</template>
 		<!-- Event lines -->
 		<line v-for="id in eventLines.keys()" :key="id"
-			x1="0" y1="0" x2="1" y2="0" :stroke="store.color.altDark2" stroke-width="1px"
+			x1="0" y1="0" x2="1" y2="0.01" stroke="url('#eventLineGradient')" stroke-width="1px"
 			:style="eventLineStyles(id)" class="animate-fadein"/>
+			<!-- Note: With a fully vertical or horizontal line, nothing gets displayed -->
 		<!-- Tick labels -->
 		<text v-for="date, idx in ticks.dates" :key="date.toInt()"
 			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
@@ -33,7 +40,7 @@
 	</svg>
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id"
-		class="absolute bg-black text-white rounded-full border border-amber-400 animate-fadein text-sm text-center"
+		class="absolute bg-black text-white rounded-full border border-yellow-500 animate-fadein text-sm text-center"
 		:style="eventStyles(id)">
 		{{idToEvent.get(id)!.title}}
 	</div>
