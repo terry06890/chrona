@@ -33,7 +33,7 @@
 	</svg>
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id"
-		class="absolute bg-black text-white rounded animate-fadein text-sm"
+		class="absolute bg-black text-white rounded-full border border-amber-400 animate-fadein text-sm text-center"
 		:style="eventStyles(id)">
 		{{idToEvent.get(id)!.title}}
 	</div>
@@ -47,7 +47,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, computed, watch, PropType, Ref} from 'vue';
+import {ref, onMounted, computed, watch, watchEffect, PropType, Ref, shallowRef, ShallowRef} from 'vue';
 // Components
 import IconButton from './IconButton.vue';
 // Icons
@@ -329,30 +329,50 @@ const idToPos = computed(() => {
 	//
 	return map;
 });
-const eventLines = computed(() => {
-	let lineCoords: Map<number, [number, number, number, number]> = new Map();
-		// Maps event ID to x, y, length, and angle
+type LineCoords = [number, number, number, number];
+const eventLines: ShallowRef<Map<number, LineCoords>> = shallowRef(new Map());
+	// Maps event ID to event line data (x, y, length, and angle)
+watchEffect(() => { // Used instead of computed() in order to access old values
+	let newEventLines: Map<number, LineCoords> = new Map();
 	let numUnits = getNumVisibleUnits();
 	for (let [id, [eventX, eventY, eventW, eventH]] of idToPos.value){
-		let x = eventX + eventW/2;
-		let y = eventY + eventH/2;
-		let x2: number;
+		let x: number; // For line end on mainline
+		let y: number;
+		let x2: number; // For line end at event
+			// Note: Drawing the line in the reverse direction causes 'detachment' from the mainline during transitions
 		let y2: number;
 		let event = idToEvent.value.get(id)!;
 		let unitOffset = getUnitDiff(event.start, startDate.value, scale.value) + startOffset.value;
 		let posFrac = unitOffset / numUnits;
 		if (props.vert){
-			x2 = availBreadth.value / 2;
-			y2 = posFrac * availLen.value;
+			x = availBreadth.value / 2;
+			y = posFrac * availLen.value;
 		} else {
-			x2 = posFrac * availLen.value;
-			y2 = availBreadth.value / 2;
+			x = posFrac * availLen.value;
+			y = availBreadth.value / 2;
 		}
+		x2 = eventX + eventW/2;
+		y2 = eventY + eventH/2;
 		let l = Math.sqrt((x-x2)**2 + (y-y2)**2);
 		let a = Math.atan2(y2-y, x2-x) * 180 / Math.PI;
-		lineCoords.set(id, [x, y, l, a]);
+		if (eventLines.value.has(id)){ // Check if event had previous angle
+			let oldA = eventLines.value.get(id)![3];
+			// Update old angle with difference, to avoid angle transition jumps (eg: change 170 to 185 instead of -175)
+			let rOldA = oldA >= 0 ? // oldA limited to -180 to 180
+				(oldA % 180) + (Math.floor(oldA / 180) % 2 == 0 ? 0 : -180) :
+				(oldA % 180) + (Math.ceil(oldA / 180) % 2 == 0 ? 0 : 180);
+			let angleDiff = (a - rOldA) % 360;
+			if (angleDiff > 180){
+				a = oldA - (360 - angleDiff);
+			} else if (angleDiff < -180){
+				a = oldA + (360 + angleDiff);
+			} else {
+				a = oldA + angleDiff;
+			}
+		}
+		newEventLines.set(id, [x, y, l, a]);
 	}
-	return lineCoords;
+	eventLines.value = newEventLines;
 });
 
 // For panning/zooming
