@@ -84,7 +84,7 @@ function onTimelineChg(state: TimelineState, idx: number){
 }
 
 // For timeline addition/removal
-const MIN_TIMELINE_BREADTH = 80 + 10 * 2 + 100; // TODO: Link with constants in components/TimeLine.vue
+const MIN_TIMELINE_BREADTH = 80 + 10 * 2 + 115; // TODO: Link with constants in components/TimeLine.vue
 function onTimelineAdd(){
 	if (vert.value && contentWidth.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH ||
 		!vert.value && contentHeight.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH){

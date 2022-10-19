@@ -39,10 +39,13 @@
 		<line :stroke="store.color.alt" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
 	</svg>
 	<!-- Events -->
-	<div v-for="id in idToPos.keys()" :key="id"
-		class="absolute bg-black text-white rounded-full border border-yellow-500 animate-fadein text-sm text-center"
-		:style="eventStyles(id)">
-		{{idToEvent.get(id)!.title}}
+	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein" :style="eventStyles(id)">
+		<!-- Label -->
+		<div class="text-center text-stone-100 text-sm whitespace-nowrap text-ellipsis overflow-hidden">
+			{{idToEvent.get(id)!.title}}
+		</div>
+		<!-- Image -->
+		<div class="rounded-full border border-yellow-500" :style="eventImgStyles(id)"></div>
 	</div>
 	<!-- Buttons -->
 	<icon-button :size="30" class="absolute top-2 right-2"
@@ -65,8 +68,6 @@ import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, M
 	HistEvent, getImagePath} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
-
-const SCRIM_GRADIENT = 'linear-gradient(to bottom, rgba(0,0,0,0.4), #0000 40%)';
 
 // Refs
 const rootRef: Ref<HTMLElement | null> = ref(null);
@@ -115,10 +116,15 @@ onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 
 //
 const MAINLINE_WIDTH = 80; // Breadth of mainline area (including ticks and labels)
-const EVENT_SIZE = 100; // Width/height of event elements
+const EVENT_IMG_SZ = 100; // Width/height of event images
+const EVENT_LABEL_HEIGHT = 15;
+const eventWidth = computed(() => EVENT_IMG_SZ);
+const eventHeight = computed(() => EVENT_IMG_SZ + EVENT_LABEL_HEIGHT);
+const eventMajorSz = computed(() => props.vert ? eventHeight.value : eventWidth.value);
+const eventMinorSz = computed(() => props.vert ? eventWidth.value : eventHeight.value)
 const SPACING = 10;
 const sideMainline = computed( // True if unable to fit mainline in middle with events on both sides
-	() => availBreadth.value < MAINLINE_WIDTH + (EVENT_SIZE + SPACING * 2) * 2);
+	() => availBreadth.value < MAINLINE_WIDTH + (eventMinorSz.value + SPACING * 2) * 2);
 const mainlineOffset = computed(() => { // Distance from side of display area
 	if (!sideMainline.value){
 		return availBreadth.value / 2 - MAINLINE_WIDTH /2 + LARGE_TICK_LEN;
@@ -312,11 +318,11 @@ const idToPos = computed(() => {
 	let full = false;
 	for (let event of idToEvent.value.values()){
 		// Layout as if props.vert
-		if (posY + EVENT_SIZE + SPACING > availLen.value){ // If at end of column
+		if (posY + eventMajorSz.value + SPACING > availLen.value){ // If at end of column
 			posY = SPACING;
-			posX += EVENT_SIZE + SPACING;
+			posX += eventMinorSz.value + SPACING;
 			// If finished last row
-			if (posX + EVENT_SIZE + SPACING > availBreadth.value){
+			if (posX + eventMinorSz.value + SPACING > availBreadth.value){
 				full = true;
 				break;
 			}
@@ -324,7 +330,7 @@ const idToPos = computed(() => {
 		// Avoid collision with timeline
 		if (!sideMainline.value){
 			if (posX <= availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING &&
-					posX + EVENT_SIZE >= availBreadth.value / 2 - MAINLINE_WIDTH / 2 - SPACING){
+					posX + eventMinorSz.value >= availBreadth.value / 2 - MAINLINE_WIDTH / 2 - SPACING){
 				posX = availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING;
 			}
 		} else {
@@ -333,19 +339,19 @@ const idToPos = computed(() => {
 					posX = SPACING + MAINLINE_WIDTH + SPACING;
 				}
 			} else {
-				if (posX + EVENT_SIZE + SPACING > mainlineOffset.value){
+				if (posX + eventMinorSz.value + SPACING > mainlineOffset.value){
 					break;
 				}
 			}
 		}
 		// Add coords
 		if (props.vert){
-			map.set(event.id, [posX, posY, EVENT_SIZE, EVENT_SIZE]);
+			map.set(event.id, [posX, posY, eventWidth.value, eventHeight.value]);
 		} else {
-			map.set(event.id, [posY, posX, EVENT_SIZE, EVENT_SIZE]);
+			map.set(event.id, [posY, posX, eventWidth.value, eventHeight.value]);
 		}
 		// Update to next position
-		posY += EVENT_SIZE + SPACING;
+		posY += eventMajorSz.value + SPACING;
 	}
 	// If more events could be displayed, notify parent
 	if (!full){
@@ -856,18 +862,24 @@ function tickLabelStyles(idx: number){
 	}
 }
 function eventStyles(eventId: number){
-	const event = idToEvent.value.get(eventId)!;
 	const [x, y, w, h] = idToPos.value.get(eventId)!;
 	return {
 		left: x + 'px',
 		top: y + 'px',
 		width: w + 'px',
 		height: h + 'px',
-		backgroundImage: `${SCRIM_GRADIENT},url(${getImagePath(event.imgId)})`,
-		backgroundSize: 'cover',
 		transitionProperty: skipTransition.value ? 'none' : 'all',
 		transitionDuration,
 		transitionTimingFunction,
+	};
+}
+function eventImgStyles(eventId: number){
+	const event = idToEvent.value.get(eventId)!;
+	return {
+		width: EVENT_IMG_SZ + 'px',
+		height: EVENT_IMG_SZ + 'px',
+		backgroundImage: `url(${getImagePath(event.imgId)})`,
+		backgroundSize: 'cover',
 	};
 }
 function eventLineStyles(eventId: number){
