@@ -128,10 +128,9 @@ const sideMainline = computed( // True if unable to fit mainline in middle with 
 const mainlineOffset = computed(() => { // Distance from side of display area
 	if (!sideMainline.value){
 		return availBreadth.value / 2 - MAINLINE_WIDTH /2 + LARGE_TICK_LEN;
-	} else if (props.vert){
-		return SPACING + LARGE_TICK_LEN;
 	} else {
-		return availBreadth.value - SPACING - tickLabelMargin.value - TICK_LABEL_HEIGHT;
+		return availBreadth.value - SPACING - tickLabelMargin.value
+			- (props.vert ? tickLabelWidth.value : TICK_LABEL_HEIGHT);
 	}
 });
 
@@ -333,16 +332,8 @@ const idToPos = computed(() => {
 					posX + eventMinorSz.value >= availBreadth.value / 2 - MAINLINE_WIDTH / 2 - SPACING){
 				posX = availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING;
 			}
-		} else {
-			if (props.vert){
-				if (posX <= SPACING + MAINLINE_WIDTH + SPACING){
-					posX = SPACING + MAINLINE_WIDTH + SPACING;
-				}
-			} else {
-				if (posX + eventMinorSz.value + SPACING > mainlineOffset.value){
-					break;
-				}
-			}
+		} else if (posX + eventMinorSz.value + SPACING > mainlineOffset.value){
+			break;
 		}
 		// Add coords
 		if (props.vert){
