@@ -77,7 +77,7 @@ class TestHandleReq(unittest.TestCase):
 	def test_events_req(self):
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=-1999.2002-11-1&incl=3&limit=2'})
 		self.assertEqual(response, [
-			Event(5, 'event five', HistDate(None, 2000), None, HistDate(None, 2001), None,
+			Event(5, 'event five', HistDate(True, 2000, 1, 1), None, HistDate(True, 2001, 1, 1), None,
 				'event', 50, 51),
 			Event(3, 'event three', HistDate(True, 1990, 10, 10), HistDate(True, 2000, 10, 10), None, None,
 				'discovery', 30, 0),

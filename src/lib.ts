@@ -75,11 +75,14 @@ export function getDaysInMonth(year: number, month: number){
 }
 
 // For date representation
+export const MIN_CAL_YEAR = -4713; // Year after which months/day scales are usable
 export class HistDate {
+	gcal: boolean | null;
 	year: number;
 	month: number;
 	day: number;
-	constructor(year: number, month=1, day=1){
+	constructor(gcal: boolean | null, year: number, month: number, day: number){
+		this.gcal = gcal;
 		this.year = year;
 		this.month = month;
 		this.day = day;
@@ -91,15 +94,6 @@ export class HistDate {
 			return this.year == other.year && this.month == other.month;
 		} else {
 			return Math.floor(this.year / scale) == Math.floor(other.year / scale);
-		}
-	}
-	cmp(other: HistDate, scale=DAY_SCALE){
-		if (this.isEarlier(other, scale)){
-			return -1;
-		} else if (!this.equals(other, scale)){
-			return 1;
-		} else {
-			return 0;
 		}
 	}
 	isEarlier(other: HistDate, scale=DAY_SCALE){
@@ -116,14 +110,23 @@ export class HistDate {
 			}
 		}
 	}
+	cmp(other: HistDate, scale=DAY_SCALE){
+		if (this.isEarlier(other, scale)){
+			return -1;
+		} else if (!this.equals(other, scale)){
+			return 1;
+		} else {
+			return 0;
+		}
+	}
 	toInt(){
 		return this.day + this.month * 50 + this.year * 1000;
 	}
 	toString(){
-		if (this.isEarlier(MIN_CAL_DATE)){
-			return `${this.year}`;
-		} else {
+		if (this.gcal != null){
 			return `${this.year}-${this.month}-${this.day}`;
+		} else {
+			return `${this.year}`;
 		}
 	}
 	toDisplayString(){
@@ -161,7 +164,7 @@ export class HistDate {
 			const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 			return monthNames[this.month - 1];
 		} else {
-			if (this.day == 1){ // TODO: Show instead of just month name when at day-scale?
+			if (this.day == 1){
 				return '1st';
 			} else if (this.day == 2){
 				return '2nd';
@@ -172,7 +175,7 @@ export class HistDate {
 			}
 		}
 	}
-	getDayDiff(other: HistDate){
+	getDayDiff(other: HistDate){ // Assumes neither date has gcal=null
 		const jdn2 = gregorianToJdn(this.year, this.month, this.day);
 		const jdn1 = gregorianToJdn(other.year, other.month, other.day);
 		return Math.abs(jdn1 - jdn2);
@@ -201,15 +204,38 @@ export class HistDate {
 		return yearDiff;
 	}
 	clone(){
-		return new HistDate(this.year, this.month, this.day);
+		return new HistDate(this.gcal, this.year, this.month, this.day);
+	}
+}
+export class YearDate extends HistDate {
+	declare gcal: null;
+	declare year: number;
+	declare month: 1;
+	declare day: 1;
+	constructor(year=MIN_CAL_YEAR-1){
+		if (year >= MIN_CAL_YEAR){
+			throw new Error(`Year must be before ${MIN_CAL_YEAR}`);
+		}
+		super(null, year, 1, 1);
+	}
+}
+export class CalDate extends HistDate {
+	declare gcal: boolean;
+	declare year: number;
+	declare month: number;
+	declare day: number;
+	constructor(year: number, month: number, day: number, gcal=true){
+		if (year < MIN_CAL_YEAR){
+			throw new Error(`Year must not be before ${MIN_CAL_YEAR}`);
+		}
+		super(gcal, year, month, day);
 	}
 }
 
 // Timeline parameters
 const currentDate = new Date();
-export const MIN_DATE = new HistDate(-13.8e9);
-export const MAX_DATE = new HistDate(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate());
-export const MIN_CAL_DATE = new HistDate(-4700, 1, 1); // Date after which months/day scales are usable
+export const MIN_DATE = new YearDate(-13.8e9);
+export const MAX_DATE = new CalDate(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate());
 export const MONTH_SCALE = -1;
 export const DAY_SCALE = -2;
 export const SCALES = [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE];
@@ -412,8 +438,8 @@ export function getImagePath(imgId: number): string {
 export type HistDateJson = {
 	gcal: boolean | null,
 	year: number,
-	month: number | null,
-	day: number | null,
+	month: number,
+	day: number,
 }
 export type HistEventJson = {
 	id: number,
@@ -427,7 +453,11 @@ export type HistEventJson = {
 	pop: number,
 }
 export function jsonToHistDate(json: HistDateJson){
-	return new HistDate(json.year, json.month == null ? 1 : json.month, json.day == null ? 1 : json.day);
+	if (json.gcal == null){
+		return new YearDate(json.year);
+	} else {
+		return new CalDate(json.year, json.month, json.day, json.gcal);
+	}
 }
 export function jsonToHistEvent(json: HistEventJson){
 	return {

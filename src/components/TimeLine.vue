@@ -63,9 +63,9 @@ import IconButton from './IconButton.vue';
 // Icons
 import MinusIcon from './icon/MinusIcon.vue';
 // Other
-import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_DATE,
-	HistDate, stepDate, inDateScale, getScaleRatio, getUnitDiff, getDaysInMonth, moduloPositive, TimelineState,
-	HistEvent, getImagePath} from '../lib';
+import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES,
+	MIN_CAL_YEAR, HistDate, CalDate, stepDate, inDateScale, getScaleRatio, getUnitDiff, getDaysInMonth,
+	moduloPositive, TimelineState, HistEvent, getImagePath} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 
@@ -132,6 +132,7 @@ const mainlineOffset = computed(() => { // Distance mainline-area line to side o
 
 // Timeline data
 const ID = props.initialState.id as number;
+const MIN_CAL_DATE = new CalDate(MIN_CAL_YEAR, 1, 1);
 const startDate = ref(props.initialState.startDate); // Earliest date to display
 const endDate = ref(props.initialState.endDate);
 const startOffset = ref(store.defaultEndTickOffset); // Fraction of a scale unit before startDate to show

@@ -39,7 +39,7 @@ import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
-import {HistDate, TimelineState, HistEvent, queryServer, HistEventJson, jsonToHistEvent, cmpHistEvent,
+import {HistDate, YearDate, TimelineState, HistEvent, queryServer, HistEventJson, jsonToHistEvent, cmpHistEvent,
 	timeout} from './lib';
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
@@ -109,7 +109,7 @@ function cmpDatePairs(datePair1: [HistDate, HistDate], datePair2: [HistDate, His
 }
 function isExhaustedRange(startDate: HistDate, endDate: HistDate): boolean {
 	// Check if input range is contained in a stored exhausted range
-	let itr = exhaustedRanges.lowerBound([startDate, new HistDate(1)]);
+	let itr = exhaustedRanges.lowerBound([startDate, new YearDate()]);
 	let datePair = itr.data();
 	if (datePair == null){
 		datePair = itr.prev();
@@ -129,7 +129,7 @@ function isExhaustedRange(startDate: HistDate, endDate: HistDate): boolean {
 function addExhaustedRange(startDate: HistDate, endDate: HistDate){
 	let rangesToRemove: HistDate[] = []; // Holds starts of ranges to remove
 	// Find ranges to remove
-	let itr = exhaustedRanges.lowerBound([startDate, new HistDate(1)]);
+	let itr = exhaustedRanges.lowerBound([startDate, new YearDate()]);
 	let prevRange = itr.prev();
 	if (prevRange != null){ // Check for start-overlapping range
 		if (prevRange[1].isEarlier(startDate)){
@@ -153,7 +153,7 @@ function addExhaustedRange(startDate: HistDate, endDate: HistDate){
 	}
 	// Remove included/overlapping ranges
 	for (let start of rangesToRemove){
-		exhaustedRanges.remove([start, new HistDate(1)]);
+		exhaustedRanges.remove([start, new YearDate()]);
 	}
 	// Add possibly-merged range
 	if (prevRange != null){

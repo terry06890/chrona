@@ -3,7 +3,7 @@
  */
 
 import {defineStore} from 'pinia';
-import {HistDate} from './lib';
+import {CalDate} from './lib';
 
 export const useStore = defineStore('store', {
 	state: () => {
@@ -37,8 +37,8 @@ export const useStore = defineStore('store', {
 			zoomRatio: 1.5, // Ratio of timeline expansion upon zooming out
 			dragInertia: 0.1, // Multiplied by final-drag-speed (pixels-per-sec) to get extra scroll distance
 			//
-			initialStartDate: new HistDate(1900, 1, 1),
-			initialEndDate: new HistDate(2000, 1, 1),
+			initialStartDate: new CalDate(1900, 1, 1),
+			initialEndDate: new CalDate(2000, 1, 1),
 			color,
 			transitionDuration: 300,
 		};

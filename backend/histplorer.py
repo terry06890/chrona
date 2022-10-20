@@ -31,6 +31,7 @@ DEFAULT_REQ_EVENTS = 20
 MAX_REQ_EXCLS = 100
 MAX_REQ_SUGGS = 50
 DEFAULT_REQ_SUGGS = 5
+MIN_CAL_YEAR = -4713 # Disallow within-year dates before this year
 
 # Classes for objects sent as responses
 class HistDate:
@@ -41,9 +42,9 @@ class HistDate:
 	- 'gcal' may be:
 		- True: Indicates a Gregorian calendar date
 		- False: Means the date should be converted and displayed as a Julian calendar date
-		- None: 'month' and 'day' are None (used for dates before the Julian period starting year 4713 BCE)
+		- None: 'month' and 'day' are 1 (used for dates before the Julian period starting year 4713 BCE)
 	"""
-	def __init__(self, gcal: bool | None, year: int, month: int | None = None, day: int | None = None):
+	def __init__(self, gcal: bool | None, year: int, month=1, day=1):
 		self.gcal = gcal
 		self.year = year
 		self.month = month
@@ -282,7 +283,10 @@ def eventEntryToResults(
 		if n is None:
 			continue
 		elif fmt == 0:
-			newDates[i] = HistDate(None, n)
+			if n >= MIN_CAL_YEAR:
+				newDates[i] = HistDate(True, n, 1, 1)
+			else:
+				newDates[i] = HistDate(None, n)
 		elif fmt == 1:
 			newDates[i] = HistDate(False, *jdnToJulian(n))
 		elif fmt == 2:
