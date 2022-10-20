@@ -94,9 +94,9 @@ export class HistDate {
 		}
 	}
 	cmp(other: HistDate, scale=DAY_SCALE){
-		if (this.isEarlier(other)){
+		if (this.isEarlier(other, scale)){
 			return -1;
-		} else if (!this.equals(other)){
+		} else if (!this.equals(other, scale)){
 			return 1;
 		} else {
 			return 0;
@@ -124,6 +124,52 @@ export class HistDate {
 			return `${this.year}`;
 		} else {
 			return `${this.year}-${this.month}-${this.day}`;
+		}
+	}
+	toDisplayString(){
+		if (this.month == 1 && this.day == 1){
+			if (this.year > 0){
+				return String(this.year);
+			} else if (this.year > -1e3){
+				return String(-this.year) + ' BC';
+			} else if (this.year > -1e6){
+				if (this.year % 1e3 == 0){
+					return String(Math.floor(-this.year / 1e3)) + 'k BC';
+				} else if (this.year % 100 == 0){
+					return String(Math.floor(-this.year / 100) / 10) + 'k BC';
+				} else {
+					return String(-this.year) + ' BC';
+				}
+			} else if (this.year > -1e9){
+				if (this.year % 1e6 == 0){
+					return String(Math.floor(-this.year / 1e6)) + ' mya';
+				} else if (this.year % 1e3 == 0){
+					return String(Math.floor(-this.year / 1e3) / 1e3) + ' mya';
+				} else {
+					return String(-this.year.toLocaleString());
+				}
+			} else {
+				if (this.year % 1e9 == 0){
+					return String(Math.floor(-this.year / 1e9)) + ' bya';
+				} else if (this.year % 1e6 == 0){
+					return String(Math.floor(-this.year / 1e6) / 1e3) + ' bya';
+				} else {
+					return String(this.year.toLocaleString());
+				}
+			}
+		} else if (this.day == 1){
+			const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+			return monthNames[this.month - 1];
+		} else {
+			if (this.day == 1){ // TODO: Show instead of just month name when at day-scale?
+				return '1st';
+			} else if (this.day == 2){
+				return '2nd';
+			} else if (this.day == 3){
+				return '3rd';
+			} else {
+				return String(this.day) + 'th';
+			}
 		}
 	}
 	getDayDiff(other: HistDate){
@@ -337,8 +383,8 @@ export class HistEvent {
 	}
 }
 export function cmpHistEvent(event: HistEvent, event2: HistEvent){
-	let cmp = event.start.cmp(event2.start);
-	return cmp != 0 ? cmp : event.id - event2.id;;
+	const cmp = event.start.cmp(event2.start);
+	return cmp != 0 ? cmp : event.id - event2.id;
 }
 
 // For server requests

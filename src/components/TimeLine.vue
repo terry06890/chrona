@@ -33,7 +33,7 @@
 		<text v-for="date, idx in ticks.dates" :key="date.toInt()"
 			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
 			:fill="store.color.textDark" :style="tickLabelStyles(idx)" class="text-sm animate-fadein">
-			{{date}}
+			{{date.toDisplayString()}}
 		</text>
 		<!-- Main line (unit horizontal line that gets transformed, with extra length to avoid gaps when panning) -->
 		<line :stroke="store.color.alt" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
@@ -895,9 +895,6 @@ function onPointerUp(evt: PointerEvent){
 }
 function onWheel(evt: WheelEvent){
 	let shiftDir = evt.deltaY > 0 ? 1 : -1;
-	if (!props.vert){
-		shiftDir *= -1;
-	}
 	panTimeline(shiftDir * store.scrollRatio);
 }
 function onShiftWheel(evt: WheelEvent){
