@@ -63,12 +63,10 @@ onMounted(updateAreaDims)
 
 // Timeline data
 const timelines: Ref<TimelineState[]> = ref([]);
-const INITIAL_START_DATE = new HistDate(1900, 1, 1);
-const INITIAL_END_DATE = new HistDate(2000, 1, 1);
 let nextTimelineId = 1;
 function addTimeline(){
 	if (timelines.value.length == 0){
-		timelines.value.push(new TimelineState(nextTimelineId, INITIAL_START_DATE, INITIAL_END_DATE));
+		timelines.value.push(new TimelineState(nextTimelineId, store.initialStartDate, store.initialEndDate));
 	} else {
 		let last = timelines.value[timelines.value.length - 1];
 		timelines.value.push(new TimelineState(
@@ -84,7 +82,7 @@ function onTimelineChg(state: TimelineState, idx: number){
 }
 
 // For timeline addition/removal
-const MIN_TIMELINE_BREADTH = 80 + 10 * 2 + 120; // TODO: Link with constants in components/TimeLine.vue
+const MIN_TIMELINE_BREADTH = store.mainlineBreadth + store.spacing * 2 + store.eventImgSz + store.eventLabelHeight;
 function onTimelineAdd(){
 	if (vert.value && contentWidth.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH ||
 		!vert.value && contentHeight.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH){

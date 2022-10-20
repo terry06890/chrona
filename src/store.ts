@@ -3,6 +3,7 @@
  */
 
 import {defineStore} from 'pinia';
+import {HistDate} from './lib';
 
 export const useStore = defineStore('store', {
 	state: () => {
@@ -19,10 +20,27 @@ export const useStore = defineStore('store', {
 			altDark2: '#ca8a04', // yellow-600
 		};
 		return {
-			color,
+			tickLen: 16,
+			largeTickLen: 32,
+			endTickSz: 8, // Size for start/end ticks
+			minTickSep: 30, // Smallest px separation between ticks
+			minLastTicks: 3, // When at smallest scale, don't zoom further into less than this many ticks
+			tickLabelHeight: 10,
+			defaultEndTickOffset: 0.5, // Default fraction of a unit to offset start/end ticks
+			//
+			mainlineBreadth: 80, // Breadth of mainline area (including ticks and labels)
+			eventImgSz: 100, // Width/height of event images
+			eventLabelHeight: 20,
+			spacing: 10, // Spacing between display edge, events, and mainline area
+			//
 			scrollRatio: 0.2, // Fraction of timeline length to move by upon scroll
 			zoomRatio: 1.5, // Ratio of timeline expansion upon zooming out
 			dragInertia: 0.1, // Multiplied by final-drag-speed (pixels-per-sec) to get extra scroll distance
+			//
+			initialStartDate: new HistDate(1900, 1, 1),
+			initialEndDate: new HistDate(2000, 1, 1),
+			color,
+			transitionDuration: 300,
 		};
 	},
 });

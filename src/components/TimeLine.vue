@@ -14,13 +14,13 @@
 		<!-- Tick markers -->
 		<template v-for="date, idx in ticks.dates" :key="date.toInt()">
 			<line v-if="date.equals(MIN_DATE, scale) || date.equals(MAX_DATE, scale)"
-				:x1="vert ? -END_TICK_SZ : 0" :y1="vert ? 0 : -END_TICK_SZ"
-				:x2="vert ?  END_TICK_SZ : 0" :y2="vert ? 0 :  END_TICK_SZ"
-				:stroke="store.color.alt" :stroke-width="`${END_TICK_SZ * 2}px`"
+				:x1="vert ? -store.endTickSz / 2 : 0" :y1="vert ? 0 : -store.endTickSz / 2"
+				:x2="vert ?  store.endTickSz / 2 : 0" :y2="vert ? 0 :  store.endTickSz / 2"
+				:stroke="store.color.alt" :stroke-width="`${store.endTickSz}px`"
 				:style="tickStyles(idx)" class="animate-fadein"/>
 			<line v-else
-				:x1="vert ? -TICK_LEN : 0" :y1="vert ? 0 : -TICK_LEN"
-				:x2="vert ?  TICK_LEN : 0" :y2="vert ? 0 :  TICK_LEN"
+				:x1="vert ? -store.tickLen / 2 : 0" :y1="vert ? 0 : -store.tickLen / 2"
+				:x2="vert ?  store.tickLen / 2 : 0" :y2="vert ? 0 :  store.tickLen / 2"
 				:stroke="store.color.alt" stroke-width="1px"
 				:style="tickStyles(idx)" class="animate-fadein"/>
 		</template>
@@ -115,22 +115,18 @@ const resizeObserver = new ResizeObserver((entries) => {
 onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 
 //
-const MAINLINE_WIDTH = 80; // Breadth of mainline area (including ticks and labels)
-const EVENT_IMG_SZ = 100; // Width/height of event images
-const EVENT_LABEL_HEIGHT = 20;
-const eventWidth = computed(() => EVENT_IMG_SZ);
-const eventHeight = computed(() => EVENT_IMG_SZ + EVENT_LABEL_HEIGHT);
+const eventWidth = computed(() => store.eventImgSz);
+const eventHeight = computed(() => store.eventImgSz + store.eventLabelHeight);
 const eventMajorSz = computed(() => props.vert ? eventHeight.value : eventWidth.value);
 const eventMinorSz = computed(() => props.vert ? eventWidth.value : eventHeight.value)
-const SPACING = 10;
 const sideMainline = computed( // True if unable to fit mainline in middle with events on both sides
-	() => availBreadth.value < MAINLINE_WIDTH + (eventMinorSz.value + SPACING * 2) * 2);
+	() => availBreadth.value < store.mainlineBreadth + (eventMinorSz.value + store.spacing * 2) * 2);
 const mainlineOffset = computed(() => { // Distance mainline-area line to side of display area
 	if (!sideMainline.value){
-		return availBreadth.value / 2 - MAINLINE_WIDTH /2 + LARGE_TICK_LEN;
+		return availBreadth.value / 2 - store.mainlineBreadth /2 + store.largeTickLen / 2;
 	} else {
-		return availBreadth.value - SPACING - tickLabelMargin.value
-			- (props.vert ? tickLabelWidth.value : TICK_LABEL_HEIGHT);
+		return availBreadth.value - store.spacing - tickLabelMargin.value
+			- (props.vert ? tickLabelWidth.value : store.tickLabelHeight);
 	}
 });
 
@@ -138,11 +134,10 @@ const mainlineOffset = computed(() => { // Distance mainline-area line to side o
 const ID = props.initialState.id as number;
 const startDate = ref(props.initialState.startDate); // Earliest date to display
 const endDate = ref(props.initialState.endDate);
-const INITIAL_EXTRA_OFFSET = 0.5;
-const startOffset = ref(INITIAL_EXTRA_OFFSET); // Fraction of a scale unit before startDate to show
+const startOffset = ref(store.defaultEndTickOffset); // Fraction of a scale unit before startDate to show
 	// Note: Without this, the timeline can only move if the distance is over one unit, which makes dragging awkward,
 		// can cause unexpected jumps when zooming, and limits display when a unit has many ticks on the next scale
-const endOffset = ref(INITIAL_EXTRA_OFFSET);
+const endOffset = ref(store.defaultEndTickOffset);
 const scaleIdx = ref(0); // Index of current scale in SCALES
 const scale = computed(() => SCALES[scaleIdx.value])
 if (props.initialState.startOffset != null){
@@ -163,12 +158,12 @@ function initScale(){ // Initialises to smallest usable scale
 	} else {
 		let dayDiff = startDate.value.getDayDiff(endDate.value) + startOffset.value + endOffset.value;
 		// Check for day scale usability
-		if (availLen.value / dayDiff >= MIN_TICK_SEP){
+		if (availLen.value / dayDiff >= store.minTickSep){
 			scaleIdx.value = SCALES.findIndex(s => s == DAY_SCALE);
 		} else {
 			// Check for month scale usability
 			let monthDiff = startDate.value.getMonthDiff(endDate.value) + startOffset.value + endOffset.value;
-			if (availLen.value / monthDiff >= MIN_TICK_SEP){
+			if (availLen.value / monthDiff >= store.minTickSep){
 				scaleIdx.value = SCALES.findIndex(s => s == MONTH_SCALE);
 			} else { // Use a yearly scale
 				scaleIdx.value = getYearlyScale(startDate.value, endDate.value, availLen.value);
@@ -186,7 +181,7 @@ function getYearlyScale(startDate: HistDate, endDate: HistDate, availLen: number
 	while (idx < SCALES.length - 1){ // Check for usable smaller scales
 		let nextScale = SCALES[idx + 1]
 		let adjustedYearDiff = yearDiff + startOffset.value * nextScale + endOffset.value * nextScale;
-		if (availLen / (adjustedYearDiff / nextScale) >= MIN_TICK_SEP){
+		if (availLen / (adjustedYearDiff / nextScale) >= store.minTickSep){
 			idx += 1;
 		} else {
 			break;
@@ -196,14 +191,8 @@ function getYearlyScale(startDate: HistDate, endDate: HistDate, availLen: number
 }
 
 // Tick data
-const TICK_LEN = 8; // Length of half of tick
-const LARGE_TICK_LEN = 16;
-const END_TICK_SZ = 4; // Size for MIN_DATE/MAX_DATE ticks
-const MIN_TICK_SEP = 30; // Smallest px separation between ticks
-const MIN_LAST_TICKS = 3; // When at smallest scale, don't zoom further into less than this many ticks
-const TICK_LABEL_HEIGHT = 10;
 const tickLabelMargin = computed(() => props.vert ? 20 : 30); // Distance from label to mainline
-const tickLabelWidth = computed(() => MAINLINE_WIDTH - LARGE_TICK_LEN - tickLabelMargin.value);
+const tickLabelWidth = computed(() => store.mainlineBreadth - store.largeTickLen / 2 - tickLabelMargin.value);
 type Ticks = {
 	dates: HistDate[], // One for each tick to render
 	startIdx: number,
@@ -259,7 +248,7 @@ const ticks = computed((): Ticks => {
 	let datesBefore: HistDate[] = [];
 	let datesAfter: HistDate[] = [];
 	if (scaleIdx.value > 0 &&
-			availLen.value / (numUnits * store.zoomRatio) < MIN_TICK_SEP){ // If zoom-out would decrease scale
+			availLen.value / (numUnits * store.zoomRatio) < store.minTickSep){ // If zoom-out would decrease scale
 		let zoomUnits = numUnits * (store.zoomRatio - 1); // Potential distance shifted upon a zoom-out
 		if (zoomUnits > panUnits){
 			let zoomedScale = SCALES[scaleIdx.value-1];
@@ -318,28 +307,28 @@ const idToPos = computed(() => {
 	let afterMainlineIdx: number | null = null; // Index of first column after the mainline, if there is one
 	if (!sideMainline.value){
 		// Get columns before mainline area
-		let columnOffset = availBreadth.value / 2 - MAINLINE_WIDTH / 2 - SPACING - eventMinorSz.value;
-		while (columnOffset >= SPACING){
+		let columnOffset = availBreadth.value / 2 - store.mainlineBreadth / 2 - store.spacing - eventMinorSz.value;
+		while (columnOffset >= store.spacing){
 			cols.push([]);
 			colOffsets.push(columnOffset);
-			columnOffset -= eventMinorSz.value + SPACING;
+			columnOffset -= eventMinorSz.value + store.spacing;
 		}
 		colOffsets.reverse();
 		afterMainlineIdx = cols.length;
 		// Get columns after mainline area
-		columnOffset = availBreadth.value / 2 + MAINLINE_WIDTH / 2 + SPACING;
-		while (columnOffset + eventMinorSz.value + SPACING < availBreadth.value){
+		columnOffset = availBreadth.value / 2 + store.mainlineBreadth / 2 + store.spacing;
+		while (columnOffset + eventMinorSz.value + store.spacing < availBreadth.value){
 			cols.push([]);
 			colOffsets.push(columnOffset);
-			columnOffset += eventMinorSz.value + SPACING;
+			columnOffset += eventMinorSz.value + store.spacing;
 		}
 	} else {
 		// Get columns before mainline area
-		let columnOffset = mainlineOffset.value - SPACING - eventMinorSz.value - SPACING;
-		while (columnOffset >= SPACING){
+		let columnOffset = mainlineOffset.value - store.spacing - eventMinorSz.value - store.spacing;
+		while (columnOffset >= store.spacing){
 			cols.push([]);
 			colOffsets.push(columnOffset);
-			columnOffset -= eventMinorSz.value + SPACING;
+			columnOffset -= eventMinorSz.value + store.spacing;
 		}
 		colOffsets.reverse();
 	}
@@ -367,15 +356,16 @@ const idToPos = computed(() => {
 			let bestIdx: number | null = null; // Index of insertion for bestOffset
 			// Check for empty column
 			if (cols[colIdx].length == 0){
-				let offset = Math.min(Math.max(SPACING, targetOffset), availLen.value - eventMajorSz.value - SPACING);
+				let offset = Math.max(store.spacing, targetOffset)
+				offset = Math.min(offset, availLen.value - eventMajorSz.value - store.spacing);
 				positions.push([colIdx, 0, offset]);
 				break;
 			}
 			// Check placement before first event in column
-			let offset = cols[colIdx][0][1] - eventMajorSz.value - SPACING;
-			if (offset >= SPACING){
+			let offset = cols[colIdx][0][1] - eventMajorSz.value - store.spacing;
+			if (offset >= store.spacing){
 				if (offset >= targetOffset){
-					positions.push([colIdx, 0, Math.max(SPACING, targetOffset)]);
+					positions.push([colIdx, 0, Math.max(store.spacing, targetOffset)]);
 					break;
 				} else {
 					bestOffset = offset;
@@ -384,14 +374,14 @@ const idToPos = computed(() => {
 			}
 			// Check placement after each event element in column
 			for (let elIdx = 0; elIdx < cols[colIdx].length; elIdx++){
-				offset = cols[colIdx][elIdx][1] + eventMajorSz.value + SPACING;
+				offset = cols[colIdx][elIdx][1] + eventMajorSz.value + store.spacing;
 				if (elIdx == cols[colIdx].length - 1){ // If last element in column
-					if (offset < availLen.value - eventMajorSz.value - SPACING){
+					if (offset < availLen.value - eventMajorSz.value - store.spacing){
 						// Check for better offset
 						if (bestOffset == null
 								|| Math.abs(targetOffset - offset) < Math.abs(targetOffset - bestOffset)){
 							if (offset <= targetOffset){
-								offset = Math.min(targetOffset, availLen.value - eventMajorSz.value - SPACING);
+								offset = Math.min(targetOffset, availLen.value - eventMajorSz.value - store.spacing);
 								positions.push([colIdx, elIdx + 1, offset]);
 								break columnLoop;
 							} else {
@@ -403,19 +393,19 @@ const idToPos = computed(() => {
 				} else { // If not last event in column
 					// Check for space between this and next element
 					let nextOffset = cols[colIdx][elIdx + 1][1];
-					if (nextOffset - offset < eventMajorSz.value + SPACING){
+					if (nextOffset - offset < eventMajorSz.value + store.spacing){
 						continue;
 					}
 					// Check for better offset
 					if (bestOffset == null || Math.abs(targetOffset - offset) < Math.abs(targetOffset - bestOffset)){
-						if (offset <= targetOffset && targetOffset <= nextOffset - eventMajorSz.value - SPACING){
+						if (offset <= targetOffset && targetOffset <= nextOffset - eventMajorSz.value - store.spacing){
 							positions.push([colIdx, elIdx + 1, targetOffset]);
 							break columnLoop;
 						} else {
 							if (offset > targetOffset){
 								bestOffset = offset;
 							} else {
-								bestOffset = nextOffset - eventMajorSz.value - SPACING;
+								bestOffset = nextOffset - eventMajorSz.value - store.spacing;
 							}
 							bestIdx = elIdx + 1;
 						}
@@ -462,7 +452,7 @@ const idToPos = computed(() => {
 		}
 	}
 	// If more events could be displayed, notify parent
-	let colFillThreshold = (availLen.value - SPACING) / (eventMajorSz.value + SPACING) * 2/3;
+	let colFillThreshold = (availLen.value - store.spacing) / (eventMajorSz.value + store.spacing) * 2/3;
 	let full = cols.every(col => col.length >= colFillThreshold);
 	if (!full){
 		emit('event-req', startDate.value, endDate.value);
@@ -531,15 +521,15 @@ function panTimeline(scrollRatio: number){
 	if (scrollRatio > 0){
 		while (true){
 			if (newEnd.equals(MAX_DATE, scale.value)){
-				// Pan up to an offset of INITIAL_EXTRA_OFFSET
-				if (INITIAL_EXTRA_OFFSET == endOffset.value){
+				// Pan up to an offset of store.defaultEndTickOffset
+				if (store.defaultEndTickOffset == endOffset.value){
 					console.log('Reached maximum date limit');
 					newStartOffset = startOffset.value;
 					newEndOffset = endOffset.value;
 				} else {
-					if (numEndSteps > 0 || newEndOffset >= INITIAL_EXTRA_OFFSET){
-						chgUnits = INITIAL_EXTRA_OFFSET - endOffset.value;
-						newEndOffset = INITIAL_EXTRA_OFFSET;
+					if (numEndSteps > 0 || newEndOffset >= store.defaultEndTickOffset){
+						chgUnits = store.defaultEndTickOffset - endOffset.value;
+						newEndOffset = store.defaultEndTickOffset;
 						let extraStartSteps: number;
 						[extraStartSteps, , newStartOffset, ] =
 							getMovedBounds(startOffset.value, endOffset.value, chgUnits, chgUnits);
@@ -570,15 +560,15 @@ function panTimeline(scrollRatio: number){
 	} else {
 		while (true){
 			if (MIN_DATE.equals(newStart, scale.value)){
-				// Pan up to an offset of INITIAL_EXTRA_OFFSET
-				if (INITIAL_EXTRA_OFFSET == startOffset.value){
+				// Pan up to an offset of store.defaultEndTickOffset
+				if (store.defaultEndTickOffset == startOffset.value){
 					console.log('Reached minimum date limit');
 					newStartOffset = startOffset.value;
 					newEndOffset = endOffset.value;
 				} else {
-					if (numStartSteps < 0 || newStartOffset >= INITIAL_EXTRA_OFFSET){
-						chgUnits = -INITIAL_EXTRA_OFFSET + startOffset.value;
-						newStartOffset = INITIAL_EXTRA_OFFSET;
+					if (numStartSteps < 0 || newStartOffset >= store.defaultEndTickOffset){
+						chgUnits = -store.defaultEndTickOffset + startOffset.value;
+						newStartOffset = store.defaultEndTickOffset;
 						let extraEndSteps: number;
 						[, extraEndSteps, , newEndOffset] =
 							getMovedBounds(startOffset.value, endOffset.value, chgUnits, chgUnits);
@@ -662,11 +652,11 @@ function zoomTimeline(zoomRatio: number){
 		while (numStartSteps < 0){
 			if (newStart.equals(MIN_CAL_DATE, scale.value) && (scale.value == MONTH_SCALE || scale.value == DAY_SCALE)){
 				console.log('Restricting new range to dates where month/day scale is usable');
-				newStartOffset = INITIAL_EXTRA_OFFSET;
+				newStartOffset = store.defaultEndTickOffset;
 				break;
 			}
 			if (MIN_DATE.equals(newStart, scale.value)){
-				newStartOffset = INITIAL_EXTRA_OFFSET;
+				newStartOffset = store.defaultEndTickOffset;
 				break;
 			}
 			stepDate(newStart, scale.value, {forward: false, inplace: true});
@@ -675,7 +665,7 @@ function zoomTimeline(zoomRatio: number){
 		}
 		while (numEndSteps > 0){
 			if (MAX_DATE.equals(newEnd, scale.value)){
-				newEndOffset = INITIAL_EXTRA_OFFSET;
+				newEndOffset = store.defaultEndTickOffset;
 				break;
 			}
 			stepDate(newEnd, scale.value, {inplace: true});
@@ -686,7 +676,7 @@ function zoomTimeline(zoomRatio: number){
 	}
 	// Possibly change the scale
 	let tickDiff = availLen.value / newNumUnits;
-	if (tickDiff < MIN_TICK_SEP){ // Possibly zoom out
+	if (tickDiff < store.minTickSep){ // Possibly zoom out
 		if (scaleIdx.value == 0){
 			console.log('Reached zoom out limit');
 			return;
@@ -753,7 +743,7 @@ function zoomTimeline(zoomRatio: number){
 		}
 	} else { // Possibly zoom in
 		if (scaleIdx.value == SCALES.length - 1){
-			if (newNumUnits < MIN_LAST_TICKS){
+			if (newNumUnits < store.minLastTicks){
 				console.log('Reached zoom in limit');
 				return;
 			}
@@ -761,7 +751,7 @@ function zoomTimeline(zoomRatio: number){
 			let newScale = SCALES[scaleIdx.value + 1];
 			let newUnitsPerOld = getScaleRatio(newScale, scale.value);
 			let zoomedTickDiff = tickDiff / newUnitsPerOld;
-			if (zoomedTickDiff > MIN_TICK_SEP){
+			if (zoomedTickDiff > store.minTickSep){
 				// Update offsets
 				newStartOffset *= newUnitsPerOld;
 				stepDate(newStart, newScale, {forward: false, count: Math.floor(newStartOffset), inplace: true});
@@ -927,16 +917,14 @@ const skipTransition = ref(true);
 onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
 
 // Styles
-const transitionDuration = '300ms';
-const transitionTimingFunction = 'ease-out';
 const mainlineStyles = computed(() => {
 	return {
 		transform: props.vert ?
 			`translate(${mainlineOffset.value}px, 0) rotate(90deg) scale(${availLen.value},1)` :
 			`translate(0, ${mainlineOffset.value}px) rotate(0deg) scale(${availLen.value},1)`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform',
-		transitionDuration,
-		transitionTimingFunction,
+		transitionDuration: store.transitionDuration + 'ms',
+		transitionTimingFunction: 'ease-out',
 	};
 });
 function tickStyles(idx: number){
@@ -946,15 +934,15 @@ function tickStyles(idx: number){
 	let scaleFactor = 1;
 	if (scaleIdx.value > 0 &&
 			inDateScale(ticks.value.dates[idx], SCALES[scaleIdx.value-1])){ // If tick exists on larger scale
-		scaleFactor = LARGE_TICK_LEN / TICK_LEN;
+		scaleFactor = store.largeTickLen / store.tickLen;
 	}
 	return {
 		transform: props.vert ?
 			`translate(${mainlineOffset.value}px,  ${offset}px) scale(${scaleFactor})` :
 			`translate(${offset}px, ${mainlineOffset.value}px) scale(${scaleFactor})`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
-		transitionDuration,
-		transitionTimingFunction,
+		transitionDuration: store.transitionDuration + 'ms',
+		transitionTimingFunction: 'ease-out',
 		opacity: (offset >= 0 && offset <= availLen.value) ? 1 : 0,
 	}
 }
@@ -962,14 +950,14 @@ function tickLabelStyles(idx: number){
 	let offset =
 		(idx - ticks.value.startIdx + startOffset.value) /
 		(ticks.value.endIdx - ticks.value.startIdx + startOffset.value + endOffset.value) * availLen.value;
-	let labelSz = props.vert ? TICK_LABEL_HEIGHT : tickLabelWidth.value;
+	let labelSz = props.vert ? store.tickLabelHeight : tickLabelWidth.value;
 	return {
 		transform: props.vert ?
 			`translate(${mainlineOffset.value + tickLabelMargin.value}px, ${offset}px)` :
 			`translate(${offset}px, ${mainlineOffset.value + tickLabelMargin.value}px)`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
-		transitionDuration,
-		transitionTimingFunction,
+		transitionDuration: store.transitionDuration + 'ms',
+		transitionTimingFunction: 'ease-out',
 		opacity: (offset >= labelSz && offset <= availLen.value - labelSz) ? 1 : 0,
 	}
 }
@@ -981,15 +969,15 @@ function eventStyles(eventId: number){
 		width: w + 'px',
 		height: h + 'px',
 		transitionProperty: skipTransition.value ? 'none' : 'all',
-		transitionDuration,
-		transitionTimingFunction,
+		transitionDuration: store.transitionDuration + 'ms',
+		transitionTimingFunction: 'ease-out',
 	};
 }
 function eventImgStyles(eventId: number){
 	const event = idToEvent.value.get(eventId)!;
 	return {
-		width: EVENT_IMG_SZ + 'px',
-		height: EVENT_IMG_SZ + 'px',
+		width: store.eventImgSz + 'px',
+		height: store.eventImgSz + 'px',
 		backgroundImage: `url(${getImagePath(event.imgId)})`,
 		backgroundSize: 'cover',
 	};
@@ -999,8 +987,8 @@ function eventLineStyles(eventId: number){
 	return {
 		transform: `translate(${x}px, ${y}px) rotate(${a}deg) scaleX(${l})`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform',
-		transitionDuration,
-		transitionTimingFunction,
+		transitionDuration: store.transitionDuration + 'ms',
+		transitionTimingFunction: 'ease-out',
 	};
 }
 </script>
