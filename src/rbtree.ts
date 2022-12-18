@@ -1,6 +1,6 @@
 // Copied from node_modules/bintrees/lib/, and adapted to use ES6, classes, and typescript
 
-class Node<T> {
+export class Node<T> {
 	data: T;
 	left: Node<T> | null;
 	right: Node<T> | null;
@@ -24,7 +24,7 @@ class Node<T> {
 	}
 }
 
-class Iterator<T> {
+export class Iterator<T> {
 	_tree: RBTree<T>;
 	_ancestors: Node<T>[];
 	_cursor: Node<T> | null;

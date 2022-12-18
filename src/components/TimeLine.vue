@@ -11,6 +11,8 @@
 				<stop offset="95%" stop-color="gold"/>
 			</linearGradient>
 		</defs>
+		<!-- Main line (unit horizontal line that gets transformed, with extra length to avoid gaps when panning) -->
+		<line :stroke="store.color.alt" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
 		<!-- Tick markers -->
 		<template v-for="date, idx in ticks.dates" :key="date.toInt()">
 			<line v-if="date.equals(MIN_DATE, scale) || date.equals(MAX_DATE, scale)"
@@ -24,19 +26,17 @@
 				:stroke="store.color.alt" stroke-width="1px"
 				:style="tickStyles(idx)" class="animate-fadein"/>
 		</template>
-		<!-- Event lines -->
-		<line v-for="id in eventLines.keys()" :key="id"
-			x1="0" y1="0" x2="1" y2="0.01" stroke="url('#eventLineGradient')" stroke-width="1px"
-			:style="eventLineStyles(id)" class="animate-fadein"/>
-			<!-- Note: With a fully vertical or horizontal line, nothing gets displayed -->
 		<!-- Tick labels -->
 		<text v-for="date, idx in ticks.dates" :key="date.toInt()"
 			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
 			:fill="store.color.textDark" :style="tickLabelStyles(idx)" class="text-sm animate-fadein">
 			{{date.toDisplayString()}}
 		</text>
-		<!-- Main line (unit horizontal line that gets transformed, with extra length to avoid gaps when panning) -->
-		<line :stroke="store.color.alt" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
+		<!-- Event lines -->
+		<line v-for="id in eventLines.keys()" :key="id"
+			x1="0" y1="0" x2="1" y2="0.01" stroke="url('#eventLineGradient')" stroke-width="1px"
+			:style="eventLineStyles(id)" class="animate-fadein"/>
+			<!-- Note: With a fully vertical or horizontal line, nothing gets displayed -->
 	</svg>
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein" :style="eventStyles(id)">
@@ -88,7 +88,7 @@ const width = ref(0);
 const height = ref(0);
 const availLen = computed(() => props.vert ? height.value : width.value);
 const availBreadth = computed(() => props.vert ? width.value : height.value);
-const prevVert = ref(props.vert); // For skipping transitions on horz/vert swap
+const prevVert = ref(props.vert); // Previous 'vert' value, used for skipping transitions on horz/vert swap
 const mounted = ref(false);
 onMounted(() => {
 	let rootEl = rootRef.value!;
@@ -121,7 +121,7 @@ const eventMajorSz = computed(() => props.vert ? eventHeight.value : eventWidth.
 const eventMinorSz = computed(() => props.vert ? eventWidth.value : eventHeight.value)
 const sideMainline = computed( // True if unable to fit mainline in middle with events on both sides
 	() => availBreadth.value < store.mainlineBreadth + (eventMinorSz.value + store.spacing * 2) * 2);
-const mainlineOffset = computed(() => { // Distance mainline-area line to side of display area
+const mainlineOffset = computed(() => { // Distance from mainline-area line to left/top of display area
 	if (!sideMainline.value){
 		return availBreadth.value / 2 - store.mainlineBreadth /2 + store.largeTickLen / 2;
 	} else {
@@ -675,9 +675,9 @@ function zoomTimeline(zoomRatio: number){
 		}
 		newNumUnits += newStartOffset + newEndOffset;
 	}
-	// Possibly change the scale
+	// Possibly zoom in/out
 	let tickDiff = availLen.value / newNumUnits;
-	if (tickDiff < store.minTickSep){ // Possibly zoom out
+	if (tickDiff < store.minTickSep){ // If trying to zoom out
 		if (scaleIdx.value == 0){
 			console.log('Reached zoom out limit');
 			return;
@@ -688,8 +688,8 @@ function zoomTimeline(zoomRatio: number){
 			newStartOffset /= oldUnitsPerNew;
 			newEndOffset /= oldUnitsPerNew;
 			// Shift starting and ending points to align with new scale
-				// Note: There is some distortion due to not accounting for no year 0 CE here
-					// But the result seems tolerable, and resolving it adds a fair bit of code complexity
+				// Note: There is some distortion due to not fully accounting for no year 0 CE here,
+					// but the result seems tolerable, and resolving it adds a fair bit of code complexity
 			let newStartSubUnits =
 				(scale.value == DAY_SCALE) ? getDaysInMonth(newStart.year, newStart.month) :
 				(scale.value == MONTH_SCALE) ? 12 :
@@ -742,7 +742,7 @@ function zoomTimeline(zoomRatio: number){
 			//
 			scaleIdx.value -= 1;
 		}
-	} else { // Possibly zoom in
+	} else { // If trying to zoom in
 		if (scaleIdx.value == SCALES.length - 1){
 			if (newNumUnits < store.minLastTicks){
 				console.log('Reached zoom in limit');
@@ -824,7 +824,7 @@ function onPointerDown(evt: PointerEvent){
 	dragVelocity = 0;
 	vUpdateTime = Date.now();
 	vPrevPointer = null;
-	vUpdater = setInterval(() => {
+	vUpdater = window.setInterval(() => {
 		if (vPrevPointer != null){
 			let time = Date.now();
 			let ptrDiff = (props.vert ? pointerY! : pointerX!) - vPrevPointer;
@@ -843,7 +843,7 @@ function onPointerMove(evt: PointerEvent){
 		// Handle pointer dragging
 		dragDiff += props.vert ? evt.clientY - pointerY! : evt.clientX - pointerX!;
 		if (dragHandler == 0){
-			dragHandler = setTimeout(() => {
+			dragHandler = window.setTimeout(() => {
 				if (Math.abs(dragDiff) > 2){
 					panTimeline(-dragDiff / availLen.value);
 					dragDiff = 0;

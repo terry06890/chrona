@@ -2,10 +2,14 @@
  * Project-wide globals
  */
 
+import {RBTree} from './rbtree';
+
 export const DEBUG = true;
-export const WRITING_MODE_HORZ =
-	window.getComputedStyle(document.body)['writing-mode' as any].startsWith('horizontal');
+export let WRITING_MODE_HORZ = true;
 	// Used with ResizeObserver callbacks, to determine which resized dimensions are width and height
+if ('writing-mode' in window.getComputedStyle(document.body)){ // Can be null when testing
+	WRITING_MODE_HORZ = window.getComputedStyle(document.body)['writing-mode' as any].startsWith('horizontal');
+}
 
 // Similar to %, but for negative LHS, return a positive offset from a lower RHS multiple
 export function moduloPositive(x: number, y: number){
@@ -16,7 +20,7 @@ export async function timeout(ms: number){
 	return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-// For calendar conversion. Mostly copied from backend/hist_data/cal.py
+// For calendar conversion (mostly copied from backend/hist_data/cal.py)
 export function gregorianToJdn(year: number, month: number, day: number): number {
 	if (year < 0){
 		year += 1;
@@ -75,7 +79,7 @@ export function getDaysInMonth(year: number, month: number){
 }
 
 // For date representation
-export const MIN_CAL_YEAR = -4713; // Year after which months/day scales are usable
+export const MIN_CAL_YEAR = -4713; // Earliest year where months/day scales are usable
 export class HistDate {
 	gcal: boolean | null;
 	year: number;
@@ -84,8 +88,8 @@ export class HistDate {
 	constructor(gcal: boolean | null, year: number, month: number, day: number){
 		this.gcal = gcal;
 		this.year = year;
-		this.month = month;
-		this.day = day;
+		this.month = gcal == null ? 1 : month;
+		this.day = gcal == null ? 1 : day;
 	}
 	equals(other: HistDate, scale=DAY_SCALE){
 		if (scale == DAY_SCALE){
@@ -95,6 +99,9 @@ export class HistDate {
 		} else {
 			return Math.floor(this.year / scale) == Math.floor(other.year / scale);
 		}
+	}
+	clone(){
+		return new HistDate(this.gcal, this.year, this.month, this.day);
 	}
 	isEarlier(other: HistDate, scale=DAY_SCALE){
 		const yearlyScale = scale != DAY_SCALE && scale != MONTH_SCALE;
@@ -119,8 +126,33 @@ export class HistDate {
 			return 0;
 		}
 	}
-	toInt(){
-		return this.day + this.month * 50 + this.year * 1000;
+	getDayDiff(other: HistDate){ // Assumes neither date has gcal=null
+		const jdn2 = gregorianToJdn(this.year, this.month, this.day);
+		const jdn1 = gregorianToJdn(other.year, other.month, other.day);
+		return Math.abs(jdn1 - jdn2);
+	}
+	getMonthDiff(other: HistDate){
+		// Determine earlier date
+		let earlier = this as HistDate;
+		let later = other;
+		if (other.year < this.year || other.year == this.year && other.month < this.month){
+			earlier = other;
+			later = this as HistDate;
+		}
+		//
+		const yearDiff = earlier.getYearDiff(later);
+		if (yearDiff == 0){
+			return later.month - earlier.month;
+		} else {
+			return (13 - earlier.month) + (yearDiff - 1) * 12 + later.month - 1;
+		}
+	}
+	getYearDiff(other: HistDate){
+		let yearDiff = Math.abs(this.year - other.year);
+		if (this.year * other.year < 0){ // Account for no 0 CE
+			yearDiff -= 1;
+		}
+		return yearDiff;
 	}
 	toString(){
 		if (this.gcal != null){
@@ -175,36 +207,8 @@ export class HistDate {
 			}
 		}
 	}
-	getDayDiff(other: HistDate){ // Assumes neither date has gcal=null
-		const jdn2 = gregorianToJdn(this.year, this.month, this.day);
-		const jdn1 = gregorianToJdn(other.year, other.month, other.day);
-		return Math.abs(jdn1 - jdn2);
-	}
-	getMonthDiff(other: HistDate){
-		// Determine earlier date
-		let earlier = this as HistDate;
-		let later = other;
-		if (other.year < this.year || other.year == this.year && other.month < this.month){
-			earlier = other;
-			later = this as HistDate;
-		}
-		//
-		const yearDiff = earlier.getYearDiff(later);
-		if (yearDiff == 0){
-			return later.month - earlier.month;
-		} else {
-			return (13 - earlier.month) + (yearDiff - 1) * 12 + later.month - 1;
-		}
-	}
-	getYearDiff(other: HistDate){
-		let yearDiff = Math.abs(this.year - other.year);
-		if (this.year * other.year < 0){ // Account for no 0 CE
-			yearDiff -= 1;
-		}
-		return yearDiff;
-	}
-	clone(){
-		return new HistDate(this.gcal, this.year, this.month, this.day);
+	toInt(){ // Used for v-for keys
+		return this.day + this.month * 50 + this.year * 1000;
 	}
 }
 export class YearDate extends HistDate {
@@ -232,7 +236,97 @@ export class CalDate extends HistDate {
 	}
 }
 
-// Timeline parameters
+// For event representation
+export class HistEvent {
+	id: number;
+	title: string;
+	start: HistDate;
+	startUpper: HistDate | null;
+	end: HistDate | null;
+	endUpper: HistDate | null;
+	ctg: string;
+	imgId: number;
+	pop: number;
+	constructor(
+			id: number, title: string, start: HistDate, startUpper: HistDate | null = null,
+			end: HistDate | null = null, endUpper: HistDate | null = null, ctg='', imgId=0, pop=0){
+		this.id = id;
+		this.title = title;
+		this.start = start;
+		this.startUpper = startUpper;
+		this.end = end;
+		this.endUpper = endUpper;
+		this.ctg = ctg;
+		this.imgId = imgId;
+		this.pop = pop;
+	}
+}
+export function cmpHistEvent(event: HistEvent, event2: HistEvent){
+	const cmp = event.start.cmp(event2.start);
+	return cmp != 0 ? cmp : event.id - event2.id;
+}
+
+// For server requests
+const SERVER_DATA_URL = (new URL(window.location.href)).origin + '/data/'
+const SERVER_IMG_PATH = '/hist_data/img/'
+export async function queryServer(params: URLSearchParams, serverDataUrl=SERVER_DATA_URL){
+	// Construct URL
+	const url = new URL(serverDataUrl);
+	url.search = params.toString();
+	// Query server
+	let responseObj;
+	try {
+		const response = await fetch(url.toString());
+		responseObj = await response.json();
+	} catch (error){
+		console.log(`Error with querying ${url.toString()}: ${error}`);
+		return null;
+	}
+	return responseObj;
+}
+export function getImagePath(imgId: number): string {
+	return SERVER_IMG_PATH + String(imgId) + '.jpg';
+}
+// For server responses
+export type HistDateJson = {
+	gcal: boolean | null,
+	year: number,
+	month: number,
+	day: number,
+}
+export type HistEventJson = {
+	id: number,
+	title: string,
+	start: HistDateJson,
+	startUpper: HistDateJson | null,
+	end: HistDateJson | null,
+	endUpper: HistDateJson | null,
+	ctg: string,
+	imgId: number,
+	pop: number,
+}
+export function jsonToHistDate(json: HistDateJson){
+	if (json.gcal == null){
+		return new YearDate(json.year);
+	} else {
+		return new CalDate(json.year, json.month, json.day, json.gcal);
+	}
+}
+export function jsonToHistEvent(json: HistEventJson){
+	return {
+		id: json.id,
+		title: json.title,
+		start: jsonToHistDate(json.start),
+		startUpper: json.startUpper == null ? null : jsonToHistDate(json.startUpper),
+		end: json.end == null ? null : jsonToHistDate(json.end),
+		endUpper: json.endUpper == null ? null : jsonToHistDate(json.endUpper),
+		ctg: json.ctg,
+		imgId: json.imgId,
+		pop: json.pop,
+	};
+}
+
+// For dates in a timeline
 const currentDate = new Date();
 export const MIN_DATE = new YearDate(-13.8e9);
 export const MAX_DATE = new CalDate(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate());
@@ -259,7 +353,8 @@ if (DEBUG){
 		}
 	}
 }
-export function stepDate(date: HistDate, scale: number, {forward=true, count=1, inplace=false} = {}): HistDate {
+export function stepDate( // If stepping by month or years, leaves day value unchanged
+	date: HistDate, scale: number, {forward=true, count=1, inplace=false} = {}): HistDate {
 	const newDate = inplace ? date : date.clone();
 	if (count < 0){
 		count = -count;
@@ -342,7 +437,7 @@ export function inDateScale(date: HistDate, scale: number): boolean {
 	}
 }
 export function getScaleRatio(scale: number, scale2: number){
-	// Returns upper number of units in 'scale' per unit in 'scale2'
+	// Returns number of units in 'scale' per unit in 'scale2' (provides an upper value for days-per-month/year)
 	if (scale == DAY_SCALE){
 		scale = 1 / 12 / 31;
 	} else if (scale == MONTH_SCALE){
@@ -384,91 +479,67 @@ export class TimelineState {
 	}
 }
 
-export class HistEvent {
-	id: number;
-	title: string;
-	start: HistDate;
-	startUpper: HistDate | null;
-	end: HistDate | null;
-	endUpper: HistDate | null;
-	ctg: string;
-	imgId: number;
-	pop: number;
-	constructor(
-			id: number, title: string, start: HistDate, startUpper: HistDate | null = null,
-			end: HistDate | null = null, endUpper: HistDate | null = null, ctg='', imgId=0, pop=0){
-		this.id = id;
-		this.title = title;
-		this.start = start;
-		this.startUpper = startUpper;
-		this.end = end;
-		this.endUpper = endUpper;
-		this.ctg = ctg;
-		this.imgId = imgId;
-		this.pop = pop;
+// For managing sets of non-overlapping date ranges
+export type DateRange = [HistDate, HistDate];
+export class DateRangeTree {
+	tree: RBTree<DateRange>;
+	constructor(){
+		this.tree = new RBTree((r1: DateRange, r2: DateRange) => r1[0].cmp(r2[0]));
 	}
-}
-export function cmpHistEvent(event: HistEvent, event2: HistEvent){
-	const cmp = event.start.cmp(event2.start);
-	return cmp != 0 ? cmp : event.id - event2.id;
-}
-
-// For server requests
-const SERVER_DATA_URL = (new URL(window.location.href)).origin + '/data/'
-const SERVER_IMG_PATH = '/hist_data/img/'
-export async function queryServer(params: URLSearchParams){
-	// Construct URL
-	const url = new URL(SERVER_DATA_URL);
-	url.search = params.toString();
-	// Query server
-	let responseObj;
-	try {
-		const response = await fetch(url.toString());
-		responseObj = await response.json();
-	} catch (error){
-		console.log(`Error with querying ${url.toString()}: ${error}`);
-		return null;
+	add(range: DateRange){
+		let rangesToRemove: HistDate[] = []; // Holds starts of ranges to remove
+		let dummyDate = new YearDate();
+		// Find ranges to remove
+		let itr = this.tree.lowerBound([range[0], dummyDate]);
+		let prevRange = itr.prev();
+		if (prevRange != null){ // Check for start-overlapping range
+			if (prevRange[1].isEarlier(range[0])){
+				prevRange = null;
+			} else {
+				rangesToRemove.push(prevRange[0]);
+			}
+		}
+		let r = itr.next();
+		while (r != null && !range[1].isEarlier(r[1])){ // Check for included ranges
+			rangesToRemove.push(r[0]);
+			r = itr.next();
+		}
+		let nextRange = itr.data();
+		if (nextRange != null){ // Check for end-overlapping range
+			if (range[1].isEarlier(nextRange[0])){
+				nextRange = null;
+			} else {
+				rangesToRemove.push(nextRange[0])
+			}
+		}
+		// Remove included/overlapping ranges
+		for (let start of rangesToRemove){
+			this.tree.remove([start, dummyDate]);
+		}
+		// Add possibly-merged range
+		let startDate = prevRange != null ? prevRange[0] : range[0];
+		let endDate = nextRange != null ? nextRange[1] : range[1];
+		this.tree.insert([startDate, endDate]);
 	}
-	return responseObj;
-}
-export function getImagePath(imgId: number): string {
-	return SERVER_IMG_PATH + String(imgId) + '.jpg';
-}
-// For server responses
-export type HistDateJson = {
-	gcal: boolean | null,
-	year: number,
-	month: number,
-	day: number,
-}
-export type HistEventJson = {
-	id: number,
-	title: string,
-	start: HistDateJson,
-	startUpper: HistDateJson | null,
-	end: HistDateJson | null,
-	endUpper: HistDateJson | null,
-	ctg: string,
-	imgId: number,
-	pop: number,
-}
-export function jsonToHistDate(json: HistDateJson){
-	if (json.gcal == null){
-		return new YearDate(json.year);
-	} else {
-		return new CalDate(json.year, json.month, json.day, json.gcal);
+	has(range: DateRange): boolean {
+		let itr = this.tree.lowerBound([range[0], new YearDate()]);
+		let r = itr.data();
+		if (r == null){
+			r = itr.prev();
+			if (r == null){
+				return false;
+			} else {
+				return !r[1].isEarlier(range[1]);
+			}
+		} else {
+			if (range[0].isEarlier(r[0])){
+				return false;
+			} else {
+				return !r[1].isEarlier(range[1]);
+			}
+		}
 	}
-}
-export function jsonToHistEvent(json: HistEventJson){
-	return {
-		id: json.id,
-		title: json.title,
-		start: jsonToHistDate(json.start),
-		startUpper: json.startUpper == null ? null : jsonToHistDate(json.startUpper),
-		end: json.end == null ? null : jsonToHistDate(json.end),
-		endUpper: json.endUpper == null ? null : jsonToHistDate(json.endUpper),
-		ctg: json.ctg,
-		imgId: json.imgId,
-		pop: json.pop,
-	};
+	clear(){
+		this.tree.clear();
+	}
 }

@@ -43,7 +43,7 @@ const periods: Ref<Period[]> = ref([
 const skipTransition = ref(true);
 onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
 
-// For size tracking (used to prevent time spans shrinking below 1 pixel)
+// For size and mount-status tracking
 const width = ref(0);
 const height = ref(0);
 const mounted = ref(false);
@@ -87,7 +87,7 @@ function spanStyles(state: TimelineState){
 	let start = state.startDate.clone();
 	let end = state.endDate.clone();
 	let scale = SCALES[state.scaleIdx];
-	if (scale != MONTH_SCALE && scale != DAY_SCALE){ // Possibly incorporate offsets
+	if (scale != MONTH_SCALE && scale != DAY_SCALE){ // Account for offsets
 		stepDate(start, 1, {forward: false, count: Math.floor(state.startOffset * scale), inplace: true});
 		stepDate(end, 1, {count: Math.floor(state.endOffset * scale), inplace: true});
 	}
