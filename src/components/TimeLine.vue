@@ -48,10 +48,10 @@
 		</div>
 	</div>
 	<!-- Buttons -->
-	<icon-button :size="30" class="absolute top-2 right-2"
+	<icon-button v-if="closeable" :size="30" class="absolute top-2 right-2"
 		:style="{color: store.color.text, backgroundColor: store.color.altDark2}"
 		@click="emit('remove')" title="Remove timeline">
-		<minus-icon/>
+		<close-icon/>
 	</icon-button>
 </div>
 </template>
@@ -61,7 +61,7 @@ import {ref, onMounted, computed, watch, watchEffect, PropType, Ref, shallowRef,
 // Components
 import IconButton from './IconButton.vue';
 // Icons
-import MinusIcon from './icon/MinusIcon.vue';
+import CloseIcon from './icon/CloseIcon.vue';
 // Other
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES,
 	MIN_CAL_YEAR, HistDate, CalDate, stepDate, inDateScale, getScaleRatio, getUnitDiff, getDaysInMonth,
@@ -78,6 +78,7 @@ const store = useStore();
 // Props + events
 const props = defineProps({
 	vert: {type: Boolean, required: true},
+	closeable: {type: Boolean, default: true},
 	initialState: {type: Object as PropType<TimelineState>, required: true},
 	eventTree: {type: Object as PropType<RBTree<HistEvent>>, required: true},
 });

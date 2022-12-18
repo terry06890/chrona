@@ -19,7 +19,7 @@
 	<div class="grow min-h-0 flex" :class="{'flex-col': !vert}"
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
-			:vert="vert" :initialState="state" :eventTree="eventTree"
+			:vert="vert" :initialState="state" :closeable="timelines.length > 1" :eventTree="eventTree"
 			class="grow basis-full min-h-0 outline outline-1"
 			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)"
 			@event-req="onEventReq" @event-display="onEventDisplay($event, idx)"/>
