@@ -1,6 +1,6 @@
 <template>
 <div class="flex relative" :class="{'flex-col': vert}"
-	:style="{color: store.color.text, backgroundColor: store.color.bgDark}" ref="rootRef">
+	:style="{color: store.color.text}" ref="rootRef">
 	<div v-for="p in periods" :key="p.label" :style="periodStyles(p)">
 		<div :style="labelStyles">{{p.label}}</div>
 	</div>
@@ -67,8 +67,10 @@ onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 // Styles
 function periodStyles(period: Period){
 	return {
+		backgroundColor: store.color.bgDark2,
 		outline: '1px solid gray',
 		flexGrow: period.len,
+		overflow: 'hidden',
 	};
 }
 const labelStyles = computed((): Record<string, string> => ({
@@ -96,7 +98,10 @@ function spanStyles(state: TimelineState){
 	let lenFrac = (end.year - start.year) / (MAX_DATE.year - MIN_DATE.year);
 	let startPx = Math.max(0, availLen * startFrac); // Prevent negatives due to end-padding
 	let lenPx = Math.min(availLen - startPx, availLen * lenFrac);
-	lenPx = Math.max(1, lenPx); // Prevent zero length
+	if (lenPx < 3){ // Prevent zero length
+		lenPx = 3;
+		startPx -= Math.max(0, startPx + lenPx - availLen);
+	}
 	//
 	if (props.vert){
 		styles = {
@@ -118,7 +123,7 @@ function spanStyles(state: TimelineState){
 		transition: skipTransition.value ? 'none' : 'all 300ms ease-out',
 		color: 'black',
 		backgroundColor: store.color.alt,
-		opacity: 0.3,
+		opacity: 0.4,
 	};
 }
 </script>

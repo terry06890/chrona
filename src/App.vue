@@ -23,7 +23,7 @@
 			class="grow basis-full min-h-0 outline outline-1"
 			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)"
 			@event-req="onEventReq" @event-display="onEventDisplay($event, idx)"/>
-		<base-line :vert="vert" :timelines="timelines"/>
+		<base-line :vert="vert" :timelines="timelines" class='m-1 sm:m-2'/>
 	</div>
 </div>
 </template>

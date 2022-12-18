@@ -172,6 +172,7 @@ function initScale(){ // Initialises to smallest usable scale
 			}
 		}
 	}
+	onStateChg();
 }
 function getYearlyScale(startDate: HistDate, endDate: HistDate, availLen: number){
 	// Get the smallest yearly scale that divides a date range, without making ticks too close
@@ -905,11 +906,12 @@ function onShiftWheel(evt: WheelEvent){
 }
 
 // For bound-change signalling
-watch(startDate, () => {
+function onStateChg(){
 	emit('state-chg', new TimelineState(
 		ID, startDate.value, endDate.value, startOffset.value, endOffset.value, scaleIdx.value
 	));
-});
+}
+watch(startDate, onStateChg);
 
 // For skipping transitions on startup (and on horz/vert swap)
 const skipTransition = ref(true);
