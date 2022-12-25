@@ -23,9 +23,9 @@ export const useStore = defineStore('store', {
 			tickLen: 16,
 			largeTickLen: 32,
 			endTickSz: 8, // Size for start/end ticks
+			tickLabelHeight: 10,
 			minTickSep: 30, // Smallest px separation between ticks
 			minLastTicks: 3, // When at smallest scale, don't zoom further into less than this many ticks
-			tickLabelHeight: 10,
 			defaultEndTickOffset: 0.5, // Default fraction of a unit to offset start/end ticks
 			//
 			mainlineBreadth: 80, // Breadth of mainline area (including ticks and labels)

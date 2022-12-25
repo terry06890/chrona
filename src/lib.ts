@@ -436,15 +436,16 @@ export function inDateScale(date: HistDate, scale: number): boolean {
 		return (date.year == 1 || date.year % scale == 0) && date.month == 1 && date.day == 1;
 	}
 }
-export function getScaleRatio(scale: number, scale2: number){
-	// Returns number of units in 'scale' per unit in 'scale2' (provides an upper value for days-per-month/year)
+export function getScaleRatio(scale: number, scale2: number, lowerVal=false){
+	// Returns number of units in 'scale' per unit in 'scale2' (provides upper/lower value for days-per-month/year)
+	const daysPerMonth = lowerVal ? 28 : 31;
 	if (scale == DAY_SCALE){
-		scale = 1 / 12 / 31;
+		scale = 1 / 12 / daysPerMonth;
 	} else if (scale == MONTH_SCALE){
 		scale = 1 / 12;
 	}
 	if (scale2 == DAY_SCALE){
-		scale2 = 1 / 12 / 31;
+		scale2 = 1 / 12 / daysPerMonth;
 	} else if (scale2 == MONTH_SCALE){
 		scale2 = 1 / 12;
 	}
@@ -487,10 +488,10 @@ export class DateRangeTree {
 		this.tree = new RBTree((r1: DateRange, r2: DateRange) => r1[0].cmp(r2[0]));
 	}
 	add(range: DateRange){
-		let rangesToRemove: HistDate[] = []; // Holds starts of ranges to remove
-		let dummyDate = new YearDate();
+		const rangesToRemove: HistDate[] = []; // Holds starts of ranges to remove
+		const dummyDate = new YearDate();
 		// Find ranges to remove
-		let itr = this.tree.lowerBound([range[0], dummyDate]);
+		const itr = this.tree.lowerBound([range[0], dummyDate]);
 		let prevRange = itr.prev();
 		if (prevRange != null){ // Check for start-overlapping range
 			if (prevRange[1].isEarlier(range[0])){
@@ -513,16 +514,16 @@ export class DateRangeTree {
 			}
 		}
 		// Remove included/overlapping ranges
-		for (let start of rangesToRemove){
+		for (const start of rangesToRemove){
 			this.tree.remove([start, dummyDate]);
 		}
 		// Add possibly-merged range
-		let startDate = prevRange != null ? prevRange[0] : range[0];
-		let endDate = nextRange != null ? nextRange[1] : range[1];
+		const startDate = prevRange != null ? prevRange[0] : range[0];
+		const endDate = nextRange != null ? nextRange[1] : range[1];
 		this.tree.insert([startDate, endDate]);
 	}
 	has(range: DateRange): boolean {
-		let itr = this.tree.lowerBound([range[0], new YearDate()]);
+		const itr = this.tree.lowerBound([range[0], new YearDate()]);
 		let r = itr.data();
 		if (r == null){
 			r = itr.prev();
