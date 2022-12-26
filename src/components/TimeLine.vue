@@ -32,11 +32,14 @@
 			:fill="store.color.textDark" :style="tickLabelStyles(tick)" class="text-sm animate-fadein">
 			{{tick.date.toDisplayString()}}
 		</text>
-		<!-- Event lines -->
+		<!-- Event lines (dashed line indicates imprecise start date) -->
 		<line v-for="id in eventLines.keys()" :key="id"
-			x1="0" y1="0" x2="1" y2="0.01" stroke="url('#eventLineGradient')" stroke-width="1px"
+			x1="0" y1="0" :x2="eventLines.get(id)![2]" y2="0.01"
+			stroke="url('#eventLineGradient')" stroke-width="1px"
+			:stroke-dasharray="idToEvent.get(id)!.startUpper == null ? '' : '16,4'"
 			:style="eventLineStyles(id)" class="animate-fadein"/>
 			<!-- Note: With a fully vertical or horizontal line, nothing gets displayed -->
+			<!-- Note: Can't use :x2="1" and scale in style, as it makes dashed-lines non-uniform -->
 	</svg>
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein" :style="eventStyles(id)">
@@ -1075,9 +1078,9 @@ function eventImgStyles(eventId: number){
 	};
 }
 function eventLineStyles(eventId: number){
-	const [x, y, l, a] = eventLines.value.get(eventId)!;
+	const [x, y, , a] = eventLines.value.get(eventId)!;
 	return {
-		transform: `translate(${x}px, ${y}px) rotate(${a}deg) scaleX(${l})`,
+		transform: `translate(${x}px, ${y}px) rotate(${a}deg)`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform',
 		transitionDuration: store.transitionDuration + 'ms',
 		transitionTimingFunction: 'ease-out',
