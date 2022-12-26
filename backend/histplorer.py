@@ -228,8 +228,8 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, ctg: str | None,
 			params.append(startJdn)
 			params.append(start.year if start.month == 1 and start.day == 1 else start.year + 1)
 	if end is not None:
-		constraint = '((end IS NULL AND start <= ? AND fmt > 0 OR start <= ? AND fmt = 0) OR ' \
-			'(end IS NOT NULL AND end <= ? AND fmt > 0 OR end <= ? AND fmt = 0))'
+		constraint = '(end IS NULL AND (start <= ? AND fmt > 0 OR start <= ? AND fmt = 0) OR ' \
+			'end IS NOT NULL AND (end <= ? AND fmt > 0 OR end <= ? AND fmt = 0))'
 		if end.gcal is None:
 			endJdn = gregorianToJdn(end.year, 1, 1) if end.year >= -4713 else -1
 			constraints.append(constraint)
