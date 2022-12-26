@@ -134,8 +134,8 @@ const mainlineOffset = computed(() => { // Distance from mainline-area line to l
 // Timeline data
 const ID = props.initialState.id as number;
 const MIN_CAL_DATE = new CalDate(MIN_CAL_YEAR, 1, 1);
-const startDate = ref(props.initialState.startDate); // Earliest date of scale to display
-const endDate = ref(props.initialState.endDate); // Latest date of scale to display (may equal startDate)
+const startDate = ref(props.initialState.startDate); // Earliest date in scale to display
+const endDate = ref(props.initialState.endDate); // Latest date in scale to display (may equal startDate)
 const startOffset = ref(store.defaultEndTickOffset); // Fraction of a scale unit before startDate to show
 	// Note: Without this, the timeline can only move if the distance is over one unit, which makes dragging awkward,
 		// can cause unexpected jumps when zooming, and limits display when a unit has many ticks on the next scale
@@ -157,6 +157,7 @@ const hasMinorScale = computed(() => { // If true, display subset of ticks of ne
 	}
 	return (availLen.value / numUnits) >= 2 * store.minTickSep;
 });
+const minorScale = computed(() => hasMinorScale.value ? SCALES[scaleIdx.value + 1] : scale.value);
 if (props.initialState.startOffset != null){
 	startOffset.value = props.initialState.startOffset as number;
 }
@@ -253,7 +254,7 @@ function getMinorTicks(date: HistDate, scaleIdx: number, majorUnitSz: number, ma
 	let idxChg = idx;
 	while (Math.ceil(idxFrac) < numMinorUnits){
 		date = stepDate(date, SCALES[scaleIdx + 1], {count: idxChg});
-		minorTicks.push(new Tick(date, false, majorOffset + idx / numMinorUnits))
+		minorTicks.push(new Tick(date, false, majorOffset + idxFrac / numMinorUnits))
 		idxFrac += stepFrac;
 		idxChg = Math.floor(idxFrac) - idx;
 		idx = Math.floor(idxFrac);
@@ -344,16 +345,50 @@ const ticks = computed((): Tick[] => {
 	ticks = [...ticksBefore, ...ticks, ...ticksAfter];
 	return ticks;
 });
+const firstDate = computed((): HistDate => { // Date of first visible tick
+	if (ticks.value.length == 0){
+		return startDate.value;
+	}
+	return ticks.value.find((tick: Tick) => tick.offset > 0)!.date;
+});
+const firstOffset = computed((): number => { // Offset of first visible tick
+	if (ticks.value.length == 0){
+		return startOffset.value;
+	}
+	return ticks.value.find((tick: Tick) => tick.offset > 0)!.offset;
+});
+const lastDate = computed((): HistDate => {
+	let numUnits = getNumDisplayUnits();
+	let date = endDate.value;
+	for (let i = ticks.value.length - 1; i >= 0; i--){
+		let tick = ticks.value[i];
+		if (tick.offset < numUnits){
+			date = tick.date;
+			break;
+		}
+	}
+	return date;
+});
 
 // For displayed events
+function dateToOffset(date: HistDate){
+	let offset = 0;
+	if (firstDate.value == startDate.value){
+		offset += getUnitDiff(date, firstDate.value, scale.value);
+	} else {
+		offset += getUnitDiff(date, firstDate.value, minorScale.value)
+			/ getScaleRatio(minorScale.value, scale.value);
+	}
+	return offset + firstOffset.value;
+}
 const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
 	let map: Map<number, HistEvent> = new Map();
 	// Find events to display
-	let itr = props.eventTree.lowerBound(new HistEvent(0, '', startDate.value));
+	let itr = props.eventTree.lowerBound(new HistEvent(0, '', firstDate.value));
 	while (itr.data() != null){
 		let event = itr.data()!;
 		itr.next();
-		if (endDate.value.isEarlier(event.start)){
+		if (lastDate.value.isEarlier(event.start)){
 			break;
 		}
 		map.set(event.id, event);
@@ -407,7 +442,7 @@ const idToPos = computed(() => {
 	let numUnits = getNumDisplayUnits();
 	for (let event of orderedEvents){
 		// Get preferred pixel offset in column
-		let unitOffset = getUnitDiff(event.start, startDate.value, scale.value) + startOffset.value;
+		let unitOffset = dateToOffset(event.start);
 		let targetOffset = unitOffset / numUnits * availLen.value - eventMajorSz.value / 2;
 		// Find potential positions
 		let positions: [number, number, number][] = [];
@@ -519,7 +554,7 @@ const idToPos = computed(() => {
 	let colFillThreshold = (availLen.value - store.spacing) / (eventMajorSz.value + store.spacing) * 2/3;
 	let full = cols.every(col => col.length >= colFillThreshold);
 	if (!full){
-		emit('event-req', startDate.value, endDate.value);
+		emit('event-req', firstDate.value, lastDate.value);
 	} else { // Send displayed event IDs to parent
 		emit('event-display', [...map.keys()], ID);
 	}
@@ -541,7 +576,7 @@ watchEffect(() => { // Used instead of computed() in order to access old values
 			// Note: Drawing the line in the reverse direction causes 'detachment' from the mainline during transitions
 		let y2: number;
 		let event = idToEvent.value.get(id)!;
-		let unitOffset = getUnitDiff(event.start, startDate.value, scale.value) + startOffset.value;
+		let unitOffset = dateToOffset(event.start);
 		let posFrac = unitOffset / numUnits;
 		if (props.vert){
 			x = mainlineOffset.value;
@@ -969,10 +1004,10 @@ function onShiftWheel(evt: WheelEvent){
 // For bound-change signalling
 function onStateChg(){
 	emit('state-chg', new TimelineState(
-		ID, startDate.value, endDate.value, startOffset.value, endOffset.value, scaleIdx.value
+		ID, firstDate.value, lastDate.value, startOffset.value, endOffset.value, scaleIdx.value
 	));
 }
-watch(startDate, onStateChg);
+watch(firstDate, onStateChg);
 
 // For skipping transitions on startup (and on horz/vert swap)
 const skipTransition = ref(true);
