@@ -451,6 +451,19 @@ export function getScaleRatio(scale: number, scale2: number, lowerVal=false){
 	}
 	return scale2 / scale;
 }
+export function getNumSubUnits(date: HistDate, scaleIdx: number){
+	// Returns number of sub-units for a unit starting at 'date' on scale for 'scaleIdx'
+	const scale = SCALES[scaleIdx]
+	if (scale == DAY_SCALE){
+		throw new Error('Cannot get sub-units for DAY_SCALE unit');
+	} else if (scale == MONTH_SCALE){
+		return getDaysInMonth(date.year, date.month); // Note: Intentionally not checking with MIN_CAL_YEAR
+	} else if (scale == 1){
+		return 12;
+	} else {
+		return scale / SCALES[scaleIdx + 1] - (date.year == 1 ? 1 : 0); // Account for lack of 0 CE
+	}
+}
 export function getUnitDiff(date: HistDate, date2: HistDate, scale: number): number {
 	if (scale == DAY_SCALE){
 		return date.getDayDiff(date2);

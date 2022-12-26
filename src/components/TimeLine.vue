@@ -64,7 +64,7 @@ import IconButton from './IconButton.vue';
 import CloseIcon from './icon/CloseIcon.vue';
 // Other
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES,
-	MIN_CAL_YEAR, HistDate, CalDate, stepDate, getScaleRatio, getUnitDiff, getDaysInMonth,
+	MIN_CAL_YEAR, HistDate, CalDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff, getDaysInMonth,
 	moduloPositive, TimelineState, HistEvent, getImagePath} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
@@ -157,7 +157,6 @@ const hasMinorScale = computed(() => { // If true, display subset of ticks of ne
 	}
 	return (availLen.value / numUnits) >= 2 * store.minTickSep;
 });
-const minorScale = computed(() => hasMinorScale.value ? SCALES[scaleIdx.value + 1] : scale.value);
 if (props.initialState.startOffset != null){
 	startOffset.value = props.initialState.startOffset as number;
 }
@@ -231,11 +230,35 @@ class Tick {
 	}
 }
 function getNumDisplayUnits({inclOffsets=true} = {}): number { // Get num major units in display range
-	let unitDiff = getUnitDiff(startDate.value, endDate.value, scale.value);
+	let unitDiff = Math.ceil(getUnitDiff(startDate.value, endDate.value, scale.value));
+		// Note: Rounding up due to cases like 1 CE to 10 CE with 10-year scale
 	if (inclOffsets){
 		unitDiff += startOffset.value + endOffset.value;
 	}
 	return unitDiff;
+}
+function getMinorTicks(date: HistDate, scaleIdx: number, majorUnitSz: number, majorOffset: number): Tick[] {
+	// For a major unit, returns an array specifying minor ticks to show
+	if (!hasMinorScale.value){
+		return [];
+	}
+	let minorTicks: Tick[] = [];
+	let numMinorUnits = getNumSubUnits(date, scaleIdx);
+	let minorUnitSz = majorUnitSz / numMinorUnits;
+	let minStep = Math.ceil(store.minTickSep / minorUnitSz);
+	let stepFrac = numMinorUnits / Math.floor(numMinorUnits / minStep);
+	// Iterate through fractional indexes, using rounded differences to step dates
+	let idxFrac = stepFrac;
+	let idx = Math.floor(idxFrac);
+	let idxChg = idx;
+	while (Math.ceil(idxFrac) < numMinorUnits){
+		date = stepDate(date, SCALES[scaleIdx + 1], {count: idxChg});
+		minorTicks.push(new Tick(date, false, majorOffset + idx / numMinorUnits))
+		idxFrac += stepFrac;
+		idxChg = Math.floor(idxFrac) - idx;
+		idx = Math.floor(idxFrac);
+	}
+	return minorTicks;
 }
 const ticks = computed((): Tick[] => {
 	let ticks: Tick[] = [];
@@ -243,16 +266,7 @@ const ticks = computed((): Tick[] => {
 		return ticks;
 	}
 	let numUnits = getNumDisplayUnits();
-	// Determine minor-tick params
-	let minorUnitsPerMajor = getScaleRatio(minorScale.value, scale.value, true);
-	let minorTickStep = 0;// Number of minor units between minor ticks
-	let minorTicksPerMajor = 0;// Minor ticks per major tick
-	if (hasMinorScale.value){
-		let majorUnitSz = availLen.value / getNumDisplayUnits();
-		let minorUnitSz = majorUnitSz / minorUnitsPerMajor;
-		minorTickStep = Math.ceil(store.minTickSep / minorUnitSz); // TODO: Account for minorUnitSz being larger?
-		minorTicksPerMajor = Math.ceil(minorUnitsPerMajor / minorTickStep) - 1;
-	}
+	let majorUnitSz = availLen.value / numUnits;
 	// Get before-startDate ticks (including start-offset ticks and hidden ticks)
 	let panUnits = Math.floor(getNumDisplayUnits() * store.scrollRatio); // Potential shift distance upon a pan action
 	let date = startDate.value;
@@ -262,13 +276,7 @@ const ticks = computed((): Tick[] => {
 		}
 		date = stepDate(date, scale.value, {forward: false});
 		// Add minor ticks
-		let minorTicks: Tick[] = [];
-		let tempDate = date;
-		for (let j = 0; j < minorTicksPerMajor; j++){
-			tempDate = stepDate(tempDate, minorScale.value, {count: minorTickStep});
-			let offset = startOffset.value - (i + 1) + (j + 1) * minorTickStep / minorUnitsPerMajor;
-			minorTicks.push(new Tick(tempDate, false, offset));
-		}
+		let minorTicks = getMinorTicks(date, scaleIdx.value, majorUnitSz, startOffset.value - (i + 1));
 		minorTicks.reverse();
 		ticks.push(...minorTicks);
 		// Add major date
@@ -283,14 +291,9 @@ const ticks = computed((): Tick[] => {
 		if (i == numMajorUnits){
 			break;
 		}
-		// Add minor ticks
-		let nextMajor = stepDate(date, scale.value);
-		for (let j = 0; j < minorTicksPerMajor; j++){
-			date = stepDate(date, minorScale.value, {count: minorTickStep});
-			let offset = startOffset.value + i + (j + 1) * minorTickStep / minorUnitsPerMajor;
-			ticks.push(new Tick(date, false, offset));
-		}
-		date = nextMajor;
+		let minorTicks = getMinorTicks(date, scaleIdx.value, majorUnitSz, startOffset.value + i);
+		ticks.push(...minorTicks);
+		date = stepDate(date, scale.value);
 	}
 	// Get after-endDate ticks (including end-offset ticks and hidden ticks)
 	let endDateOffset = ticks[ticks.length - 1].offset;
@@ -298,15 +301,11 @@ const ticks = computed((): Tick[] => {
 		if (MAX_DATE.equals(date, scale.value)){
 			break;
 		}
-		let nextMajor = stepDate(date, scale.value);
 		// Add minor ticks
-		for (let j = 0; j < minorTicksPerMajor; j++){
-			date = stepDate(date, minorScale.value, {count: minorTickStep});
-			let offset = endDateOffset + i + (j + 1) * minorTickStep / minorUnitsPerMajor;
-			ticks.push(new Tick(date, false, offset));
-		}
+		let minorTicks = getMinorTicks(date, scaleIdx.value, majorUnitSz, endDateOffset + i);
+		ticks.push(...minorTicks);
 		// Add major date
-		date = nextMajor;
+		date = stepDate(date, scale.value);
 		ticks.push(new Tick(date, true, endDateOffset + (i + 1)));
 	}
 	// Get hidden ticks that might transition in after zooming
