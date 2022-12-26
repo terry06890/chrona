@@ -222,11 +222,8 @@ const tickLabelMargin = computed(() => props.vert ? 20 : 30); // Distance from l
 const tickLabelWidth = computed(() => store.mainlineBreadth - store.largeTickLen / 2 - tickLabelMargin.value);
 type Ticks = {
 	dates: HistDate[], // One for each tick to render
-	startIdx: number,
-		// Index of first visible tick (hidden ticks are used for smoother transitions)
-		// Ignored if 'dates' is empty
+	startIdx: number, // Index of first major tick (ignored if 'dates' is empty)
 	endIdx: number, // Index of last visible tick
-	firstMajorIdx: number, // Index of first major tick
 	minorsPerMajor: number, // Minor ticks per major tick
 	minorTickStep: number, // Number of minor units between minor ticks
 };
@@ -239,13 +236,12 @@ function getNumDisplayUnits({inclOffsets=true} = {}): number { // Get num major 
 }
 const ticks = computed((): Ticks => {
 	if (!mounted.value){
-		return {dates: [], startIdx: 0, endIdx: 0, firstMajorIdx: 0, minorsPerMajor: 0, minorTickStep: 0};
+		return {dates: [], startIdx: 0, endIdx: 0, minorsPerMajor: 0, minorTickStep: 0};
 	}
 	// Ticks fields
 	let dates: HistDate[] = [];
 	let startIdx: number;
 	let endIdx: number;
-	let firstMajorIdx: number;
 	let minorsPerMajor: number;
 	let minorTickStep: number;
 	// Determine minor-tick fields
@@ -284,13 +280,9 @@ const ticks = computed((): Ticks => {
 	startIdx = dates.length;
 	// Get startDate-to-endDate ticks
 	date = startDate.value.clone();
-	firstMajorIdx = -1;
 	let numMajorUnits = getNumDisplayUnits({inclOffsets: false});
 	for (let i = 0; i <= numMajorUnits; i++){
 		dates.push(date);
-		if (firstMajorIdx == -1){
-			firstMajorIdx = dates.length - 1;
-		}
 		if (i == numMajorUnits){
 			break;
 		}
@@ -354,8 +346,7 @@ const ticks = computed((): Ticks => {
 	dates = [...datesBefore, ...dates, ...datesAfter];
 	startIdx += datesBefore.length;
 	endIdx += datesBefore.length;
-	firstMajorIdx += datesBefore.length;
-	return {dates, startIdx, endIdx, firstMajorIdx, minorsPerMajor, minorTickStep};
+	return {dates, startIdx, endIdx, minorsPerMajor, minorTickStep};
 });
 
 // For displayed events
@@ -1004,10 +995,9 @@ const mainlineStyles = computed(() => {
 });
 function getTickPxOffset(idx: number): [number, boolean] { // Return major-axis offset, and true if minor tick
 	// TODO: Replace with something cleaner
-	let numMajorTicks =
-		Math.ceil((ticks.value.endIdx - ticks.value.firstMajorIdx + 1) / (ticks.value.minorsPerMajor + 1));
-	let majorTickIdxOffset = moduloPositive((idx - ticks.value.firstMajorIdx), (ticks.value.minorsPerMajor + 1));
-	let majorTickIdx = (idx - ticks.value.firstMajorIdx) - majorTickIdxOffset;
+	let numMajorTicks = Math.ceil((ticks.value.endIdx - ticks.value.startIdx + 1) / (ticks.value.minorsPerMajor + 1));
+	let majorTickIdxOffset = moduloPositive((idx - ticks.value.startIdx), (ticks.value.minorsPerMajor + 1));
+	let majorTickIdx = (idx - ticks.value.startIdx) - majorTickIdxOffset;
 	let unitOffset = majorTickIdx / (ticks.value.minorsPerMajor + 1) + startOffset.value;
 	if (majorTickIdxOffset > 0){
 		let minorUnitsPerMajor = getScaleRatio(minorScale.value, scale.value, true);
@@ -1025,7 +1015,7 @@ function tickStyles(idx: number){
 			`translate(${offset}px, ${mainlineOffset.value}px) scale(${scaleFactor})`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
 		transitionDuration: store.transitionDuration + 'ms',
-		transitionTimingFunction: 'ease-out',
+		transitionTimingFunction: 'linear',
 		opacity: (offset >= 0 && offset <= availLen.value) ? 1 : 0,
 	}
 }
@@ -1039,7 +1029,7 @@ function tickLabelStyles(idx: number){
 			`translate(${offset}px, ${mainlineOffset.value + tickLabelMargin.value + offset2}px)`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
 		transitionDuration: store.transitionDuration + 'ms',
-		transitionTimingFunction: 'ease-out',
+		transitionTimingFunction: 'linear',
 		display: (offset >= labelSz && offset <= availLen.value - labelSz) ? 'block' : 'none',
 	}
 }
