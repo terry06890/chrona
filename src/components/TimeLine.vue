@@ -15,7 +15,7 @@
 		<line :stroke="store.color.alt" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
 		<!-- Tick markers -->
 		<template v-for="tick in ticks" :key="tick.date.toInt()">
-			<line v-if="tick.date.equals(MIN_DATE, scale) || tick.date.equals(MAX_DATE, scale)"
+			<line v-if="tick.major && (tick.date.equals(MIN_DATE, scale) || tick.date.equals(MAX_DATE, scale))"
 				:x1="vert ? -store.endTickSz / 2 : 0" :y1="vert ? 0 : -store.endTickSz / 2"
 				:x2="vert ?  store.endTickSz / 2 : 0" :y2="vert ? 0 :  store.endTickSz / 2"
 				:stroke="store.color.alt" :stroke-width="`${store.endTickSz}px`"
