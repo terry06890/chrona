@@ -473,6 +473,26 @@ export function getUnitDiff(date: HistDate, date2: HistDate, scale: number): num
 		return date.getYearDiff(date2) / scale;
 	}
 }
+export function getEventPrecision(event: HistEvent): number {
+	// Returns smallest scale at which 'event's start-startUpper range is within one unit, or infinity
+	// Note: Intentionally not adding an exception for century and millenia ranges like
+		// 101 to 200 (as opposed to 100 to 199) being interpreted as 'within' one 100/1000-year scale unit
+	const {start, startUpper} = event;
+	if (startUpper == null || start.getDayDiff(startUpper) == 0){
+		return DAY_SCALE;
+	}
+	if (start.getMonthDiff(startUpper) == 0){
+		return MONTH_SCALE;
+	}
+	const yearScaleIdx = SCALES.length - 1 - 2;
+	for (let scaleIdx = yearScaleIdx; scaleIdx >= 0; scaleIdx--){
+		const scale = SCALES[scaleIdx];
+		if (Math.floor(start.year / scale) == Math.floor(startUpper.year / scale)){
+			return scale;
+		}
+	}
+	return Number.POSITIVE_INFINITY;
+}
 
 // For sending timeline-bound data to BaseLine
 export class TimelineState {

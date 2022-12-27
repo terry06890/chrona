@@ -36,10 +36,10 @@
 		<line v-for="id in eventLines.keys()" :key="id"
 			x1="0" y1="0" :x2="eventLines.get(id)![2]" y2="0.01"
 			stroke="url('#eventLineGradient')" stroke-width="1px"
-			:stroke-dasharray="idToEvent.get(id)!.startUpper == null ? '' : '16,4'"
+			:stroke-dasharray="getEventPrecision(idToEvent.get(id)!) <= minorScale ? '' : '16,4'"
 			:style="eventLineStyles(id)" class="animate-fadein"/>
 			<!-- Note: With a fully vertical or horizontal line, nothing gets displayed -->
-			<!-- Note: Can't use :x2="1" and scale in style, as it makes dashed-lines non-uniform -->
+			<!-- Note: Can't use :x2="1" with scaling in :style="", as it makes dashed-lines non-uniform -->
 	</svg>
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein" :style="eventStyles(id)">
@@ -66,8 +66,8 @@ import IconButton from './IconButton.vue';
 // Icons
 import CloseIcon from './icon/CloseIcon.vue';
 // Other
-import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES,
-	MIN_CAL_YEAR, HistDate, CalDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff, getDaysInMonth,
+import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_YEAR,
+	getDaysInMonth, HistDate, CalDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff, getEventPrecision,
 	moduloPositive, TimelineState, HistEvent, getImagePath} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
