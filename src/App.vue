@@ -21,8 +21,7 @@
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
 			:vert="vert" :initialState="state" :closeable="timelines.length > 1" :eventTree="eventTree"
 			class="grow basis-full min-h-0 outline outline-1"
-			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)"
-			@event-req="onEventReq" @event-display="onEventDisplay($event, idx)"/>
+			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)" @event-display="onEventDisplay"/>
 		<base-line :vert="vert" :timelines="timelines" class='m-1 sm:m-2'/>
 	</div>
 </div>
@@ -39,8 +38,8 @@ import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
-import {timeout, HistDate, YearDate, HistEvent, queryServer, HistEventJson, jsonToHistEvent,
-	TimelineState, cmpHistEvent, DateRangeTree} from './lib';
+import {timeout, HistDate, HistEvent, queryServer, HistEventJson, jsonToHistEvent,
+	SCALES, TimelineState, cmpHistEvent, DateRangeTree} from './lib';
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
 
@@ -102,77 +101,9 @@ function onTimelineRemove(idx: number){
 // For storing and looking up events
 const eventTree: ShallowRef<RBTree<HistEvent>> = shallowRef(new RBTree(cmpHistEvent));
 let idToEvent: Map<number, HistEvent> = new Map();
-let exhaustedRanges = new DateRangeTree(); // Holds ranges for which the server has no more events
-// For getting events from server
-const EVENT_REQ_LIMIT = 30;
-const REQ_EXCLS_LIMIT = 100;
-let pendingReq = false; // Used to serialise event-req handling
-async function onEventReq(startDate: HistDate, endDate: HistDate){
-	while (pendingReq){
-		await timeout(100);
-	}
-	pendingReq = true;
-	// Skip if exhausted range
-	if (exhaustedRanges.has([startDate, endDate])){
-		pendingReq = false;
-		return;
-	}
-	// Get existing events in range
-	let existingEventIds: number[] = [];
-	let itr = eventTree.value.lowerBound(new HistEvent(0, '', startDate));
-	while (itr.data() != null){
-		let event = itr.data()!;
-		itr.next();
-		if (endDate.isEarlier(event.start)){
-			break;
-		}
-		existingEventIds.push(event.id);
-	}
-	if (existingEventIds.length > REQ_EXCLS_LIMIT){
-		console.log('WARNING: Exceeded request exclusions limit');
-		pendingReq = false;
-		return;
-	}
-	// Get events from server
-	let urlParams = new URLSearchParams({
-		type: 'events',
-		range: `${startDate}.${endDate}`,
-		limit: String(EVENT_REQ_LIMIT),
-		excl: existingEventIds.join('.'),
-	});
-	let responseObj: HistEventJson[] = await queryServer(urlParams);
-	if (responseObj == null){
-		pendingReq = false;
-		return;
-	}
-	// Add to map
-	let added = false;
-	for (let eventObj of responseObj){
-		let event = jsonToHistEvent(eventObj);
-		let success = eventTree.value.insert(event);
-		if (success){
-			added = true;
-			idToEvent.set(event.id, event);
-		}
-	}
-	// Notify components if new events were added
-	if (added){
-		eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
-	} else {
-		exhaustedRanges.add([startDate, endDate]); // Mark as exhausted range
-	}
-	// Check memory limit
-	if (eventTree.value.size > EXCESS_EVENTS_THRESHOLD){
-		reduceEvents();
-	}
-	pendingReq = false;
-}
 // For keeping event data under a memory limit
 const EXCESS_EVENTS_THRESHOLD = 10000;
 let displayedEvents: Map<number, number[]> = new Map(); // Maps TimeLine IDs to IDs of displayed events
-function onEventDisplay(eventIds: number[], timelineId: number){
-	displayedEvents.set(timelineId, eventIds);
-}
 function reduceEvents(){
 	// Get events to keep
 	let eventsToKeep: Map<number, HistEvent> = new Map();
@@ -189,7 +120,56 @@ function reduceEvents(){
 	// Replace old data
 	eventTree.value = newTree;
 	idToEvent = eventsToKeep;
-	exhaustedRanges.clear();
+}
+// For getting events from server
+const EVENT_REQ_LIMIT = 100;
+let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
+	// For each scale, holds date ranges for which data has already been queried fromm the server
+let pendingReq = false; // Used to serialise event-req handling
+async function onEventDisplay(
+		timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
+	while (pendingReq){
+		await timeout(100);
+	}
+	pendingReq = true;
+	// Skip if exhausted range
+	if (queriedRanges[scaleIdx].has([firstDate, lastDate])){
+		pendingReq = false;
+		return;
+	}
+	// Get events from server
+	let urlParams = new URLSearchParams({
+		type: 'events',
+		range: `${firstDate}.${lastDate}`,
+		limit: String(EVENT_REQ_LIMIT),
+	});
+	let responseObj: HistEventJson[] = await queryServer(urlParams);
+	if (responseObj == null){
+		pendingReq = false;
+		return;
+	}
+	queriedRanges[scaleIdx].add([firstDate, lastDate]);
+	// Add to map
+	let added = false;
+	for (let eventObj of responseObj){
+		let event = jsonToHistEvent(eventObj);
+		let success = eventTree.value.insert(event);
+		if (success){
+			added = true;
+			idToEvent.set(event.id, event);
+		}
+	}
+	// Notify components if new events were added
+	if (added){
+		eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
+	}
+	// Check memory limit
+	displayedEvents.set(timelineId, eventIds);
+	if (eventTree.value.size > EXCESS_EVENTS_THRESHOLD){
+		reduceEvents();
+		queriedRanges.forEach((t: DateRangeTree) => t.clear());
+	}
+	pendingReq = false;
 }
 
 // For resize handling

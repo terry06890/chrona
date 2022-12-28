@@ -160,7 +160,8 @@ const hasMinorScale = computed(() => { // If true, display subset of ticks of ne
 	}
 	return (availLen.value / numUnits) >= 2 * store.minTickSep;
 });
-const minorScale = computed(() => hasMinorScale.value ? SCALES[scaleIdx.value + 1] : scale.value);
+const minorScaleIdx = computed(() => scaleIdx.value + (hasMinorScale.value ? 1 : 0));
+const minorScale = computed(() => SCALES[minorScaleIdx.value]);
 if (props.initialState.startOffset != null){
 	startOffset.value = props.initialState.startOffset as number;
 }
@@ -561,15 +562,8 @@ const idToPos = computed(() => {
 			}
 		}
 	}
-	// If more events could be displayed, notify parent
-	let colFillThreshold = (availLen.value - store.spacing) / (eventMajorSz.value + store.spacing) * 2/3;
-	let full = cols.every(col => col.length >= colFillThreshold);
-	if (!full){
-		emit('event-req', firstDate.value, lastDate.value);
-	} else { // Send displayed event IDs to parent
-		emit('event-display', [...map.keys()], ID);
-	}
-	//
+	// Notify parent
+	emit('event-display', ID, [...map.keys()], firstDate.value, lastDate.value, minorScaleIdx.value);
 	return map;
 });
 
