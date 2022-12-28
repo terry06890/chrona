@@ -34,16 +34,16 @@ def initTestDb(dbFile: str) -> None:
 	)
 	createTestDbTable(
 		dbFile,
-		'CREATE TABLE scores (id INT, scale INT, score INT, PRIMARY KEY (id, scale))',
-		'INSERT INTO scores VALUES (?, ?, ?)',
+		'CREATE TABLE event_disp (id INT, scale INT, PRIMARY KEY (id, scale))',
+		'INSERT INTO event_disp VALUES (?, ?)',
 		{
-			(1, 1, 11),
-			(1, 10, 11),
-			(2, 1, 21),
-			(3, 1, 0),
-			(4, 1, 1000),
-			(5, 1, 51),
-			(6, 10, 60),
+			(1, 1),
+			(1, 10),
+			(2, 1),
+			(3, 1),
+			(4, 1),
+			(5, 1),
+			(6, 10),
 		}
 	)
 	createTestDbTable(

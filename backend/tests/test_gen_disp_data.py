@@ -2,7 +2,7 @@ import unittest
 import tempfile, os
 
 from tests.common import createTestDbTable, readTestDbTable
-from hist_data.gen_score_data import genData, MONTH_SCALE, DAY_SCALE
+from hist_data.gen_disp_data import genData, MONTH_SCALE, DAY_SCALE
 from hist_data.cal import gregorianToJdn
 
 class TestGenData(unittest.TestCase):
@@ -59,24 +59,24 @@ class TestGenData(unittest.TestCase):
 				}
 			)
 			self.assertEqual(
-				readTestDbTable(dbFile, 'SELECT id, scale, score FROM scores'),
+				readTestDbTable(dbFile, 'SELECT id, scale FROM event_disp'),
 				{
-					(5, 10, 50),
-					(1, 10, 11),
-					(2, 10, 21),
-					(5, 1, 50),
-					(1, 1, 11),
-					(4, 1, 5),
-					(2, 1, 21),
-					(1, MONTH_SCALE, 11),
-					(6, MONTH_SCALE, 10),
-					(4, MONTH_SCALE, 5),
-					(5, MONTH_SCALE, 50),
-					(2, MONTH_SCALE, 21),
-					(1, DAY_SCALE, 11),
-					(4, DAY_SCALE, 5),
-					(5, DAY_SCALE, 50),
-					(6, DAY_SCALE, 10),
-					(2, DAY_SCALE, 21),
+					(5, 10),
+					(1, 10),
+					(2, 10),
+					(5, 1),
+					(1, 1),
+					(4, 1),
+					(2, 1),
+					(1, MONTH_SCALE),
+					(6, MONTH_SCALE),
+					(4, MONTH_SCALE),
+					(5, MONTH_SCALE),
+					(2, MONTH_SCALE),
+					(1, DAY_SCALE),
+					(4, DAY_SCALE),
+					(5, DAY_SCALE),
+					(6, DAY_SCALE),
+					(2, DAY_SCALE),
 				}
 			)

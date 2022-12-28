@@ -11,7 +11,7 @@ Expected HTTP query parameters:
 	Examples:
 		range=1000.1910-10-09 means '1000 CE to 09/10/1910 (inclusive)'
 		range=-13000. means '13000 BCE onwards'
-- scale: With type=events, specifies a date scale (matched against 'scale' column in 'scores' table)
+- scale: With type=events, specifies a date scale (matched against 'scale' column in 'event_disp' table)
 - incl: With type=events, specifies an event to include, as an event ID
 - event: With type=info, specifies the event to get info for
 - input: With type=sugg, specifies a search string to suggest for
@@ -214,11 +214,12 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 	""" Looks for events within a date range, in given scale,
 		restricted by event category, an optional particular inclusion, and a result limit """
 	query = \
-		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, scores.score FROM events' \
-		' INNER JOIN scores ON events.id = scores.id' \
+		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop FROM events' \
+		' INNER JOIN event_disp ON events.id = event_disp.id' \
+		' INNER JOIN pop ON events.id = pop.id' \
 		' INNER JOIN event_imgs ON events.id = event_imgs.id' \
 		' INNER JOIN images ON event_imgs.img_id = images.id'
-	constraints = ['scores.scale = ?']
+	constraints = ['event_disp.scale = ?']
 	params: list[str | int] = [scale]
 	# Constrain by start/end
 	if start is not None:
@@ -251,7 +252,7 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 	query2 = query
 	if constraints:
 		query2 += ' WHERE ' + ' AND '.join(constraints)
-	query2 += ' ORDER BY scores.score DESC'
+	query2 += ' ORDER BY pop.pop DESC'
 	query2 += f' LIMIT {resultLimit}'
 	# Run query
 	results: list[Event] = []
@@ -270,7 +271,7 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 	return results
 def eventEntryToResults(
 		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int, int | None]) -> Event:
-	eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, score = row
+	eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, pop = row
 	""" Helper for converting an 'events' db entry into an Event object """
 	# Convert dates
 	dateVals: list[int | None] = [start, startUpper, end, endUpper]
@@ -293,7 +294,7 @@ def eventEntryToResults(
 			else:
 				newDates[i] = HistDate(True, *jdnToGregorian(n))
 	#
-	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, score)
+	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
 
 # For type=info
 def handleInfoReq(params: dict[str, str], dbCur: sqlite3.Cursor):

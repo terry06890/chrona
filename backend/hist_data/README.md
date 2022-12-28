@@ -33,9 +33,9 @@ This directory holds files used to generate the history database data.db.
 -   `dist`: <br>
     Format: `scale INT, unit INT, count INT, PRIMARY KEY (scale, unit)` <br>
     Maps scale units to event counts.
--   `scores`: <br>
-    Format: `id INT, scale INT, score INT, PRIMARY KEY (id, scale)` <br>
-    Maps events to score values for each scale (used to show events by popularity and uniformity across scale).
+-   `event_disp`: <br>
+    Format: `id INT, scale INT, PRIMARY KEY (id, scale)` <br>
+    Maps events to scales they are 'displayable' on (used to make displayed events more uniform across time).
 
 # Generating the Database
 
@@ -83,5 +83,5 @@ Some of the scripts use third-party packages:
 ## Remove Events Without Images/Descs
 1.  Run `reduce_event_data.py` to remove data for events that have no image/description.
 
-## Generate Distribution and Score Data
-1.  Run `gen_score_data.py`, which add the `dist` and `scores` tables.
+## Generate Distribution and Displayability Data
+1.  Run `gen_disp_data.py`, which add the `dist` and `event_disp` tables.

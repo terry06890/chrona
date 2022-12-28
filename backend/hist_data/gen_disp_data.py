@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 """
-Adds data about event distribution and scores to the database.
+Adds data about event distribution and displayability to the database.
 """
 
 # Enable unit testing code to, when running this script, resolve imports of modules within this directory
@@ -27,10 +27,10 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
 	scaleUnitToCounts: dict[tuple[int, int], list[int]] = {}
 		# Maps scale and unit to two counts (num events in that unit, num events displayable for that unit)
 		# Only includes events with popularity values
-	idAndScaleToScore: dict[tuple[int, int], int] = {} # Maps event id and scale to score
+	idScales: set[tuple[int, int]] = set() # Maps event ids to scales they are displayable on
 	iterNum = 0
-	query = 'SELECT events.id, start, fmt, pop FROM events INNER JOIN pop ON events.id = pop.id ORDER BY pop.pop DESC'
-	for eventId, eventStart, fmt, pop in dbCur.execute(query):
+	query = 'SELECT events.id, start, fmt FROM events INNER JOIN pop ON events.id = pop.id ORDER BY pop.pop DESC'
+	for eventId, eventStart, fmt in dbCur.execute(query):
 		iterNum += 1
 		if iterNum % 1e3 == 0:
 			print(f'At iteration {iterNum}')
@@ -57,16 +57,16 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
 				counts = [1, 0]
 			if counts[1] < maxDisplayedPerUnit:
 				counts[1] += 1
-				idAndScaleToScore[(eventId, scale)] = pop
+				idScales.add((eventId, scale))
 			scaleUnitToCounts[(scale, unit)] = counts
 	#
 	print('Writing to db')
 	dbCur.execute('CREATE TABLE dist (scale INT, unit INT, count INT, PRIMARY KEY (scale, unit))')
-	dbCur.execute('CREATE TABLE scores (id INT, scale INT, score INT, PRIMARY KEY (id, scale))')
 	for (scale, unit), (count, _) in scaleUnitToCounts.items():
 		dbCur.execute('INSERT INTO dist VALUES (?, ?, ?)', (scale, unit, count))
-	for (eventId, scale), score in idAndScaleToScore.items():
-		dbCur.execute('INSERT INTO scores VALUES (?, ?, ?)', (eventId, scale, score))
+	dbCur.execute('CREATE TABLE event_disp (id INT, scale INT, PRIMARY KEY (id, scale))')
+	for eventId, scale in idScales:
+		dbCur.execute('INSERT INTO event_disp VALUES (?, ?)', (eventId, scale))
 	#
 	print('Closing db')
 	dbCon.commit()
