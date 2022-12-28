@@ -16,6 +16,7 @@ def initTestDb(dbFile: str) -> None:
 			(3, 'event three', 2448175, 2451828, None, None, 2, 'discovery'), # 10/10/1990 to 10/10/2000
 			(4, 'event four', 991206, None, 1721706, None, 1, 'event'), # 10/10/-2000 to 10/10/1
 			(5, 'event five', 2000, None, 2001, None, 0, 'event'),
+			(6, 'event six', 1500, None, 2000, None, 0, 'event'),
 		}
 	)
 	createTestDbTable(
@@ -28,6 +29,21 @@ def initTestDb(dbFile: str) -> None:
 			(3, 0),
 			(4, 1000),
 			(5, 51),
+			(6, 60),
+		}
+	)
+	createTestDbTable(
+		dbFile,
+		'CREATE TABLE scores (id INT, scale INT, score INT, PRIMARY KEY (id, scale))',
+		'INSERT INTO scores VALUES (?, ?, ?)',
+		{
+			(1, 1, 11),
+			(1, 10, 11),
+			(2, 1, 21),
+			(3, 1, 0),
+			(4, 1, 1000),
+			(5, 1, 51),
+			(6, 10, 60),
 		}
 	)
 	createTestDbTable(
@@ -40,6 +56,7 @@ def initTestDb(dbFile: str) -> None:
 			(3, 30),
 			(4, 20),
 			(5, 50),
+			(6, 60),
 		}
 	)
 	createTestDbTable(
@@ -51,6 +68,7 @@ def initTestDb(dbFile: str) -> None:
 			(20, 'example.com/2', 'cc-by', 'artist two', 'credits two'),
 			(30, 'example.com/3', 'cc-by-sa 3.0', 'artist three', 'credits three'),
 			(50, 'example.com/5', 'cc-by', 'artist five', 'credits five'),
+			(60, 'example.com/6', 'cc-by', 'artist six', 'credits six'),
 		}
 	)
 	createTestDbTable(
@@ -63,6 +81,7 @@ def initTestDb(dbFile: str) -> None:
 			(3, 300, 'desc three'),
 			(4, 400, 'desc four'),
 			(5, 500, 'desc five'),
+			(6, 600, 'desc six'),
 		}
 	)
 
@@ -75,17 +94,18 @@ class TestHandleReq(unittest.TestCase):
 	def tearDown(self):
 		self.tempDir.cleanup()
 	def test_events_req(self):
-		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=-1999.2002-11-1&incl=3&limit=2'})
+		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=-1999.2002-11-1&scale=1&incl=3&limit=2'})
 		self.assertEqual(response, [
 			Event(5, 'event five', HistDate(True, 2000, 1, 1), None, HistDate(True, 2001, 1, 1), None,
 				'event', 50, 51),
 			Event(3, 'event three', HistDate(True, 1990, 10, 10), HistDate(True, 2000, 10, 10), None, None,
 				'discovery', 30, 0),
 		])
-		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=.1999-11-27&excl=1&ctg=event'})
+		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=.1999-11-27&scale=1&ctg=event'})
 		self.assertEqual(response, [
 			Event(4, 'event four', HistDate(False, -2000, 10, 10), None, HistDate(False, 1, 10, 10), None,
 				'event', 20, 1000),
+			Event(1, 'event one', HistDate(True, 1900, 1, 1), None, None, None, 'event', 10, 11),
 		])
 	def test_info_req(self):
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=info&event=3'})

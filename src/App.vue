@@ -122,7 +122,7 @@ function reduceEvents(){
 	idToEvent = eventsToKeep;
 }
 // For getting events from server
-const EVENT_REQ_LIMIT = 100;
+const EVENT_REQ_LIMIT = 500;
 let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
 	// For each scale, holds date ranges for which data has already been queried fromm the server
 let pendingReq = false; // Used to serialise event-req handling
@@ -141,6 +141,7 @@ async function onEventDisplay(
 	let urlParams = new URLSearchParams({
 		type: 'events',
 		range: `${firstDate}.${lastDate}`,
+		scale: String(SCALES[scaleIdx]),
 		limit: String(EVENT_REQ_LIMIT),
 	});
 	let responseObj: HistEventJson[] = await queryServer(urlParams);

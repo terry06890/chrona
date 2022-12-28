@@ -27,9 +27,15 @@ This directory holds files used to generate the history database data.db.
 -   `event_imgs`: <br>
     Format: `id INT PRIMARY KEY, img_id INT` <br>
     Assocates events with images
--   `descs` <br>
+-   `descs`: <br>
     Format: `id INT PRIMARY KEY, wiki_id INT, desc TEXT` <br>
     Associates an event's enwiki title with a short description.
+-   `dist`: <br>
+    Format: `scale INT, unit INT, count INT, PRIMARY KEY (scale, unit)` <br>
+    Maps scale units to event counts.
+-   `scores`: <br>
+    Format: `id INT, scale INT, score INT, PRIMARY KEY (id, scale)` <br>
+    Maps events to score values for each scale (used to show events by popularity and uniformity across scale).
 
 # Generating the Database
 
@@ -76,3 +82,6 @@ Some of the scripts use third-party packages:
 
 ## Remove Events Without Images/Descs
 1.  Run `reduce_event_data.py` to remove data for events that have no image/description.
+
+## Generate Distribution and Score Data
+1.  Run `gen_score_data.py`, which add the `dist` and `scores` tables.

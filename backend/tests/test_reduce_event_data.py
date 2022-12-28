@@ -57,7 +57,7 @@ class TestReduceData(unittest.TestCase):
 			reduceData(dbFile)
 			# Check
 			self.assertEqual(
-				readTestDbTable(dbFile, 'SELECT id, title, start, start_upper, end, end_upper, fmt, ctg from events'),
+				readTestDbTable(dbFile, 'SELECT id, title, start, start_upper, end, end_upper, fmt, ctg FROM events'),
 				{
 					(1, 'event one', 1900, None, None, None, 0, 'event'),
 				}

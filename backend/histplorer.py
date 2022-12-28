@@ -3,7 +3,7 @@ WSGI script that serves historical data
 
 Expected HTTP query parameters:
 - type:
-	If 'events', reply with list of event objects, within a date range
+	If 'events', reply with list of event objects, within a date range, for a given scale
 	If 'info', reply with information about a given event
 	If 'sugg', reply with search suggestions for an event search string
 - range: With type=events, specifies a historical-date range
@@ -11,8 +11,8 @@ Expected HTTP query parameters:
 	Examples:
 		range=1000.1910-10-09 means '1000 CE to 09/10/1910 (inclusive)'
 		range=-13000. means '13000 BCE onwards'
+- scale: With type=events, specifies a date scale (matched against 'scale' column in 'scores' table)
 - incl: With type=events, specifies an event to include, as an event ID
-- excl: With type=events, specifies events to exclude, as period-separated event IDs
 - event: With type=info, specifies the event to get info for
 - input: With type=sugg, specifies a search string to suggest for
 - limit: With type=events or type=sugg, specifies the max number of results
@@ -26,9 +26,8 @@ import gzip, jsonpickle
 from hist_data.cal import gregorianToJdn, jdnToGregorian, jdnToJulian
 
 DB_FILE = 'hist_data/data.db'
-MAX_REQ_EVENTS = 100
+MAX_REQ_EVENTS = 500
 DEFAULT_REQ_EVENTS = 20
-MAX_REQ_EXCLS = 100
 MAX_REQ_SUGGS = 50
 DEFAULT_REQ_SUGGS = 5
 MIN_CAL_YEAR = -4713 # Disallow within-year dates before this year
@@ -182,17 +181,22 @@ def handleEventsReq(params: dict[str, str], dbCur: sqlite3.Cursor):
 	except ValueError:
 		print(f'INFO: Invalid date-range value {dateRange}', file=sys.stderr)
 		return None
+	# Get scale
+	if 'scale' not in params:
+		print('INFO: No scale provided', file=sys.stderr)
+		return None
+	try:
+		scale = int(params['scale'])
+	except ValueError:
+		print('INFO: Invalid scale value', file=sys.stderr)
+		return None
 	# Get event category
 	ctg = params['ctg'] if 'ctg' in params else None
-	# Get incl/excl
+	# Get incl value
 	try:
 		incl = int(params['incl']) if 'incl' in params else None
-		excl = [int(x) for x in params['excl'].split('.')] if 'excl' in params else []
 	except ValueError:
-		print('INFO: Invalid incl/excl value', file=sys.stderr)
-		return None
-	if len(excl) > MAX_REQ_EXCLS:
-		print('INFO: Exceeded excl value limit', file=sys.stderr)
+		print('INFO: Invalid incl value', file=sys.stderr)
 		return None
 	# Get result set limit
 	try:
@@ -204,65 +208,57 @@ def handleEventsReq(params: dict[str, str], dbCur: sqlite3.Cursor):
 		print(f'INFO: Invalid results limit {resultLimit}', file=sys.stderr)
 		return None
 	#
-	return lookupEvents(start, end, ctg, incl, excl, resultLimit, dbCur)
-def lookupEvents(start: HistDate | None, end: HistDate | None, ctg: str | None,
-		incl: int | None, excl: list[int], resultLimit: int, dbCur: sqlite3.Cursor) -> list[Event] | None:
-	""" Looks for events within a date range, restricted by event category,
-		particular inclusions/exclusions, and a result limit """
-	query = 'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop from events' \
+	return lookupEvents(start, end, scale, ctg, incl, resultLimit, dbCur)
+def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: str | None,
+		incl: int | None, resultLimit: int, dbCur: sqlite3.Cursor) -> list[Event] | None:
+	""" Looks for events within a date range, in given scale,
+		restricted by event category, an optional particular inclusion, and a result limit """
+	query = \
+		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, scores.score FROM events' \
+		' INNER JOIN scores ON events.id = scores.id' \
 		' INNER JOIN event_imgs ON events.id = event_imgs.id' \
-		' INNER JOIN images ON event_imgs.img_id = images.id LEFT JOIN pop ON events.id = pop.id'
-	constraints = []
-	params: list[str | int] = []
+		' INNER JOIN images ON event_imgs.img_id = images.id'
+	constraints = ['scores.scale = ?']
+	params: list[str | int] = [scale]
 	# Constrain by start/end
 	if start is not None:
 		constraint = '(start >= ? AND fmt > 0 OR start >= ? AND fmt = 0)'
 		if start.gcal is None:
 			startJdn = gregorianToJdn(start.year, 1, 1) if start.year >= -4713 else 0
 			constraints.append(constraint)
-			params.append(startJdn)
-			params.append(start.year)
+			params.extend([startJdn, start.year])
 		else:
 			startJdn = gregorianToJdn(start.year, start.month, start.day)
 			constraints.append(constraint)
-			params.append(startJdn)
-			params.append(start.year if start.month == 1 and start.day == 1 else start.year + 1)
+			year = start.year if start.month == 1 and start.day == 1 else start.year + 1
+			params.extend([startJdn, year])
 	if end is not None:
-		constraint = '(end IS NULL AND (start <= ? AND fmt > 0 OR start <= ? AND fmt = 0) OR ' \
-			'end IS NOT NULL AND (end <= ? AND fmt > 0 OR end <= ? AND fmt = 0))'
+		constraint = '(start <= ? AND fmt > 0 OR start <= ? AND fmt = 0)'
 		if end.gcal is None:
 			endJdn = gregorianToJdn(end.year, 1, 1) if end.year >= -4713 else -1
 			constraints.append(constraint)
-			params.extend([endJdn, end.year, endJdn, end.year])
+			params.extend([endJdn, end.year])
 		else:
 			endJdn = gregorianToJdn(end.year, end.month, end.day)
 			constraints.append(constraint)
 			year = end.year if end.month == 12 and end.day == 31 else end.year - 1
-			params.extend([endJdn, year, endJdn, year])
+			params.extend([endJdn, year])
 	# Constrain by event category
 	if ctg is not None:
 		constraints.append('ctg = ?')
 		params.append(ctg)
-	# For exclusions, lookup extra, and remove later
-	tempLimit = resultLimit + len(excl)
-	exclusions = set(excl)
 	# Add constraints to query
 	query2 = query
 	if constraints:
-		query2 += ' WHERE' + ' AND '.join(constraints)
-	query2 += ' ORDER BY pop.pop DESC'
-	query2 += f' LIMIT {tempLimit}'
+		query2 += ' WHERE ' + ' AND '.join(constraints)
+	query2 += ' ORDER BY scores.score DESC'
+	query2 += f' LIMIT {resultLimit}'
 	# Run query
 	results: list[Event] = []
 	for row in dbCur.execute(query2, params):
-		eventId = row[0]
-		if eventId in exclusions:
-			continue
-		if incl is not None and incl == eventId:
-			incl = None
-		if len(results) == resultLimit:
-			break
 		results.append(eventEntryToResults(row))
+		if incl is not None and incl == row[0]:
+			incl = None
 	# Get any additional inclusion
 	if incl is not None:
 		row = dbCur.execute(query + ' WHERE events.id = ?', (incl,)).fetchone()
@@ -274,7 +270,7 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, ctg: str | None,
 	return results
 def eventEntryToResults(
 		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int, int | None]) -> Event:
-	eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, pop = row
+	eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, score = row
 	""" Helper for converting an 'events' db entry into an Event object """
 	# Convert dates
 	dateVals: list[int | None] = [start, startUpper, end, endUpper]
@@ -296,10 +292,8 @@ def eventEntryToResults(
 				newDates[i] = HistDate(False, *jdnToJulian(n))
 			else:
 				newDates[i] = HistDate(True, *jdnToGregorian(n))
-	if pop is None:
-		pop = 0
 	#
-	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
+	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, score)
 
 # For type=info
 def handleInfoReq(params: dict[str, str], dbCur: sqlite3.Cursor):
