@@ -402,9 +402,9 @@ const idToPos = computed(() => {
 	if (!mounted.value){
 		return new Map();
 	}
-	let map: Map<number, [number, number, number, number]> = new Map(); // Maps visible event IDs to x/y/w/h
+	let map: Map<number, [number, number, number, number]> = new Map(); // Maps visible event IDs to x/y/l/h
 	// Determine columns to place event elements in (or rows if !props.vert)
-	let cols: [number, number][][] = []; // For each column, for each element, stores an ID and pixel offset
+	let cols: [number, number][][] = []; // For each column, for each laid out event, stores an ID and pixel offset
 	let colOffsets: number[] = []; // Stores the pixel offset of each column
 	let afterMainlineIdx: number | null = null; // Index of first column after the mainline, if there is one
 	if (!sideMainline.value){
@@ -440,6 +440,7 @@ const idToPos = computed(() => {
 	}
 	// Place events in columns, trying to minimise distance to points on mainline
 		// Note: Placing popular events first so the layout is more stable between event requests
+	let MAX_ANGLE = 30 / 180 * Math.PI; // Max event-line angle difference (radians) from perpendicular-to-mainline
 	let orderedEvents = [...idToEvent.value.values()];
 	orderedEvents.sort((x, y) => y.pop - x.pop);
 	let numUnits = getNumDisplayUnits();
@@ -456,6 +457,7 @@ const idToPos = computed(() => {
 		while (colIdx >= 0){ // For each column
 			let bestOffset: number | null = null; // Best offset found so far
 			let bestIdx: number | null = null; // Index of insertion for bestOffset
+			let colMainlineDist = Math.abs(colOffsets[colIdx] - mainlineOffset.value);
 			// Check for empty column
 			if (cols[colIdx].length == 0){
 				let offset = Math.max(store.spacing, targetOffset)
@@ -470,8 +472,10 @@ const idToPos = computed(() => {
 					positions.push([colIdx, 0, Math.max(store.spacing, targetOffset)]);
 					break;
 				} else {
-					bestOffset = offset;
-					bestIdx = 0;
+					if (Math.atan2(Math.abs(targetOffset - offset), colMainlineDist) <= MAX_ANGLE){
+						bestOffset = offset;
+						bestIdx = 0;
+					}
 				}
 			}
 			// Check placement after each event element in column
@@ -487,8 +491,10 @@ const idToPos = computed(() => {
 								positions.push([colIdx, elIdx + 1, offset]);
 								break columnLoop;
 							} else {
-								bestOffset = offset;
-								bestIdx = elIdx + 1;
+								if (Math.atan2(Math.abs(targetOffset - offset), colMainlineDist) <= MAX_ANGLE){
+									bestOffset = offset;
+									bestIdx = elIdx + 1;
+								}
 							}
 						}
 					}
@@ -504,12 +510,14 @@ const idToPos = computed(() => {
 							positions.push([colIdx, elIdx + 1, targetOffset]);
 							break columnLoop;
 						} else {
-							if (offset > targetOffset){
-								bestOffset = offset;
-							} else {
-								bestOffset = nextOffset - eventMajorSz.value - store.spacing;
+							if (Math.atan2(Math.abs(targetOffset - offset), colMainlineDist) <= MAX_ANGLE){
+								if (offset > targetOffset){
+									bestOffset = offset;
+								} else {
+									bestOffset = nextOffset - eventMajorSz.value - store.spacing;
+								}
+								bestIdx = elIdx + 1;
 							}
-							bestIdx = elIdx + 1;
 						}
 					} else {
 						break;
