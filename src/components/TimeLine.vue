@@ -263,7 +263,7 @@ function getMinorTicks(date: HistDate, scaleIdx: number, majorUnitSz: number, ma
 	let idxChg = idx;
 	while (Math.ceil(idxFrac) < numMinorUnits){
 		date = stepDate(date, SCALES[scaleIdx + 1], {count: idxChg});
-		minorTicks.push(new Tick(date, false, majorOffset + idxFrac / numMinorUnits))
+		minorTicks.push(new Tick(date, false, majorOffset + idx / numMinorUnits))
 		idxFrac += stepFrac;
 		idxChg = Math.floor(idxFrac) - idx;
 		idx = Math.floor(idxFrac);
