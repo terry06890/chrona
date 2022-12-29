@@ -70,8 +70,8 @@ import IconButton from './IconButton.vue';
 // Icons
 import CloseIcon from './icon/CloseIcon.vue';
 // Other
-import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_YEAR,
-	getDaysInMonth, HistDate, CalDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
+import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_DATE,
+	getDaysInMonth, HistDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
 	getEventPrecision, dateToUnit,
 	moduloPositive, TimelineState, HistEvent, getImagePath} from '../lib';
 import {useStore} from '../store';
@@ -142,7 +142,6 @@ const mainlineOffset = computed(() => { // Distance from mainline-area line to l
 
 // Timeline data
 const ID = props.initialState.id as number;
-const MIN_CAL_DATE = new CalDate(MIN_CAL_YEAR, 1, 1);
 const startDate = ref(props.initialState.startDate); // Earliest date in scale to display
 const endDate = ref(props.initialState.endDate); // Latest date in scale to display (may equal startDate)
 const startOffset = ref(store.defaultEndTickOffset); // Fraction of a scale unit before startDate to show
@@ -355,35 +354,65 @@ const ticks = computed((): Tick[] => {
 	ticks = [...ticksBefore, ...ticks, ...ticksAfter];
 	return ticks;
 });
-const firstIdx = computed((): number => { // Index of first visible tick
-	return ticks.value.findIndex((tick: Tick) => tick.offset >= 0);
-});
-const firstDate = computed(() => // Date of first visible tick
-	firstIdx.value < 0 ? startDate.value : ticks.value[firstIdx.value]!.date);
-const firstOffset = computed(() => // Offset of first visible tick
-	firstIdx.value < 0 ? startOffset.value : ticks.value[firstIdx.value]!.offset);
-const lastIdx = computed((): number => {
-	let numUnits = getNumDisplayUnits();
-	for (let i = ticks.value.length - 1; i >= 0; i--){
+const firstIdx = computed((): number => { // Index of first major tick after which events are visible (-1 if none)
+	// Looks for a first visible major tick, and uses a preceding tick if present
+	let idx = -1;
+	for (let i = 0; i < ticks.value.length; i++){
 		let tick = ticks.value[i];
-		if (tick.offset <= numUnits){
-			return i;
+		if (tick.major){
+			if (tick.offset >= 0){
+				return (idx < 0) ? i : idx;
+			} else {
+				idx = i;
+			}
 		}
 	}
-	return -1;
+	return idx;
+});
+const firstDate = computed(() => firstIdx.value < 0 ? startDate.value : ticks.value[firstIdx.value]!.date);
+const lastIdx = computed((): number => { // Index of last major tick before which events are visible (-1 if none)
+	// Looks for a last visible major tick, and uses a following tick if present
+	let numUnits = getNumDisplayUnits();
+	let idx = -1;
+	for (let i = ticks.value.length - 1; i >= 0; i--){
+		let tick = ticks.value[i];
+		if (tick.major){
+			if (tick.offset <= numUnits){
+				return (idx < 0) ? i : idx;
+			} else {
+				idx = i;
+			}
+		}
+	}
+	return idx;
 });
 const lastDate = computed(() => lastIdx.value < 0 ? endDate.value : ticks.value[lastIdx.value]!.date);
 
 // For displayed events
-function dateToOffset(date: HistDate){
-	let offset = 0;
-	if (firstDate.value == startDate.value){
-		offset += getUnitDiff(date, firstDate.value, scale.value);
-	} else {
-		offset += getUnitDiff(date, firstDate.value, minorScale.value)
-			/ getScaleRatio(minorScale.value, scale.value);
+function dateToOffset(date: HistDate){ // Assumes 'date' is >=firstDate and <=lastDate
+	// Find containing major tick
+	let tickIdx = firstIdx.value;
+	for (let i = tickIdx + 1; i < lastIdx.value; i++){
+		if (ticks.value[i].major){
+			if (!date.isEarlier(ticks.value[i].date)){
+				tickIdx = i;
+			} else {
+				break;
+			}
+		}
 	}
-	return offset + firstOffset.value;
+	// Get offset within unit
+	const tick = ticks.value[tickIdx];
+	if (!hasMinorScale.value){
+		if (scale.value == DAY_SCALE){
+			return tick.offset;
+		} else {
+			const nextScale = SCALES[scaleIdx.value + 1];
+			return tick.offset + getUnitDiff(tick.date, date, nextScale) / getNumSubUnits(tick.date, scaleIdx.value);
+		}
+	} else {
+		return tick.offset + getUnitDiff(tick.date, date, minorScale.value) / getNumSubUnits(tick.date, scaleIdx.value);
+	}
 }
 const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
 	let map: Map<number, HistEvent> = new Map();
@@ -445,10 +474,12 @@ const idToPos = computed(() => {
 	let orderedEvents = [...idToEvent.value.values()];
 	orderedEvents.sort((x, y) => y.pop - x.pop);
 	let numUnits = getNumDisplayUnits();
+	const minOffset = store.spacing;
+	const maxOffset = availLen.value - eventMajorSz.value - store.spacing;
 	for (let event of orderedEvents){
-		// Get preferred pixel offset in column
-		let unitOffset = dateToOffset(event.start);
-		let targetOffset = unitOffset / numUnits * availLen.value - eventMajorSz.value / 2;
+		// Get preferred offset in column
+		let pxOffset = dateToOffset(event.start) / numUnits * availLen.value - eventMajorSz.value / 2;
+		let targetOffset = Math.max(Math.min(pxOffset, maxOffset), minOffset);
 		// Find potential positions
 		let positions: [number, number, number][] = [];
 			// For each position, holds a column index, a within-column index to insert at, and an offset value
@@ -459,69 +490,67 @@ const idToPos = computed(() => {
 			let bestOffset: number | null = null; // Best offset found so far
 			let bestIdx: number | null = null; // Index of insertion for bestOffset
 			let colMainlineDist = Math.abs(colOffsets[colIdx] - mainlineOffset.value);
-			// Check for empty column
-			if (cols[colIdx].length == 0){
-				let offset = Math.max(store.spacing, targetOffset)
-				offset = Math.min(offset, availLen.value - eventMajorSz.value - store.spacing);
-				positions.push([colIdx, 0, offset]);
+			if (Math.atan2(Math.abs(pxOffset - targetOffset), colMainlineDist) > MAX_ANGLE){
+				// Invalid angle, skip column
+			} else if (cols[colIdx].length == 0){ // Check for empty column
+				positions.push([colIdx, 0, targetOffset]);
 				break;
-			}
-			// Check placement before first event in column
-			let offset = cols[colIdx][0][1] - eventMajorSz.value - store.spacing;
-			if (offset >= store.spacing){
-				if (offset >= targetOffset){
-					positions.push([colIdx, 0, Math.max(store.spacing, targetOffset)]);
-					break;
-				} else {
-					if (Math.atan2(Math.abs(targetOffset - offset), colMainlineDist) <= MAX_ANGLE){
-						bestOffset = offset;
-						bestIdx = 0;
+			} else {
+				// Check placement before first event in column
+				let offset = cols[colIdx][0][1] - eventMajorSz.value - store.spacing;
+				if (offset >= minOffset){
+					if (offset >= targetOffset){
+						positions.push([colIdx, 0, targetOffset]);
+						break;
+					} else {
+						if (Math.atan2(Math.abs(pxOffset - offset), colMainlineDist) <= MAX_ANGLE){
+							bestOffset = offset;
+							bestIdx = 0;
+						}
 					}
 				}
-			}
-			// Check placement after each event element in column
-			for (let elIdx = 0; elIdx < cols[colIdx].length; elIdx++){
-				offset = cols[colIdx][elIdx][1] + eventMajorSz.value + store.spacing;
-				if (elIdx == cols[colIdx].length - 1){ // If last element in column
-					if (offset < availLen.value - eventMajorSz.value - store.spacing){
+				// Check placement after each event element in column
+				for (let elIdx = 0; elIdx < cols[colIdx].length; elIdx++){
+					offset = cols[colIdx][elIdx][1] + eventMajorSz.value + store.spacing;
+					if (elIdx == cols[colIdx].length - 1){ // If last element in column
+						if (offset < maxOffset){
+							// Check for better offset
+							if (bestOffset == null || Math.abs(pxOffset - offset) < Math.abs(pxOffset - bestOffset)){
+								if (offset <= targetOffset){
+									positions.push([colIdx, elIdx + 1, targetOffset]);
+									break columnLoop;
+								} else {
+									if (Math.atan2(Math.abs(pxOffset - offset), colMainlineDist) <= MAX_ANGLE){
+										bestOffset = offset;
+										bestIdx = elIdx + 1;
+									}
+								}
+							}
+						}
+					} else { // If not last event in column
+						// Check for space between this and next element
+						let nextOffset = cols[colIdx][elIdx + 1][1];
+						if (nextOffset - offset < eventMajorSz.value + store.spacing){
+							continue;
+						}
 						// Check for better offset
-						if (bestOffset == null
-								|| Math.abs(targetOffset - offset) < Math.abs(targetOffset - bestOffset)){
-							if (offset <= targetOffset){
-								offset = Math.min(targetOffset, availLen.value - eventMajorSz.value - store.spacing);
-								positions.push([colIdx, elIdx + 1, offset]);
+						if (bestOffset == null || Math.abs(pxOffset - offset) < Math.abs(pxOffset - bestOffset)){
+							if (offset <= targetOffset
+									&& targetOffset <= nextOffset - eventMajorSz.value - store.spacing){
+								positions.push([colIdx, elIdx + 1, targetOffset]);
 								break columnLoop;
 							} else {
-								if (Math.atan2(Math.abs(targetOffset - offset), colMainlineDist) <= MAX_ANGLE){
+								if (offset <= targetOffset){
+									offset = nextOffset - eventMajorSz.value - store.spacing;
+								}
+								if (Math.atan2(Math.abs(pxOffset - offset), colMainlineDist) <= MAX_ANGLE){
 									bestOffset = offset;
 									bestIdx = elIdx + 1;
 								}
 							}
-						}
-					}
-				} else { // If not last event in column
-					// Check for space between this and next element
-					let nextOffset = cols[colIdx][elIdx + 1][1];
-					if (nextOffset - offset < eventMajorSz.value + store.spacing){
-						continue;
-					}
-					// Check for better offset
-					if (bestOffset == null || Math.abs(targetOffset - offset) < Math.abs(targetOffset - bestOffset)){
-						if (offset <= targetOffset && targetOffset <= nextOffset - eventMajorSz.value - store.spacing){
-							positions.push([colIdx, elIdx + 1, targetOffset]);
-							break columnLoop;
 						} else {
-							if (Math.atan2(Math.abs(targetOffset - offset), colMainlineDist) <= MAX_ANGLE){
-								if (offset > targetOffset){
-									bestOffset = offset;
-								} else {
-									bestOffset = nextOffset - eventMajorSz.value - store.spacing;
-								}
-								bestIdx = elIdx + 1;
-							}
+							break;
 						}
-					} else {
-						break;
 					}
 				}
 			}
@@ -563,9 +592,7 @@ const idToPos = computed(() => {
 		}
 	}
 	// Notify parent
-	const rangeStart = stepDate(startDate.value, scale.value, {forward: false});
-	const rangeEnd = stepDate(endDate.value, scale.value);
-	emit('event-display', ID, [...map.keys()], rangeStart, rangeEnd, minorScaleIdx.value);
+	emit('event-display', ID, [...map.keys()], firstDate.value, lastDate.value, minorScaleIdx.value);
 	return map;
 });
 
@@ -623,16 +650,14 @@ const tickToCount = computed((): Map<number, number> => {
 		return tickToCount;
 	}
 	let unitToTickIdx: [number, number][] = []; // Holds tick units with their tick indexes in tickToCount
-	const tempFirstIdx = Math.max(firstIdx.value - 1, 0);
-	const tempLastIdx = Math.min(lastIdx.value + 1, ticks.value.length - 1);
-	for (let tickIdx = tempFirstIdx; tickIdx < tempLastIdx; tickIdx++){
+	for (let tickIdx = firstIdx.value; tickIdx < lastIdx.value; tickIdx++){
 		tickToCount.set(tickIdx, 0);
 		let unit = dateToUnit(ticks.value[tickIdx].date, minorScale.value);
 		unitToTickIdx.push([unit, tickIdx]);
 	}
 	// Accumulate counts for ticks
-	const firstUnit = dateToUnit(ticks.value[tempFirstIdx].date, minorScale.value);
-	const lastUnit = dateToUnit(ticks.value[tempLastIdx].date, minorScale.value);
+	const firstUnit = dateToUnit(ticks.value[firstIdx.value].date, minorScale.value);
+	const lastUnit = dateToUnit(ticks.value[lastIdx.value].date, minorScale.value);
 	for (let [unit, count] of props.unitCountMaps[minorScaleIdx.value].entries()){
 		if (unit >= firstUnit && unit < lastUnit){
 			let i = 0;

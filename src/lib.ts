@@ -235,6 +235,7 @@ export class CalDate extends HistDate {
 		super(gcal, year, month, day);
 	}
 }
+export const MIN_CAL_DATE = new CalDate(MIN_CAL_YEAR, 1, 1);
 
 // For event representation
 export class HistEvent {
