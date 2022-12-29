@@ -200,6 +200,7 @@ async function onEventDisplay(
 	// Check memory limit
 	displayedEvents.set(timelineId, eventIds);
 	if (eventTree.value.size > EXCESS_EVENTS_THRESHOLD){
+		console.log(`INFO: Calling reduceEvents() upon reaching ${eventTree.value.size} events`);
 		reduceEvents();
 		queriedRanges.forEach((t: DateRangeTree) => t.clear());
 	}

@@ -18,6 +18,7 @@ export const useStore = defineStore('store', {
 			alt: '#fde047',      // yellow-300
 			altDark: '#eab308',  // yellow-500
 			altDark2: '#ca8a04', // yellow-600
+			altBg: '#6a5e2e'
 		};
 		return {
 			tickLen: 16,

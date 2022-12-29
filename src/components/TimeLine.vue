@@ -6,7 +6,7 @@
 	ref="rootRef">
 	<template v-if="store.showEventCounts">
 		<div v-for="[tickIdx, count] in tickToCount.entries()" :key="ticks[tickIdx].date.toInt()"
-			:style="countDivStyles(tickIdx, count)" class="absolute bg-yellow-300/30 animate-fadein"></div>
+			:style="countDivStyles(tickIdx, count)" class="absolute animate-fadein"></div>
 	</template>
 	<svg :viewBox="`0 0 ${width} ${height}`" class="relative z-10">
 		<defs>
@@ -278,7 +278,7 @@ const ticks = computed((): Tick[] => {
 	let numUnits = getNumDisplayUnits();
 	let majorUnitSz = availLen.value / numUnits;
 	// Get before-startDate ticks (including start-offset ticks and hidden ticks)
-	let panUnits = Math.floor(getNumDisplayUnits() * store.scrollRatio); // Potential shift distance upon a pan action
+	let panUnits = Math.floor(numUnits * store.scrollRatio); // Potential shift distance upon a pan action
 	let date = startDate.value;
 	for (let i = 0; i < panUnits + Math.ceil(startOffset.value); i++){
 		if (MIN_DATE.equals(date, scale.value)){
@@ -1154,11 +1154,12 @@ function countDivStyles(tickIdx: number, count: number): Record<string,string> {
 	let countLevel = Math.min(Math.ceil(Math.log10(count+1)), 4);
 	let breadth = countLevel * 4 + 4;
 	return {
+		backgroundColor: store.color.altBg,
 		top: props.vert ? pxOffset + 'px' : (mainlineOffset.value - breadth / 2) + 'px',
 		left: props.vert ? (mainlineOffset.value - breadth / 2) + 'px' : pxOffset + 'px',
 		width: props.vert ? breadth + 'px' : len + 'px',
 		height: props.vert ? len + 'px' : breadth + 'px',
-		transitionProperty: 'top, left, width, height',
+		transitionProperty: skipTransition.value ? 'none' : 'top, left, width, height',
 		transitionDuration: store.transitionDuration + 'ms',
 		transitionTimingFunction: 'linear',
 	}
