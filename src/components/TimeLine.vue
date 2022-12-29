@@ -4,7 +4,11 @@
 	@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp"
 	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel"
 	ref="rootRef">
-	<svg :viewBox="`0 0 ${width} ${height}`">
+	<template v-if="store.showEventCounts">
+		<div v-for="[tickIdx, count] in tickToCount.entries()" :key="ticks[tickIdx].date.toInt()"
+			:style="countDivStyles(tickIdx, count)" class="absolute bg-yellow-300/30 animate-fadein"></div>
+	</template>
+	<svg :viewBox="`0 0 ${width} ${height}`" class="relative z-10">
 		<defs>
 			<linearGradient id="eventLineGradient">
 				<stop offset="5%" stop-color="#a3691e"/>
@@ -42,7 +46,7 @@
 			<!-- Note: Can't use :x2="1" with scaling in :style="", as it makes dashed-lines non-uniform -->
 	</svg>
 	<!-- Events -->
-	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein" :style="eventStyles(id)">
+	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
 		<!-- Image -->
 		<div class="rounded-full border border-yellow-500" :style="eventImgStyles(id)"></div>
 		<!-- Label -->
@@ -51,7 +55,7 @@
 		</div>
 	</div>
 	<!-- Buttons -->
-	<icon-button v-if="closeable" :size="30" class="absolute top-2 right-2"
+	<icon-button v-if="closeable" :size="30" class="absolute top-2 right-2 z-20"
 		:style="{color: store.color.text, backgroundColor: store.color.altDark2}"
 		@click="emit('remove')" title="Remove timeline">
 		<close-icon/>
@@ -67,7 +71,8 @@ import IconButton from './IconButton.vue';
 import CloseIcon from './icon/CloseIcon.vue';
 // Other
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_YEAR,
-	getDaysInMonth, HistDate, CalDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff, getEventPrecision,
+	getDaysInMonth, HistDate, CalDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
+	getEventPrecision, dateToUnit,
 	moduloPositive, TimelineState, HistEvent, getImagePath} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
@@ -84,6 +89,7 @@ const props = defineProps({
 	closeable: {type: Boolean, default: true},
 	initialState: {type: Object as PropType<TimelineState>, required: true},
 	eventTree: {type: Object as PropType<RBTree<HistEvent>>, required: true},
+	unitCountMaps: {type: Object as PropType<Map<number, number>[]>, required: true},
 });
 const emit = defineEmits(['remove', 'state-chg', 'event-req', 'event-display']);
 
@@ -349,30 +355,24 @@ const ticks = computed((): Tick[] => {
 	ticks = [...ticksBefore, ...ticks, ...ticksAfter];
 	return ticks;
 });
-const firstDate = computed((): HistDate => { // Date of first visible tick
-	if (ticks.value.length == 0){
-		return startDate.value;
-	}
-	return ticks.value.find((tick: Tick) => tick.offset > 0)!.date;
+const firstIdx = computed((): number => { // Index of first visible tick
+	return ticks.value.findIndex((tick: Tick) => tick.offset >= 0);
 });
-const firstOffset = computed((): number => { // Offset of first visible tick
-	if (ticks.value.length == 0){
-		return startOffset.value;
-	}
-	return ticks.value.find((tick: Tick) => tick.offset > 0)!.offset;
-});
-const lastDate = computed((): HistDate => {
+const firstDate = computed(() => // Date of first visible tick
+	firstIdx.value < 0 ? startDate.value : ticks.value[firstIdx.value]!.date);
+const firstOffset = computed(() => // Offset of first visible tick
+	firstIdx.value < 0 ? startOffset.value : ticks.value[firstIdx.value]!.offset);
+const lastIdx = computed((): number => {
 	let numUnits = getNumDisplayUnits();
-	let date = endDate.value;
 	for (let i = ticks.value.length - 1; i >= 0; i--){
 		let tick = ticks.value[i];
-		if (tick.offset < numUnits){
-			date = tick.date;
-			break;
+		if (tick.offset <= numUnits){
+			return i;
 		}
 	}
-	return date;
+	return -1;
 });
+const lastDate = computed(() => lastIdx.value < 0 ? endDate.value : ticks.value[lastIdx.value]!.date);
 
 // For displayed events
 function dateToOffset(date: HistDate){
@@ -612,6 +612,31 @@ watchEffect(() => { // Used instead of computed() in order to access old values
 		newEventLines.set(id, [x, y, l, a]);
 	}
 	eventLines.value = newEventLines;
+});
+
+// For event-count indicators
+const tickToCount = computed((): Map<number, number> => {
+	let tickToCount: Map<number, number> = new Map(); // Maps tick index to event count
+	let unitToTickIdx: [number, number][] = []; // Holds tick units with their tick indexes in tickToCount
+	for (let tickIdx = firstIdx.value; tickIdx < lastIdx.value; tickIdx++){
+		tickToCount.set(tickIdx, 0);
+		let unit = dateToUnit(ticks.value[tickIdx].date, minorScale.value);
+		unitToTickIdx.push([unit, tickIdx]);
+	}
+	// Accumulate counts for ticks
+	const firstUnit = dateToUnit(firstDate.value, minorScale.value);
+	const lastUnit = dateToUnit(lastDate.value, minorScale.value);
+	for (let [unit, count] of props.unitCountMaps[minorScaleIdx.value].entries()){
+		if (unit >= firstUnit && unit < lastUnit){
+			let i = 0;
+			while (i + 1 < unitToTickIdx.length && unitToTickIdx[i + 1][0] <= unit){
+				i += 1;
+			}
+			const tickIdx = unitToTickIdx[i][1];
+			tickToCount.set(tickIdx, tickToCount.get(tickIdx)! + count);
+		}
+	}
+	return tickToCount;
 });
 
 // For panning/zooming
@@ -1087,5 +1112,23 @@ function eventLineStyles(eventId: number){
 		transitionDuration: store.transitionDuration + 'ms',
 		transitionTimingFunction: 'ease-out',
 	};
+}
+function countDivStyles(tickIdx: number, count: number): Record<string,string> {
+	let tick = ticks.value[tickIdx];
+	let numMajorUnits = getNumDisplayUnits();
+	let pxOffset = tick.offset / numMajorUnits * availLen.value;
+	let nextPxOffset = ticks.value[tickIdx + 1].offset / numMajorUnits * availLen.value;
+	let len = nextPxOffset - pxOffset;
+	let countLevel = Math.min(Math.ceil(Math.log10(count+1)), 4);
+	let breadth = countLevel * 4 + 4;
+	return {
+		top: props.vert ? pxOffset + 'px' : (mainlineOffset.value - breadth / 2) + 'px',
+		left: props.vert ? (mainlineOffset.value - breadth / 2) + 'px' : pxOffset + 'px',
+		width: props.vert ? breadth + 'px' : len + 'px',
+		height: props.vert ? len + 'px' : breadth + 'px',
+		transitionProperty: 'top, left, width, height',
+		transitionDuration: store.transitionDuration + 'ms',
+		transitionTimingFunction: 'linear',
+	}
 }
 </script>

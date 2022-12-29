@@ -40,6 +40,7 @@ export const useStore = defineStore('store', {
 			initialStartDate: new CalDate(1900, 1, 1),
 			initialEndDate: new CalDate(2000, 1, 1),
 			color,
+			showEventCounts: true,
 			transitionDuration: 300,
 		};
 	},

@@ -2,8 +2,8 @@ import unittest
 import tempfile, os
 
 from tests.common import createTestDbTable, readTestDbTable
-from hist_data.gen_disp_data import genData, MONTH_SCALE, DAY_SCALE
-from hist_data.cal import gregorianToJdn
+from hist_data.gen_disp_data import genData
+from hist_data.cal import gregorianToJdn, julianToJdn, MONTH_SCALE, DAY_SCALE
 
 class TestGenData(unittest.TestCase):
 	def test_gen(self):
@@ -17,11 +17,11 @@ class TestGenData(unittest.TestCase):
 				'INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
 				{
 					(1, 'event one', 1900, None, None, None, 0, 'event'),
-					(2, 'event two', 2452594, None, 2455369, None, 3, 'human'), # 15/11/2002 to 21/06/2010
+					(2, 'event two', 2452607, None, 2455369, None, 3, 'human'), # 15/11/2002 to 21/06/2010
 					(3, 'event three', 1900, None, 2000, None, 0, 'event'),
 					(4, 'event four', 1901, None, 2000, 2010, 0, 'event'),
-					(5, 'event five', 2415294, None, None, None, 1, 'event'), # 01/10/1900
-					(6, 'event six', 2415030, None, None, None, 1, 'event'), # 10/01/1900
+					(5, 'event five', 2415307, None, None, None, 1, 'event'), # 01/10/1900
+					(6, 'event six', 2415030, None, None, None, 2, 'event'), # 10/01/1900
 				}
 			)
 			createTestDbTable(
@@ -49,13 +49,13 @@ class TestGenData(unittest.TestCase):
 					(1, 2002, 1),
 					(MONTH_SCALE, gregorianToJdn(1900, 1, 1), 2),
 					(MONTH_SCALE, gregorianToJdn(1901, 1, 1), 1),
-					(MONTH_SCALE, gregorianToJdn(1900, 10, 1), 1),
-					(MONTH_SCALE, gregorianToJdn(2002, 11, 1), 1),
+					(MONTH_SCALE, julianToJdn(1900, 10, 1), 1),
+					(MONTH_SCALE, julianToJdn(2002, 11, 1), 1),
 					(DAY_SCALE, gregorianToJdn(1900, 1, 1), 1),
 					(DAY_SCALE, gregorianToJdn(1900, 1, 10), 1),
-					(DAY_SCALE, gregorianToJdn(1900, 10, 1), 1),
+					(DAY_SCALE, julianToJdn(1900, 10, 1), 1),
 					(DAY_SCALE, gregorianToJdn(1901, 1, 1), 1),
-					(DAY_SCALE, gregorianToJdn(2002, 11, 15), 1),
+					(DAY_SCALE, julianToJdn(2002, 11, 15), 1),
 				}
 			)
 			self.assertEqual(

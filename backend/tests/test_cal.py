@@ -2,7 +2,8 @@ import unittest
 
 from hist_data.cal import \
 	gregorianToJdn, julianToJdn, jdnToGregorian, jdnToJulian, \
-	julianToGregorian, gregorianToJulian
+	julianToGregorian, gregorianToJulian, \
+	MONTH_SCALE, DAY_SCALE, HistDate, dbDateToHistDate, dateToUnit
 
 class TestCal(unittest.TestCase):
 	def test_gregorian_to_jdn(self):
@@ -27,3 +28,13 @@ class TestCal(unittest.TestCase):
 	def test_julian_to_gregorian(self):
 		self.assertEqual(julianToGregorian(2022, 9, 17), (2022, 9, 30))
 		self.assertEqual(julianToGregorian(1616, 4, 23), (1616, 5, 3))
+	def test_db_to_hist_date(self):
+		self.assertEqual(dbDateToHistDate(2001, 0), HistDate(True, 2001, 1, 1))
+		self.assertEqual(dbDateToHistDate(1721455, 1), HistDate(False, 1, 2, 1))
+		self.assertEqual(dbDateToHistDate(1356438, 2), HistDate(True, -1000, 9, 13))
+		self.assertEqual(dbDateToHistDate(2268942, 3, False), HistDate(False, 1500, 1, 10))
+		self.assertEqual(dbDateToHistDate(2268933, 3, True), HistDate(True, 1500, 1, 10))
+	def test_date_to_unit(self):
+		self.assertEqual(dateToUnit(HistDate(None, 1914, 1, 1), 10), 191)
+		self.assertEqual(dateToUnit(HistDate(True, 1500, 10, 5), MONTH_SCALE), 2269197)
+		self.assertEqual(dateToUnit(HistDate(False, 1500, 1, 10), DAY_SCALE), 2268942)

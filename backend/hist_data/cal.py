@@ -1,6 +1,6 @@
 """
-Provides functions for converting between Julian calendar, Gregorian calendar,
-and Julian day number values. Algorithms were obtained from
+Provides date conversion functions, HistDate, and date scales.
+Algorithms for converting between calendars and Julian day number values were obtained from
 https://en.wikipedia.org/wiki/Julian_day#Converting_Gregorian_calendar_date_to_Julian_Day_Number.
 """
 
@@ -69,3 +69,52 @@ def julianToGregorian(year: int, month: int, day: int) -> tuple[int, int, int]:
 
 def gregorianToJulian(year: int, month: int, day: int) -> tuple[int, int, int]:
 	return jdnToJulian(gregorianToJdn(year, month, day))
+
+MIN_CAL_YEAR = -4713 # Disallow within-year dates before this year
+MONTH_SCALE = -1;
+DAY_SCALE = -2;
+SCALES: list[int] = [int(x) for x in [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE]];
+class HistDate:
+	"""
+	Represents a historical date
+	- 'year' may be negative (-1 means 1 BCE)
+	- 'month' and 'day' are at least 1, if given
+	- 'gcal' may be:
+		- True: Indicates a Gregorian calendar date
+		- False: Means the date should, for display, be converted to a Julian calendar date
+		- None: 'month' and 'day' are 1 (used for dates before the Julian period starting year 4713 BCE)
+	"""
+	def __init__(self, gcal: bool | None, year: int, month=1, day=1):
+		self.gcal = gcal
+		self.year = year
+		self.month = month
+		self.day = day
+	# Used in unit testing
+	def __eq__(self, other):
+		return isinstance(other, HistDate) and \
+			(self.gcal, self.year, self.month, self.day) == (other.gcal, other.year, other.month, other.day)
+	def __repr__(self):
+		return str(self.__dict__)
+def dbDateToHistDate(n: int, fmt: int, end=False) -> HistDate:
+	if fmt == 0: # year
+		if n >= MIN_CAL_YEAR:
+			return HistDate(True, n, 1, 1)
+		else:
+			return HistDate(None, n)
+	elif fmt == 1 or fmt == 3 and not end: # jdn for julian calendar
+		return HistDate(False, *jdnToJulian(n))
+	else: # fmt == 2 or fmt == 3 and end
+		return HistDate(True, *jdnToGregorian(n))
+def dateToUnit(date: HistDate, scale: int) -> int:
+	if scale >= 1:
+		return date.year // scale
+	elif scale == MONTH_SCALE:
+		if date.gcal == False:
+			return julianToJdn(date.year, date.month, 1)
+		else:
+			return gregorianToJdn(date.year, date.month, 1)
+	else: # scale == DAY_SCALE
+		if date.gcal == False:
+			return julianToJdn(date.year, date.month, date.day)
+		else:
+			return gregorianToJdn(date.year, date.month, date.day)

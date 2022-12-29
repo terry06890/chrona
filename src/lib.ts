@@ -305,6 +305,10 @@ export type HistEventJson = {
 	imgId: number,
 	pop: number,
 }
+export type EventResponseJson = {
+	events: HistEventJson[],
+	unitCounts: {[x: number]: number},
+}
 export function jsonToHistDate(json: HistDateJson){
 	if (json.gcal == null){
 		return new YearDate(json.year);
@@ -492,6 +496,23 @@ export function getEventPrecision(event: HistEvent): number {
 		}
 	}
 	return Number.POSITIVE_INFINITY;
+}
+export function dateToUnit(date: HistDate, scale: number): number {
+	if (scale >= 1){
+		return Math.floor(date.year / scale);
+	} else if (scale == MONTH_SCALE){
+		if (!date.gcal){
+			return julianToJdn(date.year, date.month, 1);
+		} else {
+			return gregorianToJdn(date.year, date.month, 1);
+		}
+	} else { // scale == DAY_SCALE
+		if (!date.gcal){
+			return julianToJdn(date.year, date.month, date.day);
+		} else {
+			return gregorianToJdn(date.year, date.month, date.day);
+		}
+	}
 }
 
 // For sending timeline-bound data to BaseLine

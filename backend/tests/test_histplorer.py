@@ -2,7 +2,7 @@ import unittest
 import tempfile, os
 
 from tests.common import createTestDbTable
-from histplorer import handleReq, HistDate, Event, ImgInfo, EventInfo, SuggResponse
+from histplorer import handleReq, HistDate, Event, EventResponse, ImgInfo, EventInfo, SuggResponse
 
 def initTestDb(dbFile: str) -> None:
 	createTestDbTable(
@@ -13,10 +13,24 @@ def initTestDb(dbFile: str) -> None:
 		{
 			(1, 'event one', 1900, None, None, None, 0, 'event'),
 			(2, 'event two', 2452594, None, 2455369, None, 3, 'human'), # 2/11/2002 to 21/06/2010
-			(3, 'event three', 2448175, 2451828, None, None, 2, 'discovery'), # 10/10/1990 to 10/10/2000
+			(3, 'event three', 2448175, 2451828, None, None, 2, 'discovery'), # 10/10/1990 til 10/10/2000
 			(4, 'event four', 991206, None, 1721706, None, 1, 'event'), # 10/10/-2000 to 10/10/1
 			(5, 'event five', 2000, None, 2001, None, 0, 'event'),
-			(6, 'event six', 1500, None, 2000, None, 0, 'event'),
+			(6, 'event six', 1900, None, 2000, None, 0, 'event'),
+		}
+	)
+	createTestDbTable(
+		dbFile,
+		'CREATE TABLE dist (scale INT, unit INT, count INT, PRIMARY KEY (scale, unit))',
+		'INSERT INTO dist VALUES (?, ?, ?)',
+		{
+			(1, -2000, 1),
+			(1, 1900, 2),
+			(1, 1990, 1),
+			(1, 2000, 1),
+			(1, 2001, 1),
+			(1, 2002, 1),
+			(10, 190, 2),
 		}
 	)
 	createTestDbTable(
@@ -95,18 +109,20 @@ class TestHandleReq(unittest.TestCase):
 		self.tempDir.cleanup()
 	def test_events_req(self):
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=-1999.2002-11-1&scale=1&incl=3&limit=2'})
-		self.assertEqual(response, [
+		self.assertEqual(response.events, [
 			Event(5, 'event five', HistDate(True, 2000, 1, 1), None, HistDate(True, 2001, 1, 1), None,
 				'event', 50, 51),
 			Event(3, 'event three', HistDate(True, 1990, 10, 10), HistDate(True, 2000, 10, 10), None, None,
 				'discovery', 30, 0),
 		])
+		self.assertEqual(response.unitCounts, {1900: 2, 1990: 1, 2000: 1, 2001: 1, 2002: 1})
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=.1999-11-27&scale=1&ctg=event'})
-		self.assertEqual(response, [
+		self.assertEqual(response.events, [
 			Event(4, 'event four', HistDate(False, -2000, 10, 10), None, HistDate(False, 1, 10, 10), None,
 				'event', 20, 1000),
 			Event(1, 'event one', HistDate(True, 1900, 1, 1), None, None, None, 'event', 10, 11),
 		])
+		self.assertEqual(response.unitCounts, {-2000: 1, 1900: 2, 1990: 1})
 	def test_info_req(self):
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=info&event=3'})
 		self.assertEqual(response,

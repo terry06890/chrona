@@ -1,8 +1,8 @@
 import {moduloPositive,
 	gregorianToJdn, julianToJdn, jdnToGregorian, jdnToJulian, gregorianToJulian, julianToGregorian, getDaysInMonth,
-	HistDate, YearDate, CalDate,
+	HistDate, YearDate, CalDate, HistEvent,
 	queryServer, jsonToHistDate, jsonToHistEvent,
-	DAY_SCALE, MONTH_SCALE, stepDate, inDateScale, getScaleRatio, getUnitDiff,
+	DAY_SCALE, MONTH_SCALE, stepDate, inDateScale, getScaleRatio, getUnitDiff, getEventPrecision, dateToUnit,
 	DateRangeTree,
 } from '/src/lib.ts'
 
@@ -141,6 +141,21 @@ test('getUnitDiff', () => {
 	expect(getUnitDiff(new CalDate(2000, 10, 10), (new CalDate(2001, 11, 2)), MONTH_SCALE)).toBe(13)
 	expect(getUnitDiff(new CalDate(-1, 1, 10), (new CalDate(10, 11, 2)), 1)).toBe(10)
 	expect(getUnitDiff(new YearDate(-5000), (new YearDate(-6500)), 10)).toBe(150)
+})
+test('getEventPrecision', () => {
+	expect(getEventPrecision(new HistEvent(1, 'one', new YearDate(-5000), new YearDate(-4991)))).toBe(10)
+	expect(getEventPrecision(new HistEvent(1, 'one', new YearDate(-5000), new YearDate(-4990)))).toBe(100)
+	expect(getEventPrecision(new HistEvent(1, 'one', new CalDate(2000, 1, 1), new CalDate(2150, 1, 1)))).toBe(1000)
+	expect(getEventPrecision(new HistEvent(1, 'one', new CalDate(1, 2, 3), new CalDate(1, 2, 25)))).toBe(MONTH_SCALE)
+	expect(getEventPrecision(new HistEvent(1, 'one', new CalDate(1, 2, 3), new CalDate(1, 2, 3)))).toBe(DAY_SCALE)
+})
+test('dateToUnit', () => {
+	expect(dateToUnit(new CalDate(2013), 1e3)).toBe(2)
+	expect(dateToUnit(new CalDate(2013), 100)).toBe(20)
+	expect(dateToUnit(new CalDate(2013), 1)).toBe(2013)
+	expect(dateToUnit(new YearDate(-5123), 10)).toBe(-513)
+	expect(dateToUnit(new CalDate(1911, 12, 3), MONTH_SCALE)).toBe(gregorianToJdn(1911, 12, 1))
+	expect(dateToUnit(new CalDate(1911, 12, 3, false), DAY_SCALE)).toBe(julianToJdn(1911, 12, 3))
 })
 
 test('DateRangeTree', () => {

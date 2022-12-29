@@ -19,7 +19,8 @@
 	<div class="grow min-h-0 flex" :class="{'flex-col': !vert}"
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
-			:vert="vert" :initialState="state" :closeable="timelines.length > 1" :eventTree="eventTree"
+			:vert="vert" :initialState="state" :closeable="timelines.length > 1"
+			:eventTree="eventTree" :unitCountMaps="unitCountMaps"
 			class="grow basis-full min-h-0 outline outline-1"
 			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)" @event-display="onEventDisplay"/>
 		<base-line :vert="vert" :timelines="timelines" class='m-1 sm:m-2'/>
@@ -38,8 +39,8 @@ import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
-import {timeout, HistDate, HistEvent, queryServer, HistEventJson, jsonToHistEvent,
-	SCALES, TimelineState, cmpHistEvent, DateRangeTree} from './lib';
+import {timeout, HistDate, HistEvent, queryServer, EventResponseJson, jsonToHistEvent,
+	SCALES, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree} from './lib';
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
 
@@ -101,6 +102,7 @@ function onTimelineRemove(idx: number){
 // For storing and looking up events
 const eventTree: ShallowRef<RBTree<HistEvent>> = shallowRef(new RBTree(cmpHistEvent));
 let idToEvent: Map<number, HistEvent> = new Map();
+const unitCountMaps: Ref<Map<number, number>[]> = ref(SCALES.map(() => new Map())); // For each scale, maps units to event counts
 // For keeping event data under a memory limit
 const EXCESS_EVENTS_THRESHOLD = 10000;
 let displayedEvents: Map<number, number[]> = new Map(); // Maps TimeLine IDs to IDs of displayed events
@@ -117,8 +119,25 @@ function reduceEvents(){
 	for (let [, event] of eventsToKeep){
 		newTree.insert(event);
 	}
+	// Create new unit-count maps
+	let newMaps: Map<number, number>[] = SCALES.map(() => new Map());
+	for (let timeline of timelines.value){
+		if (timeline.scaleIdx == null){
+			continue;
+		}
+		// Look for units to keep
+		let scaleIdx: number = timeline.scaleIdx;
+		let startUnit = dateToUnit(timeline.startDate, SCALES[scaleIdx]);
+		let endUnit = dateToUnit(timeline.endDate, SCALES[scaleIdx]);
+		for (let [unit, count] of unitCountMaps.value[scaleIdx]){
+			if (unit >= startUnit && unit <= endUnit){
+				newMaps[scaleIdx].set(unit, count);
+			}
+		}
+	}
 	// Replace old data
 	eventTree.value = newTree;
+	unitCountMaps.value = newMaps;
 	idToEvent = eventsToKeep;
 }
 // For getting events from server
@@ -144,21 +163,31 @@ async function onEventDisplay(
 		scale: String(SCALES[scaleIdx]),
 		limit: String(EVENT_REQ_LIMIT),
 	});
-	let responseObj: HistEventJson[] = await queryServer(urlParams);
+	let responseObj: EventResponseJson = await queryServer(urlParams);
 	if (responseObj == null){
 		pendingReq = false;
 		return;
 	}
 	queriedRanges[scaleIdx].add([firstDate, lastDate]);
-	// Add to map
+	// Collect events
 	let added = false;
-	for (let eventObj of responseObj){
+	for (let eventObj of responseObj.events){
 		let event = jsonToHistEvent(eventObj);
 		let success = eventTree.value.insert(event);
 		if (success){
 			added = true;
 			idToEvent.set(event.id, event);
 		}
+	}
+	// Collect unit counts
+	const unitCounts = responseObj.unitCounts;
+	for (let [unitStr, count] of Object.entries(unitCounts)){
+		let unit = parseInt(unitStr)
+		if (isNaN(unit)){
+			console.log('ERROR: Invalid non-integer unit value in server response');
+			break;
+		}
+		unitCountMaps.value[scaleIdx].set(unit, count)
 	}
 	// Notify components if new events were added
 	if (added){
