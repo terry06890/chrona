@@ -563,7 +563,9 @@ const idToPos = computed(() => {
 		}
 	}
 	// Notify parent
-	emit('event-display', ID, [...map.keys()], firstDate.value, lastDate.value, minorScaleIdx.value);
+	const rangeStart = stepDate(startDate.value, scale.value, {forward: false});
+	const rangeEnd = stepDate(endDate.value, scale.value);
+	emit('event-display', ID, [...map.keys()], rangeStart, rangeEnd, minorScaleIdx.value);
 	return map;
 });
 
@@ -617,15 +619,20 @@ watchEffect(() => { // Used instead of computed() in order to access old values
 // For event-count indicators
 const tickToCount = computed((): Map<number, number> => {
 	let tickToCount: Map<number, number> = new Map(); // Maps tick index to event count
+	if (ticks.value.length == 0){
+		return tickToCount;
+	}
 	let unitToTickIdx: [number, number][] = []; // Holds tick units with their tick indexes in tickToCount
-	for (let tickIdx = firstIdx.value; tickIdx < lastIdx.value; tickIdx++){
+	const tempFirstIdx = Math.max(firstIdx.value - 1, 0);
+	const tempLastIdx = Math.min(lastIdx.value + 1, ticks.value.length - 1);
+	for (let tickIdx = tempFirstIdx; tickIdx < tempLastIdx; tickIdx++){
 		tickToCount.set(tickIdx, 0);
 		let unit = dateToUnit(ticks.value[tickIdx].date, minorScale.value);
 		unitToTickIdx.push([unit, tickIdx]);
 	}
 	// Accumulate counts for ticks
-	const firstUnit = dateToUnit(firstDate.value, minorScale.value);
-	const lastUnit = dateToUnit(lastDate.value, minorScale.value);
+	const firstUnit = dateToUnit(ticks.value[tempFirstIdx].date, minorScale.value);
+	const lastUnit = dateToUnit(ticks.value[tempLastIdx].date, minorScale.value);
 	for (let [unit, count] of props.unitCountMaps[minorScaleIdx.value].entries()){
 		if (unit >= firstUnit && unit < lastUnit){
 			let i = 0;
