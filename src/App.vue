@@ -141,7 +141,7 @@ function reduceEvents(){
 	idToEvent = eventsToKeep;
 }
 // For getting events from server
-const EVENT_REQ_LIMIT = 500;
+const EVENT_REQ_LIMIT = 300;
 let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
 	// For each scale, holds date ranges for which data has already been queried fromm the server
 let pendingReq = false; // Used to serialise event-req handling
@@ -170,27 +170,31 @@ async function onEventDisplay(
 	}
 	queriedRanges[scaleIdx].add([firstDate, lastDate]);
 	// Collect events
-	let added = false;
+	let eventAdded = false;
 	for (let eventObj of responseObj.events){
 		let event = jsonToHistEvent(eventObj);
 		let success = eventTree.value.insert(event);
 		if (success){
-			added = true;
+			eventAdded = true;
 			idToEvent.set(event.id, event);
 		}
 	}
 	// Collect unit counts
 	const unitCounts = responseObj.unitCounts;
-	for (let [unitStr, count] of Object.entries(unitCounts)){
-		let unit = parseInt(unitStr)
-		if (isNaN(unit)){
-			console.log('ERROR: Invalid non-integer unit value in server response');
-			break;
+	if (unitCounts == null){
+		console.log('WARNING: Exceeded unit-count limit for server query');
+	} else {
+		for (let [unitStr, count] of Object.entries(unitCounts)){
+			let unit = parseInt(unitStr)
+			if (isNaN(unit)){
+				console.log('WARNING: Invalid non-integer unit value in server response');
+				break;
+			}
+			unitCountMaps.value[scaleIdx].set(unit, count)
 		}
-		unitCountMaps.value[scaleIdx].set(unit, count)
 	}
 	// Notify components if new events were added
-	if (added){
+	if (eventAdded){
 		eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
 	}
 	// Check memory limit

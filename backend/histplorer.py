@@ -27,6 +27,7 @@ from hist_data.cal import gregorianToJdn, HistDate, dbDateToHistDate, dateToUnit
 
 DB_FILE = 'hist_data/data.db'
 MAX_REQ_EVENTS = 500
+MAX_REQ_UNIT_COUNTS = MAX_REQ_EVENTS
 DEFAULT_REQ_EVENTS = 20
 MAX_REQ_SUGGS = 50
 DEFAULT_REQ_SUGGS = 5
@@ -65,9 +66,9 @@ class Event:
 		return str(self.__dict__)
 class EventResponse:
 	""" Used when responding to type=events requests """
-	def __init__(self, events: list[Event], unitCounts: dict[int, int]):
+	def __init__(self, events: list[Event], unitCounts: dict[int, int] | None):
 		self.events = events
-		self.unitCounts = unitCounts
+		self.unitCounts = unitCounts # None indicates exceeding MAX_REQ_UNIT_COUNTS
 	# Used in unit testing
 	def __eq__(self, other):
 		return isinstance(other, EventResponse) and \
@@ -273,7 +274,7 @@ def eventEntryToResults(
 	#
 	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
 def lookupUnitCounts(
-		start: HistDate | None, end: HistDate | None, scale: int, dbCur: sqlite3.Cursor) -> dict[int, int]:
+		start: HistDate | None, end: HistDate | None, scale: int, dbCur: sqlite3.Cursor) -> dict[int, int] | None:
 	# Build query
 	query = 'SELECT unit, count FROM dist WHERE scale = ?'
 	params = [scale]
@@ -283,12 +284,12 @@ def lookupUnitCounts(
 	if end:
 		query += ' AND unit <= ?'
 		params.append(dateToUnit(end, scale))
-	query += ' ORDER BY unit ASC LIMIT ' + str(MAX_REQ_EVENTS)
+	query += ' ORDER BY unit ASC LIMIT ' + str(MAX_REQ_UNIT_COUNTS + 1)
 	# Get results
 	unitCounts: dict[int, int] = {}
 	for unit, count in dbCur.execute(query, params):
 		unitCounts[unit] = count
-	return unitCounts
+	return unitCounts if len(unitCounts) <= MAX_REQ_UNIT_COUNTS else None
 
 # For type=info
 def handleInfoReq(params: dict[str, str], dbCur: sqlite3.Cursor):

@@ -308,7 +308,7 @@ export type HistEventJson = {
 }
 export type EventResponseJson = {
 	events: HistEventJson[],
-	unitCounts: {[x: number]: number},
+	unitCounts: {[x: number]: number} | null,
 }
 export function jsonToHistDate(json: HistDateJson){
 	if (json.gcal == null){

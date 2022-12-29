@@ -15,6 +15,14 @@
 				<stop offset="95%" stop-color="gold"/>
 			</linearGradient>
 		</defs>
+		<!-- Event lines (dashed line indicates imprecise start date) -->
+		<line v-for="id in eventLines.keys()" :key="id"
+			x1="0" y1="0" :x2="eventLines.get(id)![2]" y2="0.01"
+			stroke="url('#eventLineGradient')" stroke-width="1px"
+			:stroke-dasharray="getEventPrecision(idToEvent.get(id)!) <= minorScale ? '' : '16,4'"
+			:style="eventLineStyles(id)" class="animate-fadein"/>
+			<!-- Note: With a fully vertical or horizontal line, nothing gets displayed -->
+			<!-- Note: Can't use :x2="1" with scaling in :style="", as it makes dashed-lines non-uniform -->
 		<!-- Main line (unit horizontal line that gets transformed, with extra length to avoid gaps when panning) -->
 		<line :stroke="store.color.alt" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
 		<!-- Tick markers -->
@@ -36,14 +44,6 @@
 			:fill="store.color.textDark" :style="tickLabelStyles(tick)" class="text-sm animate-fadein">
 			{{tick.date.toDisplayString()}}
 		</text>
-		<!-- Event lines (dashed line indicates imprecise start date) -->
-		<line v-for="id in eventLines.keys()" :key="id"
-			x1="0" y1="0" :x2="eventLines.get(id)![2]" y2="0.01"
-			stroke="url('#eventLineGradient')" stroke-width="1px"
-			:stroke-dasharray="getEventPrecision(idToEvent.get(id)!) <= minorScale ? '' : '16,4'"
-			:style="eventLineStyles(id)" class="animate-fadein"/>
-			<!-- Note: With a fully vertical or horizontal line, nothing gets displayed -->
-			<!-- Note: Can't use :x2="1" with scaling in :style="", as it makes dashed-lines non-uniform -->
 	</svg>
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
