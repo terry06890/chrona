@@ -9,7 +9,7 @@ TEST_DUMP_FILE = os.path.join(os.path.dirname(__file__), 'sample_enwiki_pages_ar
 class TestGetInputPageIdsFromDb(unittest.TestCase):
 	def test_get(self):
 		with tempfile.TemporaryDirectory() as tempDir:
-			# Create temp tree-of-life db
+			# Create temp history db
 			dbFile = os.path.join(tempDir, 'data.db')
 			createTestDbTable(
 				dbFile,
@@ -24,19 +24,6 @@ class TestGetInputPageIdsFromDb(unittest.TestCase):
 					(5, 'Marie Curie', 2403277, None, 2427622, None, 2, 'human'),
 				}
 			)
-			# Create temp pageviews db
-			pageviewDb = os.path.join(tempDir, 'pageview_data.db')
-			createTestDbTable(
-				pageviewDb,
-				'CREATE TABLE views (title TEXT PRIMARY KEY, id INT, views INT)',
-				'INSERT INTO views VALUES (?, ?, ?)',
-				{
-					('George Washington', 2, 8),
-					('Marie Curie', 5, 10),
-					('Douglas Adams', 3, 5),
-					('Belgium', 1, 100),
-				}
-			)
 			# Create temp dump-index db
 			indexDb = os.path.join(tempDir, 'dump_index.db')
 			createTestDbTable(
@@ -46,15 +33,15 @@ class TestGetInputPageIdsFromDb(unittest.TestCase):
 				{
 					('Belgium',10,0,-1),
 					('George Washington',20,0,-1),
-					('Douglas Adamns',30,0,-1),
+					('Douglas Adams',30,0,-1),
 					('Marie Curie',50,0,-1),
 					('Autism',25,0,-1),
 				}
 			)
 			# Run
-			pageIds = getInputPageIdsFromDb(dbFile, pageviewDb, indexDb, 2)
+			pageIds = getInputPageIdsFromDb(dbFile, indexDb)
 			# Check
-			self.assertEqual(pageIds, {50, 20, 10})
+			self.assertEqual(pageIds, {10, 20, 30, 50})
 
 class TestGenData(unittest.TestCase):
 	def test_gen(self):

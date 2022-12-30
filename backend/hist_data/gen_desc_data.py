@@ -16,10 +16,9 @@ def genData(enwikiDb: str, dbFile: str) -> None:
 	dbCur = dbCon.cursor()
 	dbCur.execute('CREATE TABLE descs (id INT PRIMARY KEY, wiki_id INT, desc TEXT)')
 	#
-	print('Getting events with images')
+	print('Getting events')
 	titleToId: dict[str, int] = {}
-	query = 'SELECT events.id, events.title FROM events INNER JOIN event_imgs ON events.id = event_imgs.id'
-	for eventId, title in dbCur.execute(query):
+	for eventId, title in dbCur.execute('SELECT id, title FROM events'):
 		titleToId[title] = eventId
 	#
 	print('Getting Wikipedia descriptions')

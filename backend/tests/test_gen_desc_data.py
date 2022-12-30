@@ -18,7 +18,6 @@ class TestGenData(unittest.TestCase):
 					(3, 'III'),
 					(4, 'IV'),
 					(5, 'V'),
-					(6, 'VI'),
 				}
 			)
 			createTestDbTable(
@@ -38,7 +37,6 @@ class TestGenData(unittest.TestCase):
 					(3, 'Three'),
 					(4, 'Four'),
 					(5, 'Five'),
-					(6, 'Six'),
 				}
 			)
 			# Create temp history db
@@ -53,17 +51,6 @@ class TestGenData(unittest.TestCase):
 					(20, 'II', 200, None, None, None, 0, 'discovery'),
 					(30, 'III', 300, None, 350, None, 0, 'event'),
 					(50, 'V', 5, 10, None, None, 1, 'human'),
-					(60, 'VI', 6000, None, None, None, None, 'event'),
-				}
-			)
-			createTestDbTable(
-				dbFile,
-				'CREATE TABLE event_imgs (id INT PRIMARY KEY, img_id INT)',
-				'INSERT INTO event_imgs VALUES (?, ?)',
-				{
-					(10, 100),
-					(30, 300),
-					(50, 500),
 				}
 			)
 			# Run

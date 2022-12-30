@@ -38,7 +38,7 @@ This directory holds files obtained/derived from [English Wikipedia](https://en.
     Used to download licensing metadata for image names, via wikipedia's online API, and store them into a database.
 -   `img_data.db` <br>
     Used to hold metadata about infobox images for a set of page IDs.
-    Generated using `get_enwiki_img_data.py` and `download_img_license_info.py`. <br>
+    Generated using `gen_img_data.py` and `download_img_license_info.py`. <br>
     Tables: <br>
     -   `page_imgs`: `page_id INT PRIMARY KEY, title TEXT UNIQUE, img_name TEXT` <br>
         `img_name` may be NULL, which means 'none found', and is used to avoid re-processing page IDs.
