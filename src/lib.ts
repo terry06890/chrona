@@ -80,6 +80,7 @@ export function getDaysInMonth(year: number, month: number){
 
 // For date representation
 export const MIN_CAL_YEAR = -4713; // Earliest year where months/day scales are usable
+export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 export class HistDate {
 	gcal: boolean | null;
 	year: number;
@@ -161,40 +162,44 @@ export class HistDate {
 			return `${this.year}`;
 		}
 	}
+	toYearString(){
+		if (this.year >= 1000){
+			return String(this.year);
+		} else if (this.year > 0){
+			return String(this.year) + ' AD';
+		} else if (this.year > -1e3){
+			return String(-this.year) + ' BC';
+		} else if (this.year > -1e6){
+			if (this.year % 1e3 == 0){
+				return String(Math.floor(-this.year / 1e3)) + 'k BC';
+			} else if (this.year % 100 == 0){
+				return String(Math.floor(-this.year / 100) / 10) + 'k BC';
+			} else {
+				return String(-this.year) + ' BC';
+			}
+		} else if (this.year > -1e9){
+			if (this.year % 1e6 == 0){
+				return String(Math.floor(-this.year / 1e6)) + ' mya';
+			} else if (this.year % 1e3 == 0){
+				return String(Math.floor(-this.year / 1e3) / 1e3) + ' mya';
+			} else {
+				return String(this.year.toLocaleString());
+			}
+		} else {
+			if (this.year % 1e9 == 0){
+				return String(Math.floor(-this.year / 1e9)) + ' bya';
+			} else if (this.year % 1e6 == 0){
+				return String(Math.floor(-this.year / 1e6) / 1e3) + ' bya';
+			} else {
+				return String(this.year.toLocaleString());
+			}
+		}
+	}
 	toDisplayString(){
 		if (this.month == 1 && this.day == 1){
-			if (this.year > 0){
-				return String(this.year);
-			} else if (this.year > -1e3){
-				return String(-this.year) + ' BC';
-			} else if (this.year > -1e6){
-				if (this.year % 1e3 == 0){
-					return String(Math.floor(-this.year / 1e3)) + 'k BC';
-				} else if (this.year % 100 == 0){
-					return String(Math.floor(-this.year / 100) / 10) + 'k BC';
-				} else {
-					return String(-this.year) + ' BC';
-				}
-			} else if (this.year > -1e9){
-				if (this.year % 1e6 == 0){
-					return String(Math.floor(-this.year / 1e6)) + ' mya';
-				} else if (this.year % 1e3 == 0){
-					return String(Math.floor(-this.year / 1e3) / 1e3) + ' mya';
-				} else {
-					return String(-this.year.toLocaleString());
-				}
-			} else {
-				if (this.year % 1e9 == 0){
-					return String(Math.floor(-this.year / 1e9)) + ' bya';
-				} else if (this.year % 1e6 == 0){
-					return String(Math.floor(-this.year / 1e6) / 1e3) + ' bya';
-				} else {
-					return String(this.year.toLocaleString());
-				}
-			}
+			return this.toYearString();
 		} else if (this.day == 1){
-			const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-			return monthNames[this.month - 1];
+			return MONTH_NAMES[this.month - 1];
 		} else {
 			if (this.day == 1){
 				return '1st';

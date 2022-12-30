@@ -54,6 +54,10 @@
 			{{idToEvent.get(id)!.title}}
 		</div>
 	</div>
+	<!-- Timeline position label -->
+	<div class="absolute top-2 left-2 z-20 text-lg text-stone-50">
+		{{timelinePosStr}}
+	</div>
 	<!-- Buttons -->
 	<icon-button v-if="closeable" :size="30" class="absolute top-2 right-2 z-20"
 		:style="{color: store.color.text, backgroundColor: store.color.altDark2}"
@@ -70,7 +74,7 @@ import IconButton from './IconButton.vue';
 // Icons
 import CloseIcon from './icon/CloseIcon.vue';
 // Other
-import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MIN_CAL_DATE,
+import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MONTH_NAMES, MIN_CAL_DATE,
 	getDaysInMonth, HistDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
 	getEventPrecision, dateToUnit,
 	moduloPositive, TimelineState, HistEvent, getImagePath} from '../lib';
@@ -387,6 +391,21 @@ const lastIdx = computed((): number => { // Index of last major tick before whic
 	return idx;
 });
 const lastDate = computed(() => lastIdx.value < 0 ? endDate.value : ticks.value[lastIdx.value]!.date);
+const startIsFirstVisible = computed(() => {
+	if (ticks.value.length == 0){
+		return true;
+	} else {
+		return ticks.value.find((tick: Tick) => tick.offset >= 0)!.date.equals(startDate.value);
+	}
+});
+const endIsLastVisible = computed(() => {
+	if (ticks.value.length == 0){
+		return true;
+	} else {
+		let numUnits = getNumDisplayUnits();
+		return ticks.value.findLast((tick: Tick) => tick.offset <= numUnits)!.date.equals(endDate.value);
+	}
+});
 
 // For displayed events
 function dateToOffset(date: HistDate){ // Assumes 'date' is >=firstDate and <=lastDate
@@ -669,6 +688,25 @@ const tickToCount = computed((): Map<number, number> => {
 		}
 	}
 	return tickToCount;
+});
+
+// For timeline position label
+const timelinePosStr = computed((): string => {
+	const date1 = startIsFirstVisible.value ? startDate.value : firstDate.value;
+	const date2 = endIsLastVisible.value ? endDate.value : lastDate.value;
+	if (minorScale.value == DAY_SCALE){
+		const multiMonth = date1.month != date2.month;
+		return `${date1.toYearString()} ${MONTH_NAMES[date1.month - 1]}${multiMonth ? ' >' : ''}`;
+	} else if (minorScale.value == MONTH_SCALE){
+		const multiYear = date1.year != date2.year;
+		return `${date1.toYearString()}${multiYear ? ' >' : ''}`;
+	} else {
+		if (date1.year > 0){
+			return `${date1.toYearString()} - ${date2.toYearString()}`;
+		} else {
+			return `${date1.toYearString()} >`;
+		}
+	}
 });
 
 // For panning/zooming
