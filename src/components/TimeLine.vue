@@ -1100,7 +1100,7 @@ function onShiftWheel(evt: WheelEvent){
 // For bound-change signalling
 function onStateChg(){
 	emit('state-chg', new TimelineState(
-		ID, firstDate.value, lastDate.value, startOffset.value, endOffset.value, scaleIdx.value
+		ID, startDate.value, endDate.value, startOffset.value, endOffset.value, scaleIdx.value
 	));
 }
 watch(firstDate, onStateChg);
