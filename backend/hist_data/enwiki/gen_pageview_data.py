@@ -36,9 +36,13 @@ def genData(pageviewFiles: list[str], dumpIndexDb: str, dbFile: str) -> None:
 				if not line.startswith(linePrefix):
 					continue
 				# Get second and second-last fields
-				line = line[len(linePrefix):line.rfind(b' ')] # Remove first and last fields
-				title = line[:line.find(b' ')].decode('utf-8')
-				viewCount = int(line[line.rfind(b' ')+1:])
+				linePart = line[len(linePrefix):line.rfind(b' ')] # Remove first and last fields
+				title = linePart[:linePart.find(b' ')].decode('utf-8')
+				try:
+					viewCount = int(linePart[linePart.rfind(b' ')+1:])
+				except ValueError:
+					print(f'Unable to read count in line {lineNum}: {line}')
+					continue
 				if namespaceRegex.match(title) is not None:
 					continue
 				# Update map

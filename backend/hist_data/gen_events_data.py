@@ -59,6 +59,8 @@ Info about objects with type 'quantity' can be found at: https://www.wikidata.or
 # - Using pool.map() instead of pool.imap_unordered(), which seems to hang in some cases (was using python 3.8).
 #   Possibly related: https://github.com/python/cpython/issues/72882
 
+# Took about 4.5 hours to run
+
 # Code used in unit testing (for resolving imports of modules within this directory)
 import os, sys
 parentDir = os.path.dirname(os.path.realpath(__file__))

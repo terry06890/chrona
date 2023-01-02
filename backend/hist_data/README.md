@@ -44,7 +44,6 @@ Some of the scripts use third-party packages:
 -   `indexed_bzip2`: For parallelised bzip2 processing
 -   `mwxml`, `mwparserfromhell`: For parsing Wikipedia dumps
 -   `requests`: For downloading data
--   `Pillow`: For image processing
 
 ## Generate Event Data
 1.  Obtain a Wikidata JSON dump in wikidata/, as specified in it's README.
