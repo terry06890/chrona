@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 
 """
-Adds data from the wiki dump index-file into a database
+Adds data from the wiki-dump index-file into a database
 """
+
+import argparse
 import sys, os, re
-import bz2
-import sqlite3
+import bz2, sqlite3
 
 INDEX_FILE = 'enwiki-20220501-pages-articles-multistream-index.txt.bz2' # Had about 22e6 lines
 DB_FILE = 'dump_index.db'
@@ -53,7 +54,6 @@ def genData(indexFile: str, dbFile: str) -> None:
 	dbCon.close()
 
 if __name__ == '__main__':
-	import argparse
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	parser.parse_args()
 	#

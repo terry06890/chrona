@@ -1,15 +1,18 @@
 #!/usr/bin/python3
 
 """
-Adds data about event distribution to the database, and removes events not eligible for display.
+Adds data about event distribution to the database,
+and removes events not eligible for display
 """
 
-# Enable unit testing code to, when running this script, resolve imports of modules within this directory
+# Code used in unit testing (for resolving imports of modules within this directory)
 import os, sys
 parentDir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(parentDir)
-
+# Standard imports
+import argparse
 import sqlite3
+# Local imports
 from cal import SCALES, dbDateToHistDate, dateToUnit
 
 MAX_DISPLAYED_PER_UNIT = 4
@@ -62,8 +65,8 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
 				del scaleUnitToCounts[(scale, unit)]
 			else:
 				scaleUnitToCounts[(scale, unit)][0] = count
-	query2 = 'SELECT events.id FROM events LEFT JOIN pop ON events.id = pop.id WHERE pop.id IS NULL'
-	for (eventId,) in dbCur.execute(query2): # Include events without scores
+	for (eventId,) in dbCur.execute( # Find events without scores
+		'SELECT events.id FROM events LEFT JOIN pop ON events.id = pop.id WHERE pop.id IS NULL'):
 		eventsToDel.append(eventId)
 	print(f'Found {len(eventsToDel)}')
 	#
@@ -91,7 +94,6 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
 	dbCon.close()
 
 if __name__ == '__main__':
-	import argparse
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	args = parser.parse_args()
 	#

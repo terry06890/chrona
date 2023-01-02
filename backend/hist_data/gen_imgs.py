@@ -10,9 +10,9 @@ processing. It uses already-existing database entries to decide what
 to skip.
 """
 
-import os, math, subprocess
+import argparse
+import os, math, subprocess, signal
 import sqlite3, urllib.parse
-import signal
 from PIL import Image
 
 IMG_DIR = os.path.join('enwiki', 'imgs')
@@ -147,7 +147,6 @@ def convertImage(imgPath: str, outPath: str):
 	return True
 
 if __name__ == '__main__':
-	import argparse
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	parser.parse_args()
 	#

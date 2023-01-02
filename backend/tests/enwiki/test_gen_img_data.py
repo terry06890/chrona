@@ -17,11 +17,11 @@ class TestGetInputPageIdsFromDb(unittest.TestCase):
 					'start INT, start_upper INT, end INT, end_upper INT, fmt INT, ctg TEXT)',
 				'INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
 				{
-					(1, 'Belgium', 2389729, None, None, None, 2, 'country'),
-					(2, 'George Washington', 2353711, None, 2378478, None, 2, 'human'),
-					(3, 'Douglas Adams', 2434082, None, 2452040, None, 2, 'human'),
-					(4, 'World War II', 2429507, None, 2431700, None, 2, 'event'),
-					(5, 'Marie Curie', 2403277, None, 2427622, None, 2, 'human'),
+					(1, 'Belgium', 2389729, None, None, None, 1, 'country'),
+					(2, 'George Washington', 2353711, None, 2378478, None, 1, 'human'),
+					(3, 'Douglas Adams', 2434082, None, 2452040, None, 1, 'human'),
+					(4, 'World War II', 2429507, None, 2431700, None, 1, 'event'),
+					(5, 'Marie Curie', 2403277, None, 2427622, None, 1, 'human'),
 				}
 			)
 			# Create temp dump-index db

@@ -150,7 +150,7 @@ export class HistDate {
 	}
 	getYearDiff(other: HistDate){
 		let yearDiff = Math.abs(this.year - other.year);
-		if (this.year * other.year < 0){ // Account for no 0 CE
+		if (this.year * other.year < 0){ // Account for no 0 AD
 			yearDiff -= 1;
 		}
 		return yearDiff;
@@ -418,7 +418,7 @@ export function stepDate( // If stepping by month or years, leaves day value unc
 			let newYear;
 			if (forward){
 				newYear = newDate.year + count*scale;
-				if (newYear == 0){ // Account for there being no 0 CE
+				if (newYear == 0){ // Account for there being no 0 AD
 					newYear = 1;
 				} else if (newDate.year == 1 && scale > 1){
 					newYear -= 1;
@@ -471,7 +471,7 @@ export function getNumSubUnits(date: HistDate, scaleIdx: number){
 	} else if (scale == 1){
 		return 12;
 	} else {
-		return scale / SCALES[scaleIdx + 1] - (date.year == 1 ? 1 : 0); // Account for lack of 0 CE
+		return scale / SCALES[scaleIdx + 1] - (date.year == 1 ? 1 : 0); // Account for lack of 0 AD
 	}
 }
 export function getUnitDiff(date: HistDate, date2: HistDate, scale: number): number {

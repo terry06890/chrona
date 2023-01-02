@@ -8,15 +8,15 @@ The program can be re-run with an updated set of page IDs, and
 will skip already-processed page IDs.
 """
 
-import re
-import os, bz2, html, urllib.parse
+import os, re
+import bz2, html, urllib.parse
 import sqlite3
 
 DUMP_FILE = 'enwiki-20220501-pages-articles-multistream.xml.bz2'
 INDEX_DB = 'dump_index.db'
 IMG_DB = 'img_data.db' # The database to create
 DB_FILE = os.path.join('..', 'data.db')
-#
+# Regexps
 ID_LINE_REGEX = re.compile(r'<id>(.*)</id>')
 IMG_LINE_REGEX = re.compile(r'.*\| *image *= *([^|]*)')
 BRACKET_IMG_REGEX = re.compile(r'\[\[(File:[^|]*).*]]')
@@ -33,7 +33,7 @@ def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
 	if imgDbCur.execute('SELECT name FROM sqlite_master WHERE type="table" AND name="page_imgs"').fetchone() is None:
 		# Create tables if not present
 		imgDbCur.execute('CREATE TABLE page_imgs (page_id INT PRIMARY KEY, title TEXT UNIQUE, img_name TEXT)')
-			# 'img_name' may be NULL
+			# 'img_name' values are set to NULL to indicate page IDs where no image was found
 		imgDbCur.execute('CREATE INDEX page_imgs_idx ON page_imgs(img_name)')
 	else:
 		# Check for already-processed page IDs

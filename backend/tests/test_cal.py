@@ -30,8 +30,8 @@ class TestCal(unittest.TestCase):
 		self.assertEqual(julianToGregorian(1616, 4, 23), (1616, 5, 3))
 	def test_db_to_hist_date(self):
 		self.assertEqual(dbDateToHistDate(2001, 0), HistDate(True, 2001, 1, 1))
-		self.assertEqual(dbDateToHistDate(1721455, 1), HistDate(False, 1, 2, 1))
-		self.assertEqual(dbDateToHistDate(1356438, 2), HistDate(True, -1000, 9, 13))
+		self.assertEqual(dbDateToHistDate(1356438, 1), HistDate(True, -1000, 9, 13))
+		self.assertEqual(dbDateToHistDate(1721455, 2), HistDate(False, 1, 2, 1))
 		self.assertEqual(dbDateToHistDate(2268942, 3, False), HistDate(False, 1500, 1, 10))
 		self.assertEqual(dbDateToHistDate(2268933, 3, True), HistDate(True, 1500, 1, 10))
 	def test_date_to_unit(self):

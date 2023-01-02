@@ -7,14 +7,14 @@ and adds them to a database
 
 # In testing, this script took over 10 hours to run, and generated about 5GB
 
+import argparse
 import sys, os, re
-import bz2
-import html, mwxml, mwparserfromhell
+import bz2, html, mwxml, mwparserfromhell
 import sqlite3
 
 DUMP_FILE = 'enwiki-20220501-pages-articles-multistream.xml.bz2' # Had about 22e6 pages
 DB_FILE = 'desc_data.db'
-
+# Regexps
 DESC_LINE_REGEX = re.compile('^ *[A-Z\'"]')
 EMBEDDED_HTML_REGEX = re.compile(r'<[^<]+/>|<!--[^<]+-->|<[^</]+>([^<]*|[^<]*<[^<]+>[^<]*)</[^<]+>|<[^<]+$')
 	# Recognises a self-closing HTML tag, a tag with 0 children, tag with 1 child with 0 children, or unclosed tag
@@ -119,7 +119,6 @@ def convertTitle(title: str) -> str:
 	return html.unescape(title).replace('_', ' ')
 
 if __name__ == '__main__':
-	import argparse
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	parser.parse_args()
 	#

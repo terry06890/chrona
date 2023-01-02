@@ -1,4 +1,4 @@
-This directory holds data for additional events
+This directory holds data for additional manually-picked events.
 
 Files
 =====

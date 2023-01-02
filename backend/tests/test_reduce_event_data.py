@@ -18,7 +18,7 @@ class TestReduceData(unittest.TestCase):
 				{
 					(1, 'event one', 1900, None, None, None, 0, 'event'),
 					(2, 'event two', 2452594, None, 2455369, None, 3, 'human'), # 2/11/2002
-					(3, 'event three', 2448175, 2448200, None, None, 2, 'discovery'), # 10/10/1990
+					(3, 'event three', 2448175, 2448200, None, None, 1, 'discovery'), # 10/10/1990
 					(4, 'event four', 1900, None, None, None, 0, 'event'), # Copy of 1
 					(5, 'event five', 2452595, None, 2455369, None, 3, 'human'), # Day after 2
 				}

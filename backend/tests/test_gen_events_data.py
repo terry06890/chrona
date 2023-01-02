@@ -1,6 +1,6 @@
 import unittest
 import tempfile, os, json, bz2, pickle, indexed_bzip2
-
+# Local imports
 from tests.common import readTestDbTable
 from hist_data.gen_events_data import genData
 
@@ -115,6 +115,7 @@ class TestGenData(unittest.TestCase):
 				'id': 'Q6',
 				'claims': {
 					'P31': [{'mainsnak': {'datavalue': {'value': {'id': 'Q7725634'}}}}], # 'instance of' 'literary work'
+					'P170': [{'mainsnak': {'datavalue': {'value': {'id': 'Q180'}}}}], # 'creator'
 					'P1319': [{'mainsnak': {'datavalue': {'type': 'time', 'value': { # 'earliest date'
 						'time':'-0020-08-01T00:00:00Z',
 						'precision':11, # day precision
@@ -132,6 +133,7 @@ class TestGenData(unittest.TestCase):
 				'id': 'Q7',
 				'claims': {
 					'P31': [{'mainsnak': {'datavalue': {'value': {'id': 'Q11424'}}}}], # 'instance of' 'film'
+					'P136': [{'mainsnak': {'datavalue': {'value': {'id': 'Q157394'}}}}], # 'genre'
 					'P577': [{'mainsnak': {'datavalue': {'type': 'time', 'value': { # 'publication date'
 						'time':'-2103-00-00T00:00:00Z',
 						'precision':7, # century precision
@@ -144,18 +146,24 @@ class TestGenData(unittest.TestCase):
 				'id': 'Q8',
 				'claims': {
 					'P31': [{'mainsnak': {'datavalue': {'value': {'id': 'Q16521'}}}}], # 'instance of' 'taxon'
-				}
-				# No title
+					'P571': [{'mainsnak': {'datavalue': {'type': 'time', 'value': { # 'inception'
+						'time':'-400000000-00-00T00:00:01Z',
+						'precision':1, # hundred million years precision
+						'calendarmodel':'http://www.wikidata.org/entity/Q1985727' # 'proleptic gregorian calendar'
+					}}}}],
+				},
+				'sitelinks': {'enwiki': {'title': 'organism one'}},
 			},
 		]
 		self.expectedRows = {
-			(1, 'event one', 2433617, 2433647, None, None, 2, 'event'),
-			(2, 'Human One', 2452594, None, 2455369, None, 3, 'human'),
-			(3, 'country one', -1001, None, -99, None, 0, 'country'),
-			(4, 'country two', -9000, -7000, None, None, 0, 'country'),
+			(1, 'event one', 2433617, 2433647, None, None, 1, 'event'),
+			(2, 'Human One', 2452594, None, 2455369, None, 3, 'person'),
+			(3, 'country one', -1001, None, -99, None, 0, 'place'),
+			(4, 'country two', -9000, -7000, None, None, 0, 'place'),
 			(5, 'discovery one', 1, 1000, None, None, 0, 'discovery'),
-			(6, 'media one', 1714331, None, 1714362, None, 1, 'media'),
-			(7, 'media two', -2199, -2100, None, None, 0, 'media'),
+			(6, 'media one', 1714331, None, 1714362, None, 2, 'work'),
+			(7, 'media two', -2199, -2100, None, None, 0, 'work'),
+			(8, 'organism one', -400000000, -300000001, None, None, 0, 'organism'),
 		}
 	def test_wikiItems(self):
 		rows = runGenData(self.testWikiItems, False, 1)

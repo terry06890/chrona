@@ -2,8 +2,8 @@
 
 """
 Reads a Wikidata JSON dump, looking for entities usable as historical events.  For each such
-entity, finds a start date (may be a range), optional end date, and event category (eg: normal
-event, person with birth/death date, country, etc).  Writes the results into a database.
+entity, finds a start date (may be a range), optional end date, and event category (eg: discovery,
+person with birth/death date, etc).  Writes the results into a database.
 
 The JSON dump contains an array of objects, each of which describes a Wikidata item item1,
 and takes up it's own line.
@@ -12,11 +12,11 @@ and takes up it's own line.
 - Getting a property statement value: item1['claims'][prop1][idx1]['mainsnak']['datavalue']
 	'idx1' indexes an array of statements
 
-Value objects have a 'type' and 'value' field.
+'datavalue' objects have a 'type' and 'value' field.
 Info about objects with type 'time' can be found at: https://www.wikidata.org/wiki/Help:Dates
 	An example:
 		{"value":{
-			"time":"+1830-10-04T00:00:00Z", # The year is always signed and padded to 4-16 digits (-0001 means 1 BCE)
+			"time":"+1830-10-04T00:00:00Z", # The year is always signed and padded to 4-16 digits (-0001 means 1 BC)
 			"timezone":0, # Unused
 			"before":0,   # Unused
 			"after":0,    # Unused
@@ -52,30 +52,31 @@ Info about objects with type 'quantity' can be found at: https://www.wikidata.or
 		"http://www.wikidata.org/entity/Q524410"   - gigaannum (1e9 yrs)
 """
 
-# On Linux, running on the full dataset seems to make the processes hang when done. This was resolved by:
-# - Storing subprocess results in temp files. Apparently passing large objects through pipes can cause deadlock.
-# - Using set_start_method('spawn'). Apparently 'fork' can cause unexpected copying of lock/semaphore/etc state.
+# On Linux, running on the full dataset seems to make the processes hang when done.  This was resolved by:
+# - Storing subprocess results in temp files.  Apparently passing large objects through pipes can cause deadlock.
+# - Using set_start_method('spawn').  Apparently 'fork' can cause unexpected copying of lock/semaphore/etc state.
 #   Related: https://bugs.python.org/issue6721
 # - Using pool.map() instead of pool.imap_unordered(), which seems to hang in some cases (was using python 3.8).
 #   Possibly related: https://github.com/python/cpython/issues/72882
 
-# Enable unit testing code to, when running this script, resolve imports of modules within this directory
+# Code used in unit testing (for resolving imports of modules within this directory)
 import os, sys
 parentDir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(parentDir)
+# Standard imports
+import argparse
+import math, re
+import io, bz2, json, sqlite3
+import indexed_bzip2, pickle, multiprocessing, tempfile
+# Local imports
+from cal import gregorianToJdn, julianToJdn, MIN_CAL_YEAR
 
-import io, math, re, argparse
-import bz2, json, sqlite3
-import multiprocessing, indexed_bzip2, pickle, tempfile
-# Modules in this directory
-from cal import gregorianToJdn, julianToJdn
-
+# Constants
 WIKIDATA_FILE = os.path.join('wikidata', 'latest-all.json.bz2')
 DUMP_YEAR = 2022 # Used for converting 'age' values into dates
 OFFSETS_FILE = os.path.join('wikidata', 'offsets.dat')
 DB_FILE = 'data.db'
-N_PROCS = 6
-
+N_PROCS = 6 # Number of processes to use
 # For getting Wikidata entity IDs
 INSTANCE_OF = 'P31'
 EVENT_CTG: dict[str, dict[str, str]] = {
@@ -91,30 +92,32 @@ EVENT_CTG: dict[str, dict[str, str]] = {
 		'recurring event': 'Q15275719',
 		'event sequence': 'Q15900616',
 		'incident': 'Q18669875',
+		'project': 'Q170584',
+		'number of deaths': 'P1120',
 	},
-	'human': {
-		'human': 'Q5',
-	},
-	'country': {
+	'place': {
 		'country': 'Q6256',
 		'state': 'Q7275',
 		'sovereign state': 'Q3624078',
+		'city': 'Q515',
+		'tourist attraction': 'Q570116',
+		'heritage site': 'Q358',
+		'terrestrial planet': 'Q128207',
+		'navigational star': 'Q108171565',
+		'G-type main-sequence star': 'Q5864',
+	},
+	'organism': {
+		'taxon': 'Q16521',
+	},
+	'person': {
+		'human': 'Q5',
+	},
+	'work': {
+		'creator': 'P170',
+		'genre': 'P136',
 	},
 	'discovery': {
 		'time of discovery or invention': 'P575',
-	},
-	'media': {
-		'work of art': 'Q4502142',
-		'literary work': 'Q7725634',
-		'comic book series': 'Q14406742',
-		'painting': 'Q3305213',
-		'musical work/composition': 'Q105543609',
-		'film': 'Q11424',
-		'animated film': 'Q202866',
-		'television series': 'Q16401',
-		'anime television series': 'Q63952888',
-		'video game': 'Q7889',
-		'video game series': 'Q7058673',
 	},
 }
 ID_TO_CTG = {id: ctg for ctg, nmToId in EVENT_CTG.items() for name, id in nmToId.items()}
@@ -148,14 +151,14 @@ PROP_RULES: list[tuple[str] | tuple[str, str] | tuple[str, str, bool]] = [
 	('time of discovery or invention',),
 	('publication date',),
 ]
-UNIT_TO_SCALE: dict[str, int] = { # Maps 'unit' values (found in type=quantity value objects) to numbers of years
+UNIT_TO_SCALE: dict[str, int] = {
+	# Maps 'unit' values (found in 'datavalue' objects with type=quantity) to numbers of years
 	'http://www.wikidata.org/entity/Q577':          1, # 'year'
 	'http://www.wikidata.org/entity/Q24564698':     1, # 'years old'
 	'http://www.wikidata.org/entity/Q3013059':  10**3, # 'kiloannum' (1e3 yrs)
 	'http://www.wikidata.org/entity/Q20764':    10**6, # 'megaannum' (1e6 yrs)
 	'http://www.wikidata.org/entity/Q524410':   10**9, # 'gigaannum' (1e9 yrs)
 }
-
 # For filtering lines before parsing JSON
 TYPE_ID_REGEX = ('"id":(?:"' + '"|"'.join([id for id in ID_TO_CTG if id.startswith('Q')]) + '")').encode()
 PROP_ID_REGEX = ('(?:"' + '"|"'.join([id for id in ID_TO_CTG if id.startswith('P')]) + '"):\[{"mainsnak"').encode()
@@ -183,12 +186,12 @@ def genData(wikidataFile: str, offsetsFile: str, dbFile: str, nProcs: int) -> No
 						# The 'OR IGNORE' is for a few entries that share the same title (and seem like redirects)
 	else:
 		if not os.path.exists(offsetsFile):
-			print('Creating offsets file') # For indexed access for multiprocessing (creation took about 6.7 hours)
+			print('Creating offsets file') # For indexed access used in multiprocessing (may take about 7 hours)
 			with indexed_bzip2.open(wikidataFile) as file:
 				with open(offsetsFile, 'wb') as file2:
 					pickle.dump(file.block_offsets(), file2)
 		print('Allocating file into chunks')
-		fileSz: int # About 1.4 TB
+		fileSz: int # Was about 1.4 TB
 		with indexed_bzip2.open(wikidataFile) as file:
 			with open(offsetsFile, 'rb') as file2:
 				file.set_block_offsets(pickle.load(file2))
@@ -206,15 +209,15 @@ def genData(wikidataFile: str, offsetsFile: str, dbFile: str, nProcs: int) -> No
 						chunkIdxs[i], chunkIdxs[i+1]) for i in range(nProcs)]):
 					# Add entries from subprocess output file
 					with open(outFile, 'rb') as file:
-						for entry in pickle.load(file):
-							dbCur.execute('INSERT OR IGNORE INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)', entry)
+						for item in pickle.load(file):
+							dbCur.execute('INSERT OR IGNORE INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)', item)
 	dbCon.commit()
 	dbCon.close()
 
 # For data extraction
 def readDumpLine(lineBytes: bytes) -> tuple[int, str, int, int | None, int | None, int | None, int, str] | None:
 	""" Parses a Wikidata dump line, returning an entry to add to the db """
-	# Check with regex
+	# Check with regexes
 	if re.search(TYPE_ID_REGEX, lineBytes) is None and re.search(PROP_ID_REGEX, lineBytes) is None:
 		return None
 	# Decode
@@ -283,7 +286,7 @@ def readDumpLine(lineBytes: bytes) -> tuple[int, str, int, int | None, int | Non
 	#
 	return (itemId, itemTitle, start, startUpper, end, endUpper, timeFmt, eventCtg)
 def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int | None, int | None, int] | None:
-	""" Obtains event start+end data from value objects with type 'time', according to 'timeType' """
+	""" Obtains event start+end data from 'datavalue' objects with type 'time', according to 'timeType' """
 	# Values to return
 	start: int
 	startUpper: int | None = None
@@ -317,7 +320,7 @@ def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int |
 		else:
 			start = DUMP_YEAR - upperBound * scale
 			startUpper = DUMP_YEAR - lowerBound * scale
-		# Account for non-existence of 0 CE
+		# Account for non-existence of 0 AD
 		if start <= 0:
 			start -= 1
 		if startUpper is not None and startUpper <= 0:
@@ -342,7 +345,7 @@ def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int |
 			return None
 		end, _, timeFmt2 = endTimeVals
 		if timeFmt != timeFmt2:
-			if timeFmt == 1 and timeFmt2 == 2:
+			if timeFmt == 2 and timeFmt2 == 1:
 				timeFmt = 3
 			else:
 				return None
@@ -359,13 +362,13 @@ def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int |
 				return None
 			end, endUpper, timeFmt2 = endTimeVals
 			if timeFmt != timeFmt2:
-				if timeFmt == 1 and timeFmt2 == 2:
+				if timeFmt == 2 and timeFmt2 == 1:
 					timeFmt = 3
 				else:
 					return None
 	return start, startUpper, end, endUpper, timeFmt
 def getEventTime(dataVal) -> tuple[int, int | None, int] | None:
-	""" Obtains event start (or end) data from a value object with type 'time' """
+	""" Obtains event start (or end) data from a 'datavalue' object with type 'time' """
 	if 'type' not in dataVal or dataVal['type'] != 'time':
 		return None
 	# Get time data
@@ -385,20 +388,20 @@ def getEventTime(dataVal) -> tuple[int, int | None, int] | None:
 	startUpper: int | None = None
 	timeFmt: int
 	if precision in [10, 11]: # 'month' or 'day' precision
-		if year < -4713: # If before 4713 BCE (start of valid julian date period)
-			print(f'WARNING: Skipping sub-year-precision date before 4713 BCE: {json.dumps(dataVal)}')
+		if year < MIN_CAL_YEAR: # If before start of valid julian date period
+			print(f'WARNING: Skipping sub-year-precision date before {-MIN_CAL_YEAR} BC: {json.dumps(dataVal)}')
 			return None
 		day = max(day, 1) # With month-precision, entry may have a 'day' of 0
 		if calendarmodel == 'http://www.wikidata.org/entity/Q1985727': # 'proleptic gregorian calendar'
 			start = gregorianToJdn(year, month, day)
 			if precision == 10:
 				startUpper = gregorianToJdn(year, month+1, 0)
-			timeFmt = 2
+			timeFmt = 1
 		else: # "http://www.wikidata.org/entity/Q1985786" ('proleptic julian calendar')
 			start = julianToJdn(year, month, day)
 			if precision == 10:
 				startUpper = julianToJdn(year, month+1, 0)
-			timeFmt = 1
+			timeFmt = 2
 	elif 0 <= precision < 10: # 'year' to 'gigaannum' precision
 		scale: int = 10 ** (9 - precision)
 		start = year // scale * scale

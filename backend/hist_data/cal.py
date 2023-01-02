@@ -1,14 +1,14 @@
 """
 Provides date conversion functions, HistDate, and date scales.
-Algorithms for converting between calendars and Julian day number values were obtained from
-https://en.wikipedia.org/wiki/Julian_day#Converting_Gregorian_calendar_date_to_Julian_Day_Number.
 """
 
+# For conversion between calendars and Julian day numbers.  Algorithms were obtained from
+# https://en.wikipedia.org/wiki/Julian_day#Converting_Gregorian_calendar_date_to_Julian_Day_Number.
 def gregorianToJdn(year: int, month: int, day: int) -> int:
 	"""
 	Converts a Gregorian calendar date to a Julian day number,
 	denoting the noon-to-noon 'Julian day' that starts within the input day.
-	A year of 1 means 1 CE, and -1 means 1 BC (0 is treated like -1).
+	A year of 1 means 1 AD, and -1 means 1 BC (0 is treated like -1).
 	A month of 1 means January. Can use a month of 13 and a day of 0.
 	Valid for dates from 24th Nov 4714 BC onwards.
 	"""
@@ -20,7 +20,6 @@ def gregorianToJdn(year: int, month: int, day: int) -> int:
 	jdn -= int((3 * int((year + 4900 + x) / 100)) / 4)
 	jdn += day - 32075
 	return jdn
-
 def julianToJdn(year: int, month: int, day: int) -> int:
 	"""
 	Like gregorianToJdn(), but converts a Julian calendar date.
@@ -33,7 +32,6 @@ def julianToJdn(year: int, month: int, day: int) -> int:
 	jdn += int(275 * month / 9)
 	jdn += day + 1729777
 	return jdn
-
 def jdnToGregorian(jdn: int) -> tuple[int, int, int]:
 	"""
 	Converts a Julian day number to a Gregorian calendar date, denoting the
@@ -50,7 +48,6 @@ def jdnToGregorian(jdn: int) -> tuple[int, int, int]:
 	if Y <= 0:
 		Y -= 1
 	return Y, M, D
-
 def jdnToJulian(jdn: int) -> tuple[int, int, int]:
 	""" Like jdnToGregorian(), but converts to a Julian calendar date """
 	f = jdn + 1401
@@ -63,26 +60,25 @@ def jdnToJulian(jdn: int) -> tuple[int, int, int]:
 	if Y <= 0:
 		Y -= 1
 	return Y, M, D
-
 def julianToGregorian(year: int, month: int, day: int) -> tuple[int, int, int]:
 	return jdnToGregorian(julianToJdn(year, month, day))
-
 def gregorianToJulian(year: int, month: int, day: int) -> tuple[int, int, int]:
 	return jdnToJulian(gregorianToJdn(year, month, day))
 
-MIN_CAL_YEAR = -4713 # Disallow within-year dates before this year
+# For date representation
+MIN_CAL_YEAR = -4713 # Year before which JDNs are not usable
 MONTH_SCALE = -1;
 DAY_SCALE = -2;
-SCALES: list[int] = [int(x) for x in [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE]];
+SCALES: list[int] = [int(s) for s in [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE]];
 class HistDate:
 	"""
 	Represents a historical date
-	- 'year' may be negative (-1 means 1 BCE)
+	- 'year' may be negative (-1 means 1 BC)
 	- 'month' and 'day' are at least 1, if given
 	- 'gcal' may be:
 		- True: Indicates a Gregorian calendar date
 		- False: Means the date should, for display, be converted to a Julian calendar date
-		- None: 'month' and 'day' are 1 (used for dates before the Julian period starting year 4713 BCE)
+		- None: 'month' and 'day' are 1 (required for dates before MIN_CAL_YEAR)
 	"""
 	def __init__(self, gcal: bool | None, year: int, month=1, day=1):
 		self.gcal = gcal
@@ -96,22 +92,24 @@ class HistDate:
 	def __repr__(self):
 		return str(self.__dict__)
 def dbDateToHistDate(n: int, fmt: int, end=False) -> HistDate:
+	""" Converts a start/start_upper/etc and fmt value in the 'events' db table, into a HistDate """
 	if fmt == 0: # year
 		if n >= MIN_CAL_YEAR:
 			return HistDate(True, n, 1, 1)
 		else:
 			return HistDate(None, n)
-	elif fmt == 1 or fmt == 3 and not end: # jdn for julian calendar
-		return HistDate(False, *jdnToJulian(n))
-	else: # fmt == 2 or fmt == 3 and end
+	elif fmt == 1 or fmt == 3 and end: # jdn for gregorian calendar
 		return HistDate(True, *jdnToGregorian(n))
+	else: # fmt == 2 or fmt == 3 and not end
+		return HistDate(False, *jdnToJulian(n))
 def dateToUnit(date: HistDate, scale: int) -> int:
+	""" Converts a date to an int representing a unit on a scale """
 	if scale >= 1:
 		return date.year // scale
 	elif scale == MONTH_SCALE:
 		if date.gcal == False:
 			return julianToJdn(date.year, date.month, 1)
-		else:
+		else: # True or None
 			return gregorianToJdn(date.year, date.month, 1)
 	else: # scale == DAY_SCALE
 		if date.gcal == False:

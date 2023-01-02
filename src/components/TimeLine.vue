@@ -245,7 +245,7 @@ class Tick {
 }
 function getNumDisplayUnits({inclOffsets=true} = {}): number { // Get num major units in display range
 	let unitDiff = Math.ceil(getUnitDiff(startDate.value, endDate.value, scale.value));
-		// Note: Rounding up due to cases like 1 CE to 10 CE with 10-year scale
+		// Note: Rounding up due to cases like 1 AD to 10 AD with 10-year scale
 	if (inclOffsets){
 		unitDiff += startOffset.value + endOffset.value;
 	}
@@ -886,7 +886,7 @@ function zoomTimeline(zoomRatio: number){
 			newStartOffset /= oldUnitsPerNew;
 			newEndOffset /= oldUnitsPerNew;
 			// Shift starting and ending points to align with new scale
-				// Note: There is some distortion due to not fully accounting for no year 0 CE here,
+				// Note: There is some distortion due to not fully accounting for no year 0 AD here,
 					// but the result seems tolerable, and resolving it adds a fair bit of code complexity
 			let newStartSubUnits =
 				(scale.value == DAY_SCALE) ? getDaysInMonth(newStart.year, newStart.month) :
@@ -929,7 +929,7 @@ function zoomTimeline(zoomRatio: number){
 			} else {
 				newStart.year = Math.floor(newStart.year / newScale) * newScale;
 				newEnd.year = Math.floor(newEnd.year / newScale) * newScale;
-				// Account for no 0 CE
+				// Account for no 0 AD
 				if (newStart.year == 0){
 					newStart.year = 1;
 				}

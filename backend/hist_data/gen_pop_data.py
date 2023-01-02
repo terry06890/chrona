@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 """
-Adds Wikipedia page view info to the database as popularity values.
+Adds Wikipedia page view info to the database as popularity values
 """
 
 import os, sqlite3

@@ -1,29 +1,29 @@
 """
-WSGI script that serves historical data
+WSGI script that serves historical data.
 
 Expected HTTP query parameters:
 - type:
-	If 'events', reply with list of event objects, within a date range, for a given scale
+	If 'events', reply with information on events within a date range, for a given scale
 	If 'info', reply with information about a given event
 	If 'sugg', reply with search suggestions for an event search string
 - range: With type=events, specifies a historical-date range
-	If absent, the default is 'all of time'
+	If absent, the default is 'all of time'.
 	Examples:
-		range=1000.1910-10-09 means '1000 CE to 09/10/1910 (inclusive)'
-		range=-13000. means '13000 BCE onwards'
-- scale: With type=events, specifies a date scale (matched against 'scale' column in 'event_disp' table)
+		range=1000.1910-10-09 means '1000 AD to 09/10/1910 (inclusive)'
+		range=-13000. means '13000 BC onwards'
+- scale: With type=events, specifies a date scale
 - incl: With type=events, specifies an event to include, as an event ID
 - event: With type=info, specifies the event to get info for
 - input: With type=sugg, specifies a search string to suggest for
 - limit: With type=events or type=sugg, specifies the max number of results
-- ctg: With type=events or type=sugg, specifies event categories to restrict results to
+- ctg: With type=events or type=sugg, specifies an event category to restrict results to
 """
 
 from typing import Iterable
 import sys, re
 import urllib.parse, sqlite3
 import gzip, jsonpickle
-from hist_data.cal import gregorianToJdn, HistDate, dbDateToHistDate, dateToUnit
+from hist_data.cal import gregorianToJdn, HistDate, MIN_CAL_YEAR, dbDateToHistDate, dateToUnit
 
 DB_FILE = 'hist_data/data.db'
 MAX_REQ_EVENTS = 500
@@ -32,7 +32,7 @@ DEFAULT_REQ_EVENTS = 20
 MAX_REQ_SUGGS = 50
 DEFAULT_REQ_SUGGS = 5
 
-# Classes for objects sent as responses
+# Classes for values sent as responses
 class Event:
 	""" Represents an historical event """
 	def __init__(
@@ -146,17 +146,6 @@ def handleReq(dbFile: str, environ: dict[str, str]) -> None | EventResponse | Ev
 	elif reqType == 'sugg':
 		return handleSuggReq(params, dbCur)
 	return None
-def reqParamToHistDate(s: str):
-	""" Produces a HistDate from strings like '2010-10-3', '-8000', and '' (throws ValueError if invalid) """
-	if not s:
-		return None
-	m = re.match(r'(-?\d+)(?:-(\d+)-(\d+))?', s)
-	if m is None:
-		raise ValueError('Invalid HistDate string')
-	if m.lastindex == 1:
-		return HistDate(None, int(m.group(1)))
-	else:
-		return HistDate(True, int(m.group(1)), int(m.group(2)), int(m.group(3)))
 
 # For type=events
 def handleEventsReq(params: dict[str, str], dbCur: sqlite3.Cursor) -> EventResponse | None:
@@ -201,6 +190,17 @@ def handleEventsReq(params: dict[str, str], dbCur: sqlite3.Cursor) -> EventRespo
 	events = lookupEvents(start, end, scale, ctg, incl, resultLimit, dbCur)
 	unitCounts = lookupUnitCounts(start, end, scale, dbCur)
 	return EventResponse(events, unitCounts)
+def reqParamToHistDate(s: str):
+	""" Produces a HistDate from strings like '2010-10-3', '-8000', and '' (throws ValueError if invalid) """
+	if not s:
+		return None
+	m = re.match(r'(-?\d+)(?:-(\d+)-(\d+))?', s)
+	if m is None:
+		raise ValueError('Invalid HistDate string')
+	if m.lastindex == 1:
+		return HistDate(None, int(m.group(1)))
+	else:
+		return HistDate(True, int(m.group(1)), int(m.group(2)), int(m.group(3)))
 def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: str | None,
 		incl: int | None, resultLimit: int, dbCur: sqlite3.Cursor) -> list[Event]:
 	""" Looks for events within a date range, in given scale,
@@ -217,7 +217,7 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 	if start is not None:
 		constraint = '(start >= ? AND fmt > 0 OR start >= ? AND fmt = 0)'
 		if start.gcal is None:
-			startJdn = gregorianToJdn(start.year, 1, 1) if start.year >= -4713 else 0
+			startJdn = gregorianToJdn(start.year, 1, 1) if start.year >= MIN_CAL_YEAR else 0
 			constraints.append(constraint)
 			params.extend([startJdn, start.year])
 		else:
@@ -228,7 +228,7 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 	if end is not None:
 		constraint = '(start <= ? AND fmt > 0 OR start <= ? AND fmt = 0)'
 		if end.gcal is None:
-			endJdn = gregorianToJdn(end.year, 1, 1) if end.year >= -4713 else -1
+			endJdn = gregorianToJdn(end.year, 1, 1) if end.year >= MIN_CAL_YEAR else -1
 			constraints.append(constraint)
 			params.extend([endJdn, end.year])
 		else:
@@ -269,7 +269,7 @@ def eventEntryToResults(
 	dateVals: list[int | None] = [start, startUpper, end, endUpper]
 	newDates: list[HistDate | None] = [None for n in dateVals]
 	for i, n in enumerate(dateVals):
-		if n:
+		if n is not None:
 			newDates[i] = dbDateToHistDate(n, fmt, i < 2)
 	#
 	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)

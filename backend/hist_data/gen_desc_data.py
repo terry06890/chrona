@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 
 """
-Maps events to short descriptions from Wikipedia,
-and stores them in the database.
+Maps events to short descriptions from Wikipedia, and stores them in the database.
 """
 
+import argparse
 import os, sqlite3
 
 ENWIKI_DB = os.path.join('enwiki', 'desc_data.db')
@@ -52,7 +52,6 @@ def genData(enwikiDb: str, dbFile: str) -> None:
 	dbCon.close()
 
 if __name__ == '__main__':
-	import argparse
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	args = parser.parse_args()
 	#

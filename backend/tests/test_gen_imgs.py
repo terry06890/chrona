@@ -50,7 +50,7 @@ class TestGenImgs(unittest.TestCase):
 				{
 					(10, 'first', 100, 1000, None, None, 0, 'event'),
 					(20, 'second', 10, 20, None, None, 0, 'event'),
-					(30, 'third', 1, 20, 30, 40, 2, 'event'),
+					(30, 'third', 1, 20, 30, 40, 1, 'event'),
 				}
 			)
 			# Run

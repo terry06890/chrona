@@ -13,8 +13,8 @@ def initTestDb(dbFile: str) -> None:
 		{
 			(1, 'event one', 1900, None, None, None, 0, 'event'),
 			(2, 'event two', 2452594, None, 2455369, None, 3, 'human'), # 2/11/2002 to 21/06/2010
-			(3, 'event three', 2448175, 2451828, None, None, 2, 'discovery'), # 10/10/1990 til 10/10/2000
-			(4, 'event four', 991206, None, 1721706, None, 1, 'event'), # 10/10/-2000 to 10/10/1
+			(3, 'event three', 2448175, 2451828, None, None, 1, 'discovery'), # 10/10/1990 til 10/10/2000
+			(4, 'event four', 991206, None, 1721706, None, 2, 'event'), # 10/10/-2000 to 10/10/1
 			(5, 'event five', 2000, None, 2001, None, 0, 'event'),
 			(6, 'event six', 1900, None, 2000, None, 0, 'event'),
 		}

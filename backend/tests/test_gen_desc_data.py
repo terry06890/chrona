@@ -50,7 +50,7 @@ class TestGenData(unittest.TestCase):
 					(10, 'I', 100, None, None, None, 0, 'event'),
 					(20, 'II', 200, None, None, None, 0, 'discovery'),
 					(30, 'III', 300, None, 350, None, 0, 'event'),
-					(50, 'V', 5, 10, None, None, 1, 'human'),
+					(50, 'V', 5, 10, None, None, 2, 'human'),
 				}
 			)
 			# Run

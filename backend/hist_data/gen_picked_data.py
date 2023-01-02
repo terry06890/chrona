@@ -4,12 +4,14 @@
 Adds additional manually-picked events to the database
 """
 
-# Enable unit testing code to, when running this script, resolve imports of modules within this directory
+# Code used in unit testing (for resolving imports of modules within this directory)
 import os, sys
 parentDir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(parentDir)
-
+# Standard imports
+import argparse
 import json, sqlite3
+# Local imports
 from gen_imgs import convertImage
 
 PICKED_DIR = 'picked'
@@ -55,7 +57,6 @@ def genData(pickedDir: str, pickedEvtFile: str, dbFile: str, imgOutDir: str) -> 
 	dbCon.close()
 
 if __name__ == '__main__':
-	import argparse
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	args = parser.parse_args()
 	#

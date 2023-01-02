@@ -1,16 +1,17 @@
 #!/usr/bin/python3
 
 """
-Delete events from the database that have no image.
+Delete events from the database that have no image
 """
 
-# Enable unit testing code to, when running this script, resolve imports of modules within this directory
+# Code used in unit testing (for resolving imports of modules within this directory)
 import os, sys
 parentDir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(parentDir)
-
+# Standard imports
 import argparse
 import sqlite3
+# Local imports
 from cal import SCALES, dbDateToHistDate, dateToUnit
 
 DB_FILE = 'data.db'

@@ -9,10 +9,10 @@ The program can be re-run to continue downloading, and looks
 in the output directory do decide what to skip.
 """
 
-import re, os
+import argparse
+import re, os, time, signal
 import sqlite3
 import urllib.parse, requests
-import time, signal
 
 IMG_DB = 'img_data.db' # About 130k image names
 OUT_DIR = 'imgs'
@@ -22,7 +22,7 @@ USER_AGENT = 'terryt.dev (terry06890@gmail.com)'
 TIMEOUT = 1
 	# https://en.wikipedia.org/wiki/Wikipedia:Database_download says to 'throttle to 1 cache miss per sec'
 	# It's unclear how to properly check for cache misses, so we just aim for 1 per sec
-BACKOFF = False # If True, double the timeout each time a download error occurs (otherwise just exit)
+EXP_BACKOFF = False # If True, double the timeout each time a download error occurs (otherwise just exit)
 
 def downloadImgs(imgDb: str, outDir: str, timeout: int) -> None:
 	if not os.path.exists(outDir):
@@ -84,7 +84,7 @@ def downloadImgs(imgDb: str, outDir: str, timeout: int) -> None:
 			time.sleep(timeout)
 		except Exception as e:
 			print(f'Error while downloading to {outFile}: {e}')
-			if not BACKOFF:
+			if not EXP_BACKOFF:
 				return
 			else:
 				timeout *= 2
@@ -94,7 +94,6 @@ def downloadImgs(imgDb: str, outDir: str, timeout: int) -> None:
 	dbCon.close()
 
 if __name__ == '__main__':
-	import argparse
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	parser.parse_args()
 	#

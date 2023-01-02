@@ -11,13 +11,13 @@ This directory holds files used to generate the history database data.db.
         If `start_upper` is present, it and `start` denote an uncertain range of start times.
         Similarly for 'end' and 'end_upper'.
     -   `fmt` indicates format info for `start`, `start_upper`, `end`, and `end_upper`.
+        -   If 0, they denote a number of years AD (if positive) or BC (if negative).
         -   If 1, they denote a Julian date number.
-            This allows simple comparison of events with day-level precision, but only goes back to 4713 BCE.
-        -   If 2, same as 1, but dates are preferably displayed using the Gregorian calendar, not the Julian calendar.
+            This allows simple comparison of events with day-level precision, but only goes back to 4713 BC.
+        -   If 2, same as 1, but with a preference for display using the Julian calendar, not the Gregorian calendar.
             For example, William Shakespeare's birth appears 'preferably Julian', but Samuel Johnson's does not.
-        -   If 3, same as 1, but 'end' and 'end_upper' are 'preferably Gregorian'.
+        -   If 3, same as 2, but where 'start' and 'start_upper' are 'preferably Julian'.
             For example, Galileo Galilei's birth date appears 'preferably Julian', but his death date does not.
-        -   If 0, they denote a number of years CE (if positive) or BCE (if negative).
 -   `pop`: <br>
     Format: `id INT PRIMARY KEY, pop INT` <br>
     Associates each event with a popularity measure (currently an average monthly viewcount)
@@ -49,6 +49,7 @@ Some of the scripts use third-party packages:
 ## Generate Event Data
 1.  Obtain a Wikidata JSON dump in wikidata/, as specified in it's README.
 1.  Run `gen_events_data.py`, which creates `data.db`, and adds the `events` table.
+    You might want to set WIKIDATA_FILE in the script to the dump file's name.
 
 ## Generate Popularity Data
 1.  Obtain an enwiki dump and 'page view files' in enwiki/, as specified in the README.
@@ -61,11 +62,14 @@ Some of the scripts use third-party packages:
 1.  In enwiki/, run `gen_img_data.py` which looks at pages in the dump that match entries in `events`,
     looks for infobox image names, and stores them in an image database.
 1.  In enwiki/, run `download_img_license_info.py`, which downloads licensing info for found
-    images, and adds them to the image database.
-1.  In enwiki/, run `download_imgs.py`, which downloads images into enwiki/imgs/.
+    images, and adds them to the image database. You should probably first change the USER_AGENT
+    script variable to identify yourself to the online API (this is expected
+    [best practice](https://www.mediawiki.org/wiki/API:Etiquette)).
+1.  In enwiki/, run `download_imgs.py`, which downloads images into enwiki/imgs/. Setting the
+    USER_AGENT variable applies here as well.
 1.  Run `gen_imgs.py`, which creates resized/cropped images in img/, from images in enwiki/imgs/.
     Adds the `imgs` and `event_imgs` tables. <br>
-    The outputs will likely need additional manual changes:
+    The output images may need additional manual changes:
     -   An input image might have no output produced, possibly due to
         data incompatibilities, memory limits, etc.
     -   An input x.gif might produce x-1.jpg, x-2.jpg, etc, instead of x.jpg.

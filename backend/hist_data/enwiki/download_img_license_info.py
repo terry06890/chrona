@@ -9,10 +9,10 @@ The program can be re-run to continue downloading, and looks
 at already-processed names to decide what to skip.
 """
 
-import re
+import argparse
+import re, time, signal
 import sqlite3, urllib.parse, html
 import requests
-import time, signal
 
 IMG_DB = 'img_data.db'
 #
@@ -150,7 +150,6 @@ def downloadInfo(imgDb: str) -> None:
 	dbCon.close()
 
 if __name__ == '__main__':
-	import argparse
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	parser.parse_args()
 	#

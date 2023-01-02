@@ -33,11 +33,11 @@ This directory holds files obtained/derived from [English Wikipedia](https://en.
 
 # Image Files
 -   `gen_img_data.py` <br>
-    Used to find infobox image names for page IDs, and store them into a database.
+    Finds infobox image names for page IDs, and stores them into a database.
 -   `download_img_license_info.py` <br>
-    Used to download licensing metadata for image names, via wikipedia's online API, and store them into a database.
+    Downloads licensing metadata for image names, via wikipedia's online API, and stores them into a database.
 -   `img_data.db` <br>
-    Used to hold metadata about infobox images for a set of page IDs.
+    Holds metadata about infobox images for a set of page IDs.
     Generated using `gen_img_data.py` and `download_img_license_info.py`. <br>
     Tables: <br>
     -   `page_imgs`: `page_id INT PRIMARY KEY, title TEXT UNIQUE, img_name TEXT` <br>
@@ -47,7 +47,7 @@ This directory holds files obtained/derived from [English Wikipedia](https://en.
             <br>
         Might lack some matches for `img_name` in `page_imgs`, due to licensing info unavailability.
 -   `download_imgs.py` <br>
-    Used to download image files into imgs/.
+    Downloads image files into imgs/.
 
 # Description Files
 -   `gen_desc_data.py` <br>

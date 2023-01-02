@@ -20,13 +20,13 @@ class TestGenData(unittest.TestCase):
 					(2, 'event two', 2452607, None, 2455369, None, 3, 'human'), # 15/11/2002
 					(3, 'event three', 1900, None, 2000, None, 0, 'event'), # version of 1 without pop score
 					(4, 'event four', 1901, None, 2000, 2010, 0, 'event'),
-					(5, 'event five', 2415307, None, None, None, 1, 'event'), # 01/10/1900
-					(6, 'event six', 2415030, None, None, None, 2, 'event'), # 10/01/1900
+					(5, 'event five', 2415307, None, None, None, 2, 'event'), # 01/10/1900
+					(6, 'event six', 2415030, None, None, None, 1, 'event'), # 10/01/1900
 					(7, 'event seven', 1900, None, None, None, 0, 'event'), # popular version of 1
 					(8, 'event eight', 1900, None, None, None, 0, 'event'), # less popular version of 1
 					(9, 'event nine', 1900, None, None, None, 0, 'event'), # less popular version of 1
-					(10, 'event ten', 2415307, None, None, None, 1, 'event'), # less popular version of 5
-					(11, 'event eleven', 2415307, None, None, None, 1, 'event'), # slightly less popular version of 5
+					(10, 'event ten', 2415307, None, None, None, 2, 'event'), # less popular version of 5
+					(11, 'event eleven', 2415307, None, None, None, 2, 'event'), # slightly less popular version of 5
 				}
 			)
 			createTestDbTable(
@@ -55,10 +55,10 @@ class TestGenData(unittest.TestCase):
 					(1, 'event one', 1900, None, None, None, 0, 'event'),
 					(2, 'event two', 2452607, None, 2455369, None, 3, 'human'),
 					(4, 'event four', 1901, None, 2000, 2010, 0, 'event'),
-					(5, 'event five', 2415307, None, None, None, 1, 'event'),
-					(6, 'event six', 2415030, None, None, None, 2, 'event'),
+					(5, 'event five', 2415307, None, None, None, 2, 'event'),
+					(6, 'event six', 2415030, None, None, None, 1, 'event'),
 					(7, 'event seven', 1900, None, None, None, 0, 'event'),
-					(11, 'event eleven', 2415307, None, None, None, 1, 'event'), # 01/10/1900
+					(11, 'event eleven', 2415307, None, None, None, 2, 'event'), # 01/10/1900
 				}
 			)
 			self.assertEqual(
