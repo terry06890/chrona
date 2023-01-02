@@ -205,12 +205,16 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 		incl: int | None, resultLimit: int, dbCur: sqlite3.Cursor) -> list[Event]:
 	""" Looks for events within a date range, in given scale,
 		restricted by event category, an optional particular inclusion, and a result limit """
+	#query = \
+	#	'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop FROM events' \
+	#	' INNER JOIN event_disp ON events.id = event_disp.id' \
+	#	' INNER JOIN pop ON events.id = pop.id' \
+	#	' INNER JOIN event_imgs ON events.id = event_imgs.id' \
+	#	' INNER JOIN images ON event_imgs.img_id = images.id'
 	query = \
-		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop FROM events' \
+		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, pop.pop FROM events' \
 		' INNER JOIN event_disp ON events.id = event_disp.id' \
-		' INNER JOIN pop ON events.id = pop.id' \
-		' INNER JOIN event_imgs ON events.id = event_imgs.id' \
-		' INNER JOIN images ON event_imgs.img_id = images.id'
+		' INNER JOIN pop ON events.id = pop.id'
 	constraints = ['event_disp.scale = ?']
 	params: list[str | int] = [scale]
 	# Constrain by start/end
@@ -262,8 +266,10 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 	#
 	return results
 def eventEntryToResults(
-		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int, int]) -> Event:
-	eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, pop = row
+		#row: tuple[int, str, int, int | None, int | None, int | None, int, str, int, int]) -> Event:
+		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int]) -> Event:
+	#eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, pop = row
+	eventId, title, start, startUpper, end, endUpper, fmt, ctg, pop = row
 	""" Helper for converting an 'events' db entry into an Event object """
 	# Convert dates
 	dateVals: list[int | None] = [start, startUpper, end, endUpper]
@@ -272,7 +278,8 @@ def eventEntryToResults(
 		if n is not None:
 			newDates[i] = dbDateToHistDate(n, fmt, i < 2)
 	#
-	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
+	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, 0, pop)
+	#return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
 def lookupUnitCounts(
 		start: HistDate | None, end: HistDate | None, scale: int, dbCur: sqlite3.Cursor) -> dict[int, int] | None:
 	# Build query

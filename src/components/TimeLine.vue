@@ -1166,7 +1166,8 @@ function eventImgStyles(eventId: number){
 	return {
 		width: store.eventImgSz + 'px',
 		height: store.eventImgSz + 'px',
-		backgroundImage: `url(${getImagePath(event.imgId)})`,
+		//backgroundImage: `url(${getImagePath(event.imgId)})`,
+		backgroundColor: 'black',
 		backgroundSize: 'cover',
 		borderColor: event.ctg == 'discovery' ? store.color.alt2 : store.color.altDark,
 		borderWidth: '1px',
