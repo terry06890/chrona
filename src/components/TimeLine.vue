@@ -102,7 +102,6 @@ const width = ref(0);
 const height = ref(0);
 const availLen = computed(() => props.vert ? height.value : width.value);
 const availBreadth = computed(() => props.vert ? width.value : height.value);
-const prevVert = ref(props.vert); // Previous 'vert' value, used for skipping transitions on horz/vert swap
 const mounted = ref(false);
 onMounted(() => {
 	let rootEl = rootRef.value!;
@@ -118,11 +117,8 @@ const resizeObserver = new ResizeObserver((entries) => {
 			width.value = WRITING_MODE_HORZ ? boxSize.inlineSize : boxSize.blockSize;
 			height.value = WRITING_MODE_HORZ ? boxSize.blockSize : boxSize.inlineSize;
 			// Check for horz/vert swap
-			if (props.vert != prevVert.value){
-				skipTransition.value = true;
-				setTimeout(() => {skipTransition.value = false}, 100); // Note: Using nextTick() doesn't work
-				prevVert.value = props.vert;
-			}
+			skipTransition.value = true;
+			setTimeout(() => {skipTransition.value = false}, 100); // Note: Using nextTick() doesn't work
 		}
 	}
 });
