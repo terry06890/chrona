@@ -363,8 +363,10 @@ if (DEBUG){
 		}
 	}
 }
-export function stepDate( // If stepping by month or years, leaves day value unchanged
+export function stepDate( // Steps a date N units along a scale
 	date: HistDate, scale: number, {forward=true, count=1, inplace=false} = {}): HistDate {
+	// If stepping by month or years, leaves day value unchanged
+	// Does not account for stepping a CalDate into before MIN_CAL_YEAR
 	const newDate = inplace ? date : date.clone();
 	if (count < 0){
 		count = -count;

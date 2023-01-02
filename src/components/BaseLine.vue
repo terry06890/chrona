@@ -5,9 +5,7 @@
 		<div :style="labelStyles">{{p.label}}</div>
 	</div>
 	<TransitionGroup name="fade" v-if="mounted">
-		<div v-for="state in timelines" :key="state.id" class="absolute" :style="spanStyles(state)">
-			{{state.id}}
-		</div>
+		<div v-for="(state, idx) in timelines" :key="state.id" class="absolute" :style="spanStyles(idx)"></div>
 	</TransitionGroup>
 </div>
 </template>
@@ -79,9 +77,11 @@ const labelStyles = computed((): Record<string, string> => ({
 	width: props.vert ? '40px' : 'auto',
 	padding: props.vert ? '0' : '4px',
 }));
-function spanStyles(state: TimelineState){
+function spanStyles(stateIdx: number){
+	const state = props.timelines[stateIdx];
 	let styles: Record<string,string>;
-	let availLen = props.vert ? height.value : width.value;
+	const availLen = props.vert ? height.value : width.value;
+	const availBreadth = props.vert ? width.value : height.value;
 	// Determine start/end date
 	if (state.startOffset == null || state.endOffset == null || state.scaleIdx == null){
 		return {display: 'none'};
@@ -102,19 +102,22 @@ function spanStyles(state: TimelineState){
 		lenPx = 3;
 		startPx -= Math.max(0, startPx + lenPx - availLen);
 	}
+	// Account for multiple timelines
+	const breadth = availBreadth / props.timelines.length;
+	const sidePx = breadth * stateIdx;
 	//
 	if (props.vert){
 		styles = {
 			top: startPx + 'px',
-			left: '0',
+			left: sidePx + 'px',
 			height: lenPx + 'px',
-			width: '100%',
+			width: breadth + 'px',
 		}
 	} else {
 		styles = {
-			top: '0',
+			top: sidePx + 'px',
 			left: startPx + 'px',
-			height: '100%',
+			height: breadth + 'px',
 			width: lenPx + 'px',
 		}
 	}
@@ -123,7 +126,9 @@ function spanStyles(state: TimelineState){
 		transition: skipTransition.value ? 'none' : 'all 300ms ease-out',
 		color: 'black',
 		backgroundColor: store.color.alt,
-		opacity: 0.4,
+		opacity: 0.6,
+		borderWidth: '1px',
+		borderColor: store.color.bg,
 	};
 }
 </script>

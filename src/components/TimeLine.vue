@@ -48,7 +48,7 @@
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
 		<!-- Image -->
-		<div class="rounded-full border border-yellow-500" :style="eventImgStyles(id)"></div>
+		<div class="rounded-full" :style="eventImgStyles(id)"></div>
 		<!-- Label -->
 		<div class="text-center text-stone-100 text-sm whitespace-nowrap text-ellipsis overflow-hidden">
 			{{idToEvent.get(id)!.title}}
@@ -102,7 +102,6 @@ const width = ref(0);
 const height = ref(0);
 const availLen = computed(() => props.vert ? height.value : width.value);
 const availBreadth = computed(() => props.vert ? width.value : height.value);
-const prevVert = ref(props.vert); // Previous 'vert' value, used for skipping transitions on horz/vert swap
 const mounted = ref(false);
 onMounted(() => {
 	let rootEl = rootRef.value!;
@@ -118,11 +117,8 @@ const resizeObserver = new ResizeObserver((entries) => {
 			width.value = WRITING_MODE_HORZ ? boxSize.inlineSize : boxSize.blockSize;
 			height.value = WRITING_MODE_HORZ ? boxSize.blockSize : boxSize.inlineSize;
 			// Check for horz/vert swap
-			if (props.vert != prevVert.value){
-				skipTransition.value = true;
-				setTimeout(() => {skipTransition.value = false}, 100); // Note: Using nextTick() doesn't work
-				prevVert.value = props.vert;
-			}
+			skipTransition.value = true;
+			setTimeout(() => {skipTransition.value = false}, 100); // Note: Using nextTick() doesn't work
 		}
 	}
 });
@@ -1104,7 +1100,7 @@ function onShiftWheel(evt: WheelEvent){
 // For bound-change signalling
 function onStateChg(){
 	emit('state-chg', new TimelineState(
-		ID, firstDate.value, lastDate.value, startOffset.value, endOffset.value, scaleIdx.value
+		ID, startDate.value, endDate.value, startOffset.value, endOffset.value, scaleIdx.value
 	));
 }
 watch(firstDate, onStateChg);
@@ -1172,6 +1168,8 @@ function eventImgStyles(eventId: number){
 		height: store.eventImgSz + 'px',
 		backgroundImage: `url(${getImagePath(event.imgId)})`,
 		backgroundSize: 'cover',
+		borderColor: event.ctg == 'discovery' ? store.color.alt2 : store.color.altDark,
+		borderWidth: '1px',
 	};
 }
 function eventLineStyles(eventId: number){

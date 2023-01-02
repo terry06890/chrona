@@ -40,7 +40,7 @@ import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
 import {timeout, HistDate, HistEvent, queryServer, EventResponseJson, jsonToHistEvent,
-	SCALES, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree} from './lib';
+	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree} from './lib';
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
 
@@ -126,9 +126,10 @@ function reduceEvents(){
 			continue;
 		}
 		// Look for units to keep
-		let scaleIdx: number = timeline.scaleIdx;
-		let startUnit = dateToUnit(timeline.startDate, SCALES[scaleIdx]);
-		let endUnit = dateToUnit(timeline.endDate, SCALES[scaleIdx]);
+		const scaleIdx = timeline.scaleIdx;
+		const scale = SCALES[scaleIdx];
+		let startUnit = dateToUnit(stepDate(timeline.startDate, scale, {forward: false}), scale);
+		let endUnit = dateToUnit(stepDate(timeline.endDate, scale), scale);
 		for (let [unit, count] of unitCountMaps.value[scaleIdx]){
 			if (unit >= startUnit && unit <= endUnit){
 				newMaps[scaleIdx].set(unit, count);
