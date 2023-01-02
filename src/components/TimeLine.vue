@@ -48,7 +48,7 @@
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
 		<!-- Image -->
-		<div class="rounded-full border border-yellow-500" :style="eventImgStyles(id)"></div>
+		<div class="rounded-full" :style="eventImgStyles(id)"></div>
 		<!-- Label -->
 		<div class="text-center text-stone-100 text-sm whitespace-nowrap text-ellipsis overflow-hidden">
 			{{idToEvent.get(id)!.title}}
@@ -1172,6 +1172,8 @@ function eventImgStyles(eventId: number){
 		height: store.eventImgSz + 'px',
 		backgroundImage: `url(${getImagePath(event.imgId)})`,
 		backgroundSize: 'cover',
+		borderColor: event.ctg == 'discovery' ? store.color.alt2 : store.color.altDark,
+		borderWidth: '1px',
 	};
 }
 function eventLineStyles(eventId: number){
