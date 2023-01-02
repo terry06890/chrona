@@ -11,17 +11,15 @@ to skip.
 """
 
 import argparse
-import os, math, subprocess, signal
+import os, subprocess, signal
 import sqlite3, urllib.parse
-from PIL import Image
 
 IMG_DIR = os.path.join('enwiki', 'imgs')
 IMG_DB = os.path.join('enwiki', 'img_data.db')
 OUT_DIR = 'img'
 DB_FILE = 'data.db'
 #
-MAX_MINOR_DIM = 200
-MAX_DIM_RATIO = 3/2
+IMG_OUT_SZ = 200
 
 def genImgs(imgDir: str, imgDb: str, outDir: str, dbFile: str):
 	""" Converts images and updates db, checking for entries to skip """
@@ -110,32 +108,9 @@ def convertImage(imgPath: str, outPath: str):
 	if os.path.exists(outPath):
 		print('ERROR: Output image already exists')
 		return False
-	# Get image dims
-	width: int
-	height: int
-	try:
-		with Image.open(imgPath) as image:
-			width, height = image.size
-	except Exception as e: # Being more specific runs the risk of ending the program without committing to db
-		print(f'ERROR: Unable to open {imgPath}: {e}')
-		return False
-	# Limit output dims
-	if width > height:
-		if height > MAX_MINOR_DIM:
-			width = math.ceil(width * height / MAX_MINOR_DIM)
-			height = MAX_MINOR_DIM
-		if width / height > MAX_DIM_RATIO:
-			width = math.ceil(height * MAX_DIM_RATIO)
-	else:
-		if width > MAX_MINOR_DIM:
-			height = math.ceil(height * width / MAX_MINOR_DIM)
-			width = MAX_MINOR_DIM
-		if height / width > MAX_DIM_RATIO:
-			height = math.ceil(width * MAX_DIM_RATIO)
-	# Convert image
 	try:
 		completedProcess = subprocess.run(
-			['npx', 'smartcrop-cli', '--width', str(width), '--height', str(height), imgPath, outPath],
+			['npx', 'smartcrop-cli', '--width', str(IMG_OUT_SZ), '--height', str(IMG_OUT_SZ), imgPath, outPath],
 			stdout=subprocess.DEVNULL
 		)
 	except Exception as e:
