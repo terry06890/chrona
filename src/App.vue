@@ -147,101 +147,119 @@ const EVENT_REQ_LIMIT = 300;
 const MAX_EVENTS_PER_UNIT = 4; // Should equal MAX_DISPLAYED_PER_UNIT in backend gen_disp_data.py
 let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
 	// For each scale, holds date ranges for which data has already been queried fromm the server
-let pendingReq = false; // Used to serialise event-req handling
+const SERVER_QUERY_TIMEOUT = 1000 // Used to throttle server queries
+let lastEvtDispHdlrTime = 0;
+let afterEvtDispHdlr = 0; // Used to trigger handler after ending a run of event-display events
+let lastQueriedRange: [HistDate, HistDate] | null = null;
 async function onEventDisplay(
 		timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
-	while (pendingReq){
-		await timeout(100);
-	}
-	pendingReq = true;
-	// Skip if range has been queried, and enough of its events have been obtained
-	if (queriedRanges[scaleIdx].contains([firstDate, lastDate])){
-		// Get number of events in range, server-side
-		let fullCount = 0;
-		let date = firstDate.clone();
-		let eventCounts: Map<number, number> = new Map(); // For calculating number of events, client-side
-		while (date.isEarlier(lastDate)){
-			let unit = dateToUnit(date, SCALES[scaleIdx]);
-			if (unitCountMaps.value[scaleIdx].has(unit)){
-				fullCount += Math.min(MAX_EVENTS_PER_UNIT, unitCountMaps.value[scaleIdx].get(unit)!);
+	async function handleEvent(
+			timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
+		// Skip if range has been queried, and enough of its events have been obtained
+		if (queriedRanges[scaleIdx].contains([firstDate, lastDate])){
+			// Get number of events in range, server-side
+			let fullCount = 0;
+			let date = firstDate.clone();
+			let eventCounts: Map<number, number> = new Map(); // For calculating number of events, client-side
+			while (date.isEarlier(lastDate)){
+				let unit = dateToUnit(date, SCALES[scaleIdx]);
+				if (unitCountMaps.value[scaleIdx].has(unit)){
+					fullCount += Math.min(MAX_EVENTS_PER_UNIT, unitCountMaps.value[scaleIdx].get(unit)!);
+				}
+				eventCounts.set(unit, 0);
+				stepDate(date, SCALES[scaleIdx], {inplace: true});
 			}
-			eventCounts.set(unit, 0);
-			stepDate(date, SCALES[scaleIdx], {inplace: true});
+			if (fullCount > 0){
+				// Get number of events, client-side
+				let eventCount = 0;
+				let itr = eventTree.value.lowerBound(new HistEvent(0, '', firstDate))
+				while (itr.data() != null){
+					let event = itr.data()!;
+					itr.next();
+					if (!event.start.isEarlier(lastDate)){
+						break;
+					}
+					let unit = dateToUnit(event.start, SCALES[scaleIdx]);
+					if (eventCounts.has(unit)){
+						eventCounts.set(unit, eventCounts.get(unit)! + 1);
+					}
+				}
+				for (let [, count] of eventCounts.entries()){
+					eventCount += Math.min(MAX_EVENTS_PER_UNIT, count);
+				}
+				// If we have enough events
+				if (eventCount >= fullCount || eventCount >= EVENT_REQ_LIMIT){
+					return;
+				}
+			}
 		}
-		if (fullCount > 0){
-			// Get number of events, client-side
-			let eventCount = 0;
-			let itr = eventTree.value.lowerBound(new HistEvent(0, '', firstDate))
-			while (itr.data() != null){
-				let event = itr.data()!;
-				itr.next();
-				if (!event.start.isEarlier(lastDate)){
+		// Get events from server
+		if (lastQueriedRange != null && lastQueriedRange[0].equals(firstDate) && lastQueriedRange[1].equals(lastDate)){
+			console.log(`INFO: Skipping redundant server request from ${firstDate} to ${lastDate}`);
+			return;
+		}
+		lastQueriedRange = [firstDate, lastDate]
+		let urlParams = new URLSearchParams({
+			type: 'events',
+			range: `${firstDate}.${lastDate}`,
+			scale: String(SCALES[scaleIdx]),
+			limit: String(EVENT_REQ_LIMIT),
+		});
+		let responseObj: EventResponseJson = await queryServer(urlParams);
+		if (responseObj == null){
+			return;
+		}
+		queriedRanges[scaleIdx].add([firstDate, lastDate]);
+		// Collect events
+		let eventAdded = false;
+		for (let eventObj of responseObj.events){
+			let event = jsonToHistEvent(eventObj);
+			let success = eventTree.value.insert(event);
+			if (success){
+				eventAdded = true;
+				idToEvent.set(event.id, event);
+			}
+		}
+		// Collect unit counts
+		const unitCounts = responseObj.unitCounts;
+		if (unitCounts == null){
+			console.log('WARNING: Exceeded unit-count limit for server query');
+		} else {
+			for (let [unitStr, count] of Object.entries(unitCounts)){
+				let unit = parseInt(unitStr)
+				if (isNaN(unit)){
+					console.log('WARNING: Invalid non-integer unit value in server response');
 					break;
 				}
-				let unit = dateToUnit(event.start, SCALES[scaleIdx]);
-				if (eventCounts.has(unit)){
-					eventCounts.set(unit, eventCounts.get(unit)! + 1);
-				}
-			}
-			for (let [, count] of eventCounts.entries()){
-				eventCount += Math.min(MAX_EVENTS_PER_UNIT, count);
-			}
-			// If we have enough events
-			if (eventCount >= fullCount || eventCount >= EVENT_REQ_LIMIT){
-				pendingReq = false;
-				return;
+				unitCountMaps.value[scaleIdx].set(unit, count)
 			}
 		}
-	}
-	// Get events from server
-	let urlParams = new URLSearchParams({
-		type: 'events',
-		range: `${firstDate}.${lastDate}`,
-		scale: String(SCALES[scaleIdx]),
-		limit: String(EVENT_REQ_LIMIT),
-	});
-	let responseObj: EventResponseJson = await queryServer(urlParams);
-	if (responseObj == null){
-		pendingReq = false;
-		return;
-	}
-	queriedRanges[scaleIdx].add([firstDate, lastDate]);
-	// Collect events
-	let eventAdded = false;
-	for (let eventObj of responseObj.events){
-		let event = jsonToHistEvent(eventObj);
-		let success = eventTree.value.insert(event);
-		if (success){
-			eventAdded = true;
-			idToEvent.set(event.id, event);
+		// Notify components if new events were added
+		if (eventAdded){
+			eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
+		}
+		// Check memory limit
+		displayedEvents.set(timelineId, eventIds);
+		if (eventTree.value.size > EXCESS_EVENTS_THRESHOLD){
+			console.log(`INFO: Calling reduceEvents() upon reaching ${eventTree.value.size} events`);
+			reduceEvents();
+			queriedRanges.forEach((t: DateRangeTree) => t.clear());
 		}
 	}
-	// Collect unit counts
-	const unitCounts = responseObj.unitCounts;
-	if (unitCounts == null){
-		console.log('WARNING: Exceeded unit-count limit for server query');
+	clearTimeout(afterEvtDispHdlr);
+	let currentTime = new Date().getTime();
+	if (currentTime - lastEvtDispHdlrTime > SERVER_QUERY_TIMEOUT){
+		lastEvtDispHdlrTime = currentTime;
+		await handleEvent(timelineId, eventIds, firstDate, lastDate, scaleIdx);
+		lastEvtDispHdlrTime = new Date().getTime();
 	} else {
-		for (let [unitStr, count] of Object.entries(unitCounts)){
-			let unit = parseInt(unitStr)
-			if (isNaN(unit)){
-				console.log('WARNING: Invalid non-integer unit value in server response');
-				break;
-			}
-			unitCountMaps.value[scaleIdx].set(unit, count)
-		}
+		// Set up handler to execute after ending a run of event-display events
+		afterEvtDispHdlr = window.setTimeout(async () => {
+			afterEvtDispHdlr = 0;
+			await handleEvent(timelineId, eventIds, firstDate, lastDate, scaleIdx);
+			lastEvtDispHdlrTime = new Date().getTime();
+		}, SERVER_QUERY_TIMEOUT);
 	}
-	// Notify components if new events were added
-	if (eventAdded){
-		eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
-	}
-	// Check memory limit
-	displayedEvents.set(timelineId, eventIds);
-	if (eventTree.value.size > EXCESS_EVENTS_THRESHOLD){
-		console.log(`INFO: Calling reduceEvents() upon reaching ${eventTree.value.size} events`);
-		reduceEvents();
-		queriedRanges.forEach((t: DateRangeTree) => t.clear());
-	}
-	pendingReq = false;
 }
 
 // For resize handling
@@ -249,22 +267,23 @@ let lastResizeHdlrTime = 0; // Used to throttle resize handling
 let afterResizeHdlr = 0; // Used to trigger handler after ending a run of resize events
 async function onResize(){
 	// Handle event if not recently done
-	let handleResize = async () => {
+	async function handleResize(){
 		updateAreaDims();
-	};
+	}
+	clearTimeout(afterResizeHdlr);
 	let currentTime = new Date().getTime();
 	if (currentTime - lastResizeHdlrTime > 200){
 		lastResizeHdlrTime = currentTime;
 		await handleResize();
 		lastResizeHdlrTime = new Date().getTime();
+	} else {
+		// Set up handler to execute after ending a run of resize events
+		afterResizeHdlr = window.setTimeout(async () => {
+			afterResizeHdlr = 0;
+			await handleResize();
+			lastResizeHdlrTime = new Date().getTime();
+		}, 200); // If too small, touch-device detection when swapping to/from mobile-mode gets unreliable
 	}
-	// Setup a handler to execute after ending a run of resize events
-	clearTimeout(afterResizeHdlr);
-	afterResizeHdlr = window.setTimeout(async () => {
-		afterResizeHdlr = 0;
-		await handleResize();
-		lastResizeHdlrTime = new Date().getTime();
-	}, 200); // If too small, touch-device detection when swapping to/from mobile-mode gets unreliable
 }
 onMounted(() => window.addEventListener('resize', onResize));
 onUnmounted(() => window.removeEventListener('resize', onResize));

@@ -664,23 +664,17 @@ const tickToCount = computed((): Map<number, number> => {
 	if (ticks.value.length == 0){
 		return tickToCount;
 	}
-	let unitToTickIdx: [number, number][] = []; // Holds tick units with their tick indexes in tickToCount
+	const map = props.unitCountMaps[minorScaleIdx.value];
 	for (let tickIdx = firstIdx.value; tickIdx < lastIdx.value; tickIdx++){
 		tickToCount.set(tickIdx, 0);
-		let unit = dateToUnit(ticks.value[tickIdx].date, minorScale.value);
-		unitToTickIdx.push([unit, tickIdx]);
-	}
-	// Accumulate counts for ticks
-	const firstUnit = dateToUnit(ticks.value[firstIdx.value].date, minorScale.value);
-	const lastUnit = dateToUnit(ticks.value[lastIdx.value].date, minorScale.value);
-	for (let [unit, count] of props.unitCountMaps[minorScaleIdx.value].entries()){
-		if (unit >= firstUnit && unit < lastUnit){
-			let i = 0;
-			while (i + 1 < unitToTickIdx.length && unitToTickIdx[i + 1][0] <= unit){
-				i += 1;
+		let date = ticks.value[tickIdx].date.clone();
+		let nextDate = ticks.value[tickIdx + 1].date;
+		while (date.isEarlier(nextDate)){
+			let unit = dateToUnit(date, minorScale.value);
+			if (map.has(unit)){
+				tickToCount.set(tickIdx, tickToCount.get(tickIdx)! + map.get(unit)!);
 			}
-			const tickIdx = unitToTickIdx[i][1];
-			tickToCount.set(tickIdx, tickToCount.get(tickIdx)! + count);
+			stepDate(date, minorScale.value, {inplace: true});
 		}
 	}
 	return tickToCount;
