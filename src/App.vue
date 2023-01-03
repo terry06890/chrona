@@ -39,7 +39,7 @@ import PlusIcon from './components/icon/PlusIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
-import {timeout, HistDate, HistEvent, queryServer, EventResponseJson, jsonToHistEvent,
+import {HistDate, HistEvent, queryServer, EventResponseJson, jsonToHistEvent,
 	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree} from './lib';
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
@@ -147,9 +147,8 @@ const EVENT_REQ_LIMIT = 300;
 const MAX_EVENTS_PER_UNIT = 4; // Should equal MAX_DISPLAYED_PER_UNIT in backend gen_disp_data.py
 let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
 	// For each scale, holds date ranges for which data has already been queried fromm the server
-const SERVER_QUERY_TIMEOUT = 1000 // Used to throttle server queries
-let lastEvtDispHdlrTime = 0;
-let afterEvtDispHdlr = 0; // Used to trigger handler after ending a run of event-display events
+const SERVER_QUERY_TIMEOUT = 200 // Used to throttle server queries
+let eventDisplayHdlr = 0;
 let lastQueriedRange: [HistDate, HistDate] | null = null;
 async function onEventDisplay(
 		timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
@@ -246,20 +245,10 @@ async function onEventDisplay(
 			queriedRanges.forEach((t: DateRangeTree) => t.clear());
 		}
 	}
-	clearTimeout(afterEvtDispHdlr);
-	let currentTime = new Date().getTime();
-	if (currentTime - lastEvtDispHdlrTime > SERVER_QUERY_TIMEOUT){
-		lastEvtDispHdlrTime = currentTime;
+	clearTimeout(eventDisplayHdlr);
+	eventDisplayHdlr = window.setTimeout(async () => {
 		await handleEvent(timelineId, eventIds, firstDate, lastDate, scaleIdx);
-		lastEvtDispHdlrTime = new Date().getTime();
-	} else {
-		// Set up handler to execute after ending a run of event-display events
-		afterEvtDispHdlr = window.setTimeout(async () => {
-			afterEvtDispHdlr = 0;
-			await handleEvent(timelineId, eventIds, firstDate, lastDate, scaleIdx);
-			lastEvtDispHdlrTime = new Date().getTime();
-		}, SERVER_QUERY_TIMEOUT);
-	}
+	}, SERVER_QUERY_TIMEOUT);
 }
 
 // For resize handling
