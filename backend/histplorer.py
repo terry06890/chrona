@@ -9,7 +9,7 @@ Expected HTTP query parameters:
 - range: With type=events, specifies a historical-date range
 	If absent, the default is 'all of time'.
 	Examples:
-		range=1000.1910-10-09 means '1000 AD to 09/10/1910 (inclusive)'
+		range=1000.1910-10-09 means '1000 AD up to and excluding 09/10/1910'
 		range=-13000. means '13000 BC onwards'
 - scale: With type=events, specifies a date scale
 - incl: With type=events, specifies an event to include, as an event ID
@@ -230,7 +230,9 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 			year = start.year if start.month == 1 and start.day == 1 else start.year + 1
 			params.extend([startJdn, year])
 	if end is not None:
-		constraint = '(start <= ? AND fmt > 0 OR start <= ? AND fmt = 0)'
+		constraint = '(start < ? AND fmt > 0 OR start < ? AND fmt = 0)'
+		if scale < 1 and (end.month > 1 or end.day > 1):
+			constraint = '(start < ? AND fmt > 0 OR start <= ? AND fmt = 0)'
 		if end.gcal is None:
 			endJdn = gregorianToJdn(end.year, 1, 1) if end.year >= MIN_CAL_YEAR else -1
 			constraints.append(constraint)
@@ -238,8 +240,7 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 		else:
 			endJdn = gregorianToJdn(end.year, end.month, end.day)
 			constraints.append(constraint)
-			year = end.year if end.month == 12 and end.day == 31 else end.year - 1
-			params.extend([endJdn, year])
+			params.extend([endJdn, end.year])
 	# Constrain by event category
 	if ctg is not None:
 		constraints.append('ctg = ?')
@@ -289,7 +290,7 @@ def lookupUnitCounts(
 		query += ' AND unit >= ?'
 		params.append(dateToUnit(start, scale))
 	if end:
-		query += ' AND unit <= ?'
+		query += ' AND unit < ?'
 		params.append(dateToUnit(end, scale))
 	query += ' ORDER BY unit ASC LIMIT ' + str(MAX_REQ_UNIT_COUNTS + 1)
 	# Get results

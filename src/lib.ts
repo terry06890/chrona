@@ -584,7 +584,7 @@ export class DateRangeTree {
 		const endDate = nextRange != null ? nextRange[1] : range[1];
 		this.tree.insert([startDate, endDate]);
 	}
-	has(range: DateRange): boolean {
+	contains(range: DateRange): boolean {
 		const itr = this.tree.lowerBound([range[0], new YearDate()]);
 		let r = itr.data();
 		if (r == null){

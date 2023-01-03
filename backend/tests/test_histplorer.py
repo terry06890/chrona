@@ -2,7 +2,7 @@ import unittest
 import tempfile, os
 
 from tests.common import createTestDbTable
-from histplorer import handleReq, HistDate, Event, EventResponse, ImgInfo, EventInfo, SuggResponse
+from histplorer import handleReq, HistDate, Event, ImgInfo, EventInfo, SuggResponse
 
 def initTestDb(dbFile: str) -> None:
 	createTestDbTable(
@@ -115,7 +115,7 @@ class TestHandleReq(unittest.TestCase):
 			Event(3, 'event three', HistDate(True, 1990, 10, 10), HistDate(True, 2000, 10, 10), None, None,
 				'discovery', 30, 0),
 		])
-		self.assertEqual(response.unitCounts, {1900: 2, 1990: 1, 2000: 1, 2001: 1, 2002: 1})
+		self.assertEqual(response.unitCounts, {1900: 2, 1990: 1, 2000: 1, 2001: 1})
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=.1999-11-27&scale=1&ctg=event'})
 		self.assertEqual(response.events, [
 			Event(4, 'event four', HistDate(False, -2000, 10, 10), None, HistDate(False, 1, 10, 10), None,

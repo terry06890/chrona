@@ -407,7 +407,7 @@ const endIsLastVisible = computed(() => {
 function dateToOffset(date: HistDate){ // Assumes 'date' is >=firstDate and <=lastDate
 	// Find containing major tick
 	let tickIdx = firstIdx.value;
-	for (let i = tickIdx + 1; i <= lastIdx.value; i++){
+	for (let i = tickIdx + 1; i < lastIdx.value; i++){
 		if (ticks.value[i].major){
 			if (!date.isEarlier(ticks.value[i].date)){
 				tickIdx = i;
@@ -436,7 +436,7 @@ const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
 	while (itr.data() != null){
 		let event = itr.data()!;
 		itr.next();
-		if (lastDate.value.isEarlier(event.start)){
+		if (!event.start.isEarlier(lastDate.value)){
 			break;
 		}
 		map.set(event.id, event);

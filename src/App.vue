@@ -102,7 +102,8 @@ function onTimelineRemove(idx: number){
 // For storing and looking up events
 const eventTree: ShallowRef<RBTree<HistEvent>> = shallowRef(new RBTree(cmpHistEvent));
 let idToEvent: Map<number, HistEvent> = new Map();
-const unitCountMaps: Ref<Map<number, number>[]> = ref(SCALES.map(() => new Map())); // For each scale, maps units to event counts
+const unitCountMaps: Ref<Map<number, number>[]> = ref(SCALES.map(() => new Map()));
+	// For each scale, maps units to event counts
 // For keeping event data under a memory limit
 const EXCESS_EVENTS_THRESHOLD = 10000;
 let displayedEvents: Map<number, number[]> = new Map(); // Maps TimeLine IDs to IDs of displayed events
@@ -143,6 +144,7 @@ function reduceEvents(){
 }
 // For getting events from server
 const EVENT_REQ_LIMIT = 300;
+const MAX_EVENTS_PER_UNIT = 4; // Should equal MAX_DISPLAYED_PER_UNIT in backend gen_disp_data.py
 let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
 	// For each scale, holds date ranges for which data has already been queried fromm the server
 let pendingReq = false; // Used to serialise event-req handling
@@ -152,10 +154,44 @@ async function onEventDisplay(
 		await timeout(100);
 	}
 	pendingReq = true;
-	// Skip if exhausted range
-	if (queriedRanges[scaleIdx].has([firstDate, lastDate])){
-		pendingReq = false;
-		return;
+	// Skip if range has been queried, and enough of its events have been obtained
+	if (queriedRanges[scaleIdx].contains([firstDate, lastDate])){
+		// Get number of events in range, server-side
+		let fullCount = 0;
+		let date = firstDate.clone();
+		let eventCounts: Map<number, number> = new Map(); // For calculating number of events, client-side
+		while (date.isEarlier(lastDate)){
+			let unit = dateToUnit(date, SCALES[scaleIdx]);
+			if (unitCountMaps.value[scaleIdx].has(unit)){
+				fullCount += Math.min(MAX_EVENTS_PER_UNIT, unitCountMaps.value[scaleIdx].get(unit)!);
+			}
+			eventCounts.set(unit, 0);
+			stepDate(date, SCALES[scaleIdx], {inplace: true});
+		}
+		if (fullCount > 0){
+			// Get number of events, client-side
+			let eventCount = 0;
+			let itr = eventTree.value.lowerBound(new HistEvent(0, '', firstDate))
+			while (itr.data() != null){
+				let event = itr.data()!;
+				itr.next();
+				if (!event.start.isEarlier(lastDate)){
+					break;
+				}
+				let unit = dateToUnit(event.start, SCALES[scaleIdx]);
+				if (eventCounts.has(unit)){
+					eventCounts.set(unit, eventCounts.get(unit)! + 1);
+				}
+			}
+			for (let [, count] of eventCounts.entries()){
+				eventCount += Math.min(MAX_EVENTS_PER_UNIT, count);
+			}
+			// If we have enough events
+			if (eventCount >= fullCount || eventCount >= EVENT_REQ_LIMIT){
+				pendingReq = false;
+				return;
+			}
+		}
 	}
 	// Get events from server
 	let urlParams = new URLSearchParams({
