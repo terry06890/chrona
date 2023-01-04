@@ -1,14 +1,13 @@
 <template>
-<div class="touch-none relative overflow-hidden"
-	@pointerdown.prevent="onPointerDown" @pointermove.prevent="onPointerMove" @pointerup.prevent="onPointerUp"
-	@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp"
-	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel"
-	ref="rootRef">
+<div class="touch-none relative overflow-hidden" ref="rootRef"
+	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel">
 	<template v-if="store.showEventCounts">
 		<div v-for="[tickIdx, count] in tickToCount.entries()" :key="ticks[tickIdx].date.toInt()"
 			:style="countDivStyles(tickIdx, count)" class="absolute animate-fadein"></div>
 	</template>
-	<svg :viewBox="`0 0 ${width} ${height}`" class="relative z-10">
+	<svg :viewBox="`0 0 ${width} ${height}`" class="relative z-10" ref="svgRef"
+		@pointerdown.prevent="onPointerDown" @pointermove.prevent="onPointerMove" @pointerup.prevent="onPointerUp"
+		@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp">
 		<defs>
 			<linearGradient id="eventLineGradient">
 				<stop offset="5%" stop-color="#a3691e"/>
@@ -41,7 +40,7 @@
 		<!-- Tick labels -->
 		<text v-for="tick in ticks" :key="tick.date.toInt()"
 			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
-			:fill="store.color.textDark" :style="tickLabelStyles(tick)" class="text-sm animate-fadein">
+			:fill="store.color.textDark" :style="tickLabelStyles(tick)" class="text-sm animate-fadein cursor-default">
 			{{tick.date.toDisplayString()}}
 		</text>
 	</svg>
@@ -83,6 +82,7 @@ import {RBTree} from '../rbtree';
 
 // Refs
 const rootRef: Ref<HTMLElement | null> = ref(null);
+const svgRef: Ref<HTMLElement | null> = ref(null);
 
 // Global store
 const store = useStore();
@@ -1025,8 +1025,10 @@ function onPointerDown(evt: PointerEvent){
 }
 function onPointerMove(evt: PointerEvent){
 	// Update event cache
-	const index = ptrEvtCache.findIndex((e) => e.pointerId == evt.pointerId);
-	ptrEvtCache[index] = evt;
+	if (ptrEvtCache.length > 0){
+		const index = ptrEvtCache.findIndex((e) => e.pointerId == evt.pointerId);
+		ptrEvtCache[index] = evt;
+	}
 	//
 	if (ptrEvtCache.length == 1){
 		// Handle pointer dragging
@@ -1061,13 +1063,15 @@ function onPointerMove(evt: PointerEvent){
 	pointerY = evt.clientY;
 }
 function onPointerUp(evt: PointerEvent){
-	// Ignore if dragging between div elements
-	if (evt.relatedTarget != null && rootRef.value!.contains(evt.relatedTarget as HTMLElement)){
+	// Ignore for dragging between SVG elements
+	if (evt.relatedTarget != null && svgRef.value!.contains(evt.relatedTarget as HTMLElement)){
 		return;
 	}
 	// Remove from event cache
-	const index = ptrEvtCache.findIndex((e) => e.pointerId == evt.pointerId);
-	ptrEvtCache.splice(index, 1);
+	if (ptrEvtCache.length > 0){
+		const index = ptrEvtCache.findIndex((e) => e.pointerId == evt.pointerId);
+		ptrEvtCache.splice(index, 1);
+	}
 	// Possibly trigger 'drag momentum'
 	if (vUpdater != 0){ // Might be zero on pointerleave/etc
 		clearInterval(vUpdater);
