@@ -25,8 +25,8 @@ This directory holds files used to generate the history database data.db.
     Format: `scale INT, unit INT, count INT, PRIMARY KEY (scale, unit)` <br>
     Maps scale units to counts of events in them.
 -   `event_disp`: <br>
-    Format: `id INT, scale INT, PRIMARY KEY (id, scale)` <br>
-    Maps events to scales they are 'displayable' on (used to make displayed events more uniform across time).
+    Format: `id INT, scale INT, unit INT, PRIMARY KEY (id, scale)` <br>
+    Maps events to scales+units they are 'displayable' on (used to make displayed events more uniform across time).
 -   `images`: <br>
     Format: `id INT PRIMARY KEY, url TEXT, license TEXT, artist TEXT, credit TEXT` <br>
     Holds metadata for available images

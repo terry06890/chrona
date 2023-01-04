@@ -48,16 +48,16 @@ def initTestDb(dbFile: str) -> None:
 	)
 	createTestDbTable(
 		dbFile,
-		'CREATE TABLE event_disp (id INT, scale INT, PRIMARY KEY (id, scale))',
-		'INSERT INTO event_disp VALUES (?, ?)',
+		'CREATE TABLE event_disp (id INT, scale INT, unit INT, PRIMARY KEY (id, scale))',
+		'INSERT INTO event_disp VALUES (?, ?, ?)',
 		{
-			(1, 1),
-			(1, 10),
-			(2, 1),
-			(3, 1),
-			(4, 1),
-			(5, 1),
-			(6, 10),
+			(1, 1, 1900),
+			(1, 10, 190),
+			(2, 1, 2002),
+			(3, 1, 1990),
+			(4, 1, -2000),
+			(5, 1, 2000),
+			(6, 10, 190),
 		}
 	)
 	createTestDbTable(
@@ -110,7 +110,7 @@ class TestHandleReq(unittest.TestCase):
 	def test_events_req(self):
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=-1999.2002-11-1&scale=1&incl=3&limit=2'})
 		self.assertEqual(response.events, [
-			Event(5, 'event five', HistDate(True, 2000, 1, 1), None, HistDate(True, 2001, 1, 1), None,
+			Event(5, 'event five', HistDate(None, 2000, 1, 1), None, HistDate(None, 2001, 1, 1), None,
 				'event', 50, 51),
 			Event(3, 'event three', HistDate(True, 1990, 10, 10), HistDate(True, 2000, 10, 10), None, None,
 				'discovery', 30, 0),
@@ -120,7 +120,7 @@ class TestHandleReq(unittest.TestCase):
 		self.assertEqual(response.events, [
 			Event(4, 'event four', HistDate(False, -2000, 10, 10), None, HistDate(False, 1, 10, 10), None,
 				'event', 20, 1000),
-			Event(1, 'event one', HistDate(True, 1900, 1, 1), None, None, None, 'event', 10, 11),
+			Event(1, 'event one', HistDate(None, 1900, 1, 1), None, None, None, 'event', 10, 11),
 		])
 		self.assertEqual(response.unitCounts, {-2000: 1, 1900: 2, 1990: 1})
 	def test_info_req(self):
