@@ -177,6 +177,7 @@ def genData(wikidataFile: str, offsetsFile: str, dbFile: str, nProcs: int) -> No
 	dbCur = dbCon.cursor()
 	dbCur.execute('CREATE TABLE events (id INT PRIMARY KEY, title TEXT UNIQUE, ' \
 		'start INT, start_upper INT, end INT, end_upper INT, fmt INT, ctg TEXT)')
+	dbCur.execute('CREATE INDEX events_id_start_idx ON events(id, start)')
 	if nProcs == 1:
 		with bz2.open(wikidataFile, mode='rb') as file:
 			for lineNum, line in enumerate(file, 1):
