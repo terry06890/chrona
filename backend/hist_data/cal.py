@@ -77,7 +77,7 @@ class HistDate:
 	- 'month' and 'day' are at least 1, if given
 	- 'gcal' may be:
 		- True: Indicates a Gregorian calendar date
-		- False: Means the date should, for display, be converted to a Julian calendar date
+		- False: Indicates a Julian calendar date
 		- None: 'month' and 'day' are 1 (required for dates before MIN_CAL_YEAR)
 	"""
 	def __init__(self, gcal: bool | None, year: int, month=1, day=1):

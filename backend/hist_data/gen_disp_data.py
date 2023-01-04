@@ -26,7 +26,7 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
 	scaleUnitToCounts: dict[tuple[int, int], list[int]] = {}
 		# Maps scale and unit to two counts (num events in that unit, num events displayable for that unit)
 		# Only includes events with popularity values
-	idScales: dict[int, list[int]] = {} # Maps event ids to scales they are displayable on
+	idScales: dict[int, list[tuple[int, int]]] = {} # Maps event ids to scales+units they are displayable on
 	iterNum = 0
 	query = 'SELECT events.id, start, fmt FROM events INNER JOIN pop ON events.id = pop.id ORDER BY pop.pop DESC'
 	for eventId, eventStart, fmt in dbCur.execute(query):
@@ -47,7 +47,7 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
 				counts[1] += 1
 				if eventId not in idScales:
 					idScales[eventId] = []
-				idScales[eventId].append(scale)
+				idScales[eventId].append((scale, unit))
 			scaleUnitToCounts[(scale, unit)] = counts
 	print(f'Results: {len(idScales)} displayable events')
 	#
@@ -84,10 +84,11 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
 	dbCur.execute('CREATE TABLE dist (scale INT, unit INT, count INT, PRIMARY KEY (scale, unit))')
 	for (scale, unit), (count, _) in scaleUnitToCounts.items():
 		dbCur.execute('INSERT INTO dist VALUES (?, ?, ?)', (scale, unit, count))
-	dbCur.execute('CREATE TABLE event_disp (id INT, scale INT, PRIMARY KEY (id, scale))')
-	for eventId, scales in idScales.items():
-		for scale in scales:
-			dbCur.execute('INSERT INTO event_disp VALUES (?, ?)', (eventId, scale))
+	dbCur.execute('CREATE TABLE event_disp (id INT, scale INT, unit INT, PRIMARY KEY (id, scale))')
+	dbCur.execute('CREATE INDEX event_disp_scale_unit_idx ON event_disp(scale, unit)')
+	for eventId, scaleUnits in idScales.items():
+		for [scale, unit] in scaleUnits:
+			dbCur.execute('INSERT INTO event_disp VALUES (?, ?, ?)', (eventId, scale, unit))
 	#
 	print('Closing db')
 	dbCon.commit()

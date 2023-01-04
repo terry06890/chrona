@@ -218,29 +218,18 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 	constraints = ['event_disp.scale = ?']
 	params: list[str | int] = [scale]
 	# Constrain by start/end
-	if start is not None:
-		constraint = '(start >= ? AND fmt > 0 OR start >= ? AND fmt = 0)'
-		if start.gcal is None:
-			startJdn = gregorianToJdn(start.year, 1, 1) if start.year >= MIN_CAL_YEAR else 0
-			constraints.append(constraint)
-			params.extend([startJdn, start.year])
-		else:
-			startJdn = gregorianToJdn(start.year, start.month, start.day)
-			constraints.append(constraint)
-			year = start.year if start.month == 1 and start.day == 1 else start.year + 1
-			params.extend([startJdn, year])
-	if end is not None:
-		constraint = '(start < ? AND fmt > 0 OR start < ? AND fmt = 0)'
-		if scale < 1 and (end.month > 1 or end.day > 1):
-			constraint = '(start < ? AND fmt > 0 OR start <= ? AND fmt = 0)'
-		if end.gcal is None:
-			endJdn = gregorianToJdn(end.year, 1, 1) if end.year >= MIN_CAL_YEAR else -1
-			constraints.append(constraint)
-			params.extend([endJdn, end.year])
-		else:
-			endJdn = gregorianToJdn(end.year, end.month, end.day)
-			constraints.append(constraint)
-			params.extend([endJdn, end.year])
+	startUnit = dateToUnit(start, scale) if start is not None else None
+	endUnit = dateToUnit(end, scale) if end is not None else None
+	if start is not None and startUnit == endUnit:
+		constraints.append('event_disp.unit = ?')
+		params.append(startUnit)
+	else:
+		if start is not None:
+			constraints.append('event_disp.unit >= ?')
+			params.append(startUnit)
+		if end is not None:
+			constraints.append('event_disp.unit < ?')
+			params.append(endUnit)
 	# Constrain by event category
 	if ctg is not None:
 		constraints.append('ctg = ?')
