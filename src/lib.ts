@@ -267,6 +267,28 @@ export class HistEvent {
 		this.pop = pop;
 	}
 }
+export class ImgInfo {
+	url: string;
+	license: string;
+	artist: string;
+	credit: string;
+	constructor(url: string, license: string, artist: string, credit: string){
+		this.url = url;
+		this.license = license;
+		this.artist = artist;
+		this.credit = credit;
+	}
+}
+export class EventInfo {
+	desc: string;
+	wikiId: number;
+	imgInfo: ImgInfo;
+	constructor(desc: string, wikiId: number, imgInfo: ImgInfo){
+		this.desc = desc;
+		this.wikiId = wikiId;
+		this.imgInfo = imgInfo;
+	}
+}
 export function cmpHistEvent(event: HistEvent, event2: HistEvent){
 	const cmp = event.start.cmp(event2.start);
 	return cmp != 0 ? cmp : event.id - event2.id;
@@ -287,6 +309,9 @@ export async function queryServer(params: URLSearchParams, serverDataUrl=SERVER_
 	} catch (error){
 		console.log(`Error with querying ${url.toString()}: ${error}`);
 		return null;
+	}
+	if (responseObj == null){
+		console.log('WARNING: Server gave null response');
 	}
 	return responseObj;
 }
@@ -315,7 +340,18 @@ export type EventResponseJson = {
 	events: HistEventJson[],
 	unitCounts: {[x: number]: number} | null,
 }
-export function jsonToHistDate(json: HistDateJson): HistDate{
+export type EventInfoJson = {
+	desc: string,
+	wikiId: number,
+	imgInfo: ImgInfoJson,
+}
+export type ImgInfoJson = {
+	url: string,
+	license: string,
+	artist: string,
+	credit: string,
+}
+export function jsonToHistDate(json: HistDateJson): HistDate {
 	return new HistDate(json.gcal, json.year, json.month, json.day);
 }
 export function jsonToHistEvent(json: HistEventJson): HistEvent {
@@ -330,6 +366,12 @@ export function jsonToHistEvent(json: HistEventJson): HistEvent {
 		json.imgId,
 		json.pop,
 	);
+}
+export function jsonToEventInfo(json: EventInfoJson): EventInfo {
+	return new EventInfo(json.desc, json.wikiId, jsonToImgInfo(json.imgInfo));
+}
+export function jsonToImgInfo(json: ImgInfoJson): ImgInfo {
+	return new ImgInfo(json.url, json.license, json.artist, json.credit);
 }
 
 // For dates in a timeline

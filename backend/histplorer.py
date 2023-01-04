@@ -13,7 +13,7 @@ Expected HTTP query parameters:
 		range=-13000. means '13000 BC onwards'
 - scale: With type=events, specifies a date scale
 - incl: With type=events, specifies an event to include, as an event ID
-- event: With type=info, specifies the event to get info for
+- event: With type=info, specifies the event ID to get info for
 - input: With type=sugg, specifies a search string to suggest for
 - limit: With type=events or type=sugg, specifies the max number of results
 - ctg: With type=events or type=sugg, specifies an event category to restrict results to
@@ -23,7 +23,7 @@ from typing import Iterable
 import sys, re
 import urllib.parse, sqlite3
 import gzip, jsonpickle
-from hist_data.cal import gregorianToJdn, HistDate, MIN_CAL_YEAR, dbDateToHistDate, dateToUnit
+from hist_data.cal import HistDate, dbDateToHistDate, dateToUnit
 
 DB_FILE = 'hist_data/data.db'
 MAX_REQ_EVENTS = 500
@@ -91,7 +91,7 @@ class ImgInfo:
 		return str(self.__dict__)
 class EventInfo:
 	""" Used when responding to type=info requests """
-	def __init__(self, desc: str, wikiId: str, imgInfo: ImgInfo):
+	def __init__(self, desc: str, wikiId: int, imgInfo: ImgInfo):
 		self.desc = desc
 		self.wikiId = wikiId
 		self.imgInfo = imgInfo
@@ -220,14 +220,14 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 	# Constrain by start/end
 	startUnit = dateToUnit(start, scale) if start is not None else None
 	endUnit = dateToUnit(end, scale) if end is not None else None
-	if start is not None and startUnit == endUnit:
+	if startUnit is not None and startUnit == endUnit:
 		constraints.append('event_disp.unit = ?')
 		params.append(startUnit)
 	else:
-		if start is not None:
+		if startUnit is not None:
 			constraints.append('event_disp.unit >= ?')
 			params.append(startUnit)
-		if end is not None:
+		if endUnit is not None:
 			constraints.append('event_disp.unit < ?')
 			params.append(endUnit)
 	# Constrain by event category
@@ -302,16 +302,17 @@ def handleInfoReq(params: dict[str, str], dbCur: sqlite3.Cursor):
 	return lookupEventInfo(eventId, dbCur)
 def lookupEventInfo(eventId: int, dbCur: sqlite3.Cursor) -> EventInfo | None:
 	""" Look up an event with given ID, and return a descriptive EventInfo """
-	query = 'SELECT desc, wiki_id, url, license, artist, credit FROM events' \
-		' INNER JOIN descs ON events.id = descs.id' \
-		' INNER JOIN event_imgs ON events.id = event_imgs.id INNER JOIN images ON event_imgs.img_id = images.id' \
-		' WHERE events.id = ?'
-	row = dbCur.execute(query, (eventId,)).fetchone()
-	if row is not None:
-		desc, wikiId, url, license, artist, credit = row
-		return EventInfo(desc, wikiId, ImgInfo(url, license, artist, credit))
-	else:
-		return None
+	return EventInfo(f'DESC {eventId}', 1, ImgInfo(f'http://example.org/{eventId}', 'license', 'artist', 'credit'))
+	#query = 'SELECT desc, wiki_id, url, license, artist, credit FROM events' \
+	#	' INNER JOIN descs ON events.id = descs.id' \
+	#	' INNER JOIN event_imgs ON events.id = event_imgs.id INNER JOIN images ON event_imgs.img_id = images.id' \
+	#	' WHERE events.id = ?'
+	#row = dbCur.execute(query, (eventId,)).fetchone()
+	#if row is not None:
+	#	desc, wikiId, url, license, artist, credit = row
+	#	return EventInfo(desc, wikiId, ImgInfo(url, license, artist, credit))
+	#else:
+	#	return None
 
 # For type=sugg
 def handleSuggReq(params: dict[str, str], dbCur: sqlite3.Cursor):

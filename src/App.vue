@@ -22,9 +22,15 @@
 			:vert="vert" :initialState="state" :closeable="timelines.length > 1"
 			:eventTree="eventTree" :unitCountMaps="unitCountMaps"
 			class="grow basis-full min-h-0 outline outline-1"
-			@remove="onTimelineRemove(idx)" @state-chg="onTimelineChg($event, idx)" @event-display="onEventDisplay"/>
+			@close="onTimelineClose(idx)" @state-chg="onTimelineChg($event, idx)" @event-display="onEventDisplay"
+			@event-click="onEventClick"/>
 		<base-line :vert="vert" :timelines="timelines" class='m-1 sm:m-2'/>
 	</div>
+	<!-- Modals -->
+	<transition name="fade">
+		<info-modal v-if="infoModalEvent != null && infoModalData != null"
+			:event="infoModalEvent" :eventInfo="infoModalData" @close="infoModalEvent = null"/>
+	</transition>
 </div>
 </template>
 
@@ -33,6 +39,7 @@ import {ref, computed, onMounted, onUnmounted, Ref, shallowRef, ShallowRef} from
 // Components
 import TimeLine from './components/TimeLine.vue';
 import BaseLine from './components/BaseLine.vue';
+import InfoModal from './components/InfoModal.vue';
 import IconButton from './components/IconButton.vue';
 // Icons
 import PlusIcon from './components/icon/PlusIcon.vue';
@@ -40,7 +47,8 @@ import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
 // Other
 import {HistDate, HistEvent, queryServer, EventResponseJson, jsonToHistEvent,
-	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree} from './lib';
+	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree,
+	EventInfo, EventInfoJson, jsonToEventInfo} from './lib';
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
 
@@ -91,7 +99,7 @@ function onTimelineAdd(){
 	}
 	addTimeline();
 }
-function onTimelineRemove(idx: number){
+function onTimelineClose(idx: number){
 	if (timelines.value.length == 1){
 		console.log('Ignored removal of last timeline')
 		return;
@@ -204,7 +212,7 @@ async function onEventDisplay(
 			scale: String(SCALES[scaleIdx]),
 			limit: String(EVENT_REQ_LIMIT),
 		});
-		let responseObj: EventResponseJson = await queryServer(urlParams);
+		let responseObj: EventResponseJson | null = await queryServer(urlParams);
 		if (responseObj == null){
 			return;
 		}
@@ -249,6 +257,19 @@ async function onEventDisplay(
 	eventDisplayHdlr = window.setTimeout(async () => {
 		await handleEvent(timelineId, eventIds, firstDate, lastDate, scaleIdx);
 	}, SERVER_QUERY_TIMEOUT);
+}
+
+// For info modal
+const infoModalEvent = ref(null as HistEvent | null);
+const infoModalData = ref(null as EventInfo | null);
+async function onEventClick(eventId: number){
+	// Query server for event info
+	let urlParams = new URLSearchParams({type: 'info', event: String(eventId)});
+	let responseObj: EventInfoJson | null = await queryServer(urlParams);
+	if (responseObj != null){
+		infoModalEvent.value = idToEvent.get(eventId)!;
+		infoModalData.value = jsonToEventInfo(responseObj);
+	}
 }
 
 // For resize handling

@@ -1,5 +1,5 @@
 <template>
-<div class="touch-none relative overflow-hidden" ref="rootRef"
+<div class="touch-none relative overflow-hidden z-0" ref="rootRef"
 	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel">
 	<template v-if="store.showEventCounts">
 		<div v-for="[tickIdx, count] in tickToCount.entries()" :key="ticks[tickIdx].date.toInt()"
@@ -47,7 +47,8 @@
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
 		<!-- Image -->
-		<div class="rounded-full" :style="eventImgStyles(id)"></div>
+		<div class="rounded-full cursor-pointer hover:brightness-125" :style="eventImgStyles(id)"
+			@click="onEventClick(id)"></div>
 		<!-- Label -->
 		<div class="text-center text-stone-100 text-sm whitespace-nowrap text-ellipsis overflow-hidden">
 			{{idToEvent.get(id)!.title}}
@@ -60,7 +61,7 @@
 	<!-- Buttons -->
 	<icon-button v-if="closeable" :size="30" class="absolute top-2 right-2 z-20"
 		:style="{color: store.color.text, backgroundColor: store.color.altDark2}"
-		@click="emit('remove')" title="Remove timeline">
+		@click="emit('close')" title="Close timeline">
 		<close-icon/>
 	</icon-button>
 </div>
@@ -76,7 +77,7 @@ import CloseIcon from './icon/CloseIcon.vue';
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MONTH_NAMES, MIN_CAL_DATE,
 	getDaysInMonth, HistDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
 	getEventPrecision, dateToUnit,
-	moduloPositive, TimelineState, HistEvent, getImagePath} from '../lib';
+	moduloPositive, TimelineState, HistEvent} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 
@@ -95,7 +96,7 @@ const props = defineProps({
 	eventTree: {type: Object as PropType<RBTree<HistEvent>>, required: true},
 	unitCountMaps: {type: Object as PropType<Map<number, number>[]>, required: true},
 });
-const emit = defineEmits(['remove', 'state-chg', 'event-req', 'event-display']);
+const emit = defineEmits(['close', 'state-chg', 'event-display', 'event-click']);
 
 // For size tracking
 const width = ref(0);
@@ -1107,6 +1108,11 @@ watch(firstDate, onStateChg);
 // For skipping transitions on startup (and on horz/vert swap)
 const skipTransition = ref(true);
 onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
+
+// Click handling
+function onEventClick(eventId: number){
+	emit('event-click', eventId);
+}
 
 // Styles
 const mainlineStyles = computed(() => {

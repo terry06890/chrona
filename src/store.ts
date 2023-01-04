@@ -20,6 +20,7 @@ export const useStore = defineStore('store', {
 			altDark2: '#ca8a04', // yellow-600
 			altBg: '#6a5e2e',
 			alt2: '#2563eb',     // sky-600
+			bgAlt: '#f5f5f4',    // stone-100
 		};
 		return {
 			tickLen: 16,
@@ -44,6 +45,7 @@ export const useStore = defineStore('store', {
 			color,
 			showEventCounts: true,
 			transitionDuration: 300,
+			borderRadius: 5, // px
 		};
 	},
 });
