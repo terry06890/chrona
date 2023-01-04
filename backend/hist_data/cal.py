@@ -94,10 +94,7 @@ class HistDate:
 def dbDateToHistDate(n: int, fmt: int, end=False) -> HistDate:
 	""" Converts a start/start_upper/etc and fmt value in the 'events' db table, into a HistDate """
 	if fmt == 0: # year
-		if n >= MIN_CAL_YEAR:
-			return HistDate(True, n, 1, 1)
-		else:
-			return HistDate(None, n)
+		return HistDate(None, n)
 	elif fmt == 1 or fmt == 3 and end: # jdn for gregorian calendar
 		return HistDate(True, *jdnToGregorian(n))
 	else: # fmt == 2 or fmt == 3 and not end

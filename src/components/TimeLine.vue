@@ -666,16 +666,17 @@ const tickToCount = computed((): Map<number, number> => {
 	}
 	const map = props.unitCountMaps[minorScaleIdx.value];
 	for (let tickIdx = firstIdx.value; tickIdx < lastIdx.value; tickIdx++){
-		tickToCount.set(tickIdx, 0);
+		let eventCount = 0;
 		let date = ticks.value[tickIdx].date.clone();
 		let nextDate = ticks.value[tickIdx + 1].date;
 		while (date.isEarlier(nextDate)){
 			let unit = dateToUnit(date, minorScale.value);
 			if (map.has(unit)){
-				tickToCount.set(tickIdx, tickToCount.get(tickIdx)! + map.get(unit)!);
+				eventCount += map.get(unit)!;
 			}
 			stepDate(date, minorScale.value, {inplace: true});
 		}
+		tickToCount.set(tickIdx, eventCount);
 	}
 	return tickToCount;
 });

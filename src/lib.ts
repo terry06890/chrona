@@ -92,7 +92,7 @@ export class HistDate {
 		this.month = gcal == null ? 1 : month;
 		this.day = gcal == null ? 1 : day;
 	}
-	equals(other: HistDate, scale=DAY_SCALE){
+	equals(other: HistDate, scale=DAY_SCALE){ // Does not check gcal
 		if (scale == DAY_SCALE){
 			return this.year == other.year && this.month == other.month && this.day == other.day;
 		} else if (scale == MONTH_SCALE){
@@ -221,10 +221,10 @@ export class YearDate extends HistDate {
 	declare year: number;
 	declare month: 1;
 	declare day: 1;
-	constructor(year=MIN_CAL_YEAR-1){
-		if (year >= MIN_CAL_YEAR){
-			throw new Error(`Year must be before ${MIN_CAL_YEAR}`);
-		}
+	constructor(year: number){
+		// Note: Intentionally not enforcing year < MIN_CAL_YEAR here.  This does mean a YearDate can be
+		// interpreted as the same day as a CalDate, but it also avoids having HistEvents that span across
+		// MIN_CAL_YEAR that have a mix of YearDates and CalDates.
 		super(null, year, 1, 1);
 	}
 }
@@ -315,25 +315,21 @@ export type EventResponseJson = {
 	events: HistEventJson[],
 	unitCounts: {[x: number]: number} | null,
 }
-export function jsonToHistDate(json: HistDateJson){
-	if (json.gcal == null){
-		return new YearDate(json.year);
-	} else {
-		return new CalDate(json.year, json.month, json.day, json.gcal);
-	}
+export function jsonToHistDate(json: HistDateJson): HistDate{
+	return new HistDate(json.gcal, json.year, json.month, json.day);
 }
-export function jsonToHistEvent(json: HistEventJson){
-	return {
-		id: json.id,
-		title: json.title,
-		start: jsonToHistDate(json.start),
-		startUpper: json.startUpper == null ? null : jsonToHistDate(json.startUpper),
-		end: json.end == null ? null : jsonToHistDate(json.end),
-		endUpper: json.endUpper == null ? null : jsonToHistDate(json.endUpper),
-		ctg: json.ctg,
-		imgId: json.imgId,
-		pop: json.pop,
-	};
+export function jsonToHistEvent(json: HistEventJson): HistEvent {
+	return new HistEvent(
+		json.id,
+		json.title,
+		jsonToHistDate(json.start),
+		json.startUpper == null ? null : jsonToHistDate(json.startUpper),
+		json.end == null ? null : jsonToHistDate(json.end),
+		json.endUpper == null ? null : jsonToHistDate(json.endUpper),
+		json.ctg,
+		json.imgId,
+		json.pop,
+	);
 }
 
 // For dates in a timeline
@@ -506,6 +502,7 @@ export function getEventPrecision(event: HistEvent): number {
 	return Number.POSITIVE_INFINITY;
 }
 export function dateToUnit(date: HistDate, scale: number): number {
+	// For a YearDate and sub-yearly scale, uses the first day of the YearDate's year
 	if (scale >= 1){
 		return Math.floor(date.year / scale);
 	} else if (scale == MONTH_SCALE){
@@ -551,7 +548,7 @@ export class DateRangeTree {
 	}
 	add(range: DateRange){
 		const rangesToRemove: HistDate[] = []; // Holds starts of ranges to remove
-		const dummyDate = new YearDate();
+		const dummyDate = new YearDate(1);
 		// Find ranges to remove
 		const itr = this.tree.lowerBound([range[0], dummyDate]);
 		let prevRange = itr.prev();
@@ -585,7 +582,7 @@ export class DateRangeTree {
 		this.tree.insert([startDate, endDate]);
 	}
 	contains(range: DateRange): boolean {
-		const itr = this.tree.lowerBound([range[0], new YearDate()]);
+		const itr = this.tree.lowerBound([range[0], new YearDate(1)]);
 		let r = itr.data();
 		if (r == null){
 			r = itr.prev();
