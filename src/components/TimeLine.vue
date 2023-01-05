@@ -76,7 +76,7 @@ import CloseIcon from './icon/CloseIcon.vue';
 // Other
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MONTH_NAMES, MIN_CAL_DATE,
 	getDaysInMonth, HistDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
-	getEventPrecision, dateToUnit,
+	getEventPrecision, dateToUnit, dateToScaleDate,
 	moduloPositive, TimelineState, HistEvent} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
@@ -95,6 +95,7 @@ const props = defineProps({
 	initialState: {type: Object as PropType<TimelineState>, required: true},
 	eventTree: {type: Object as PropType<RBTree<HistEvent>>, required: true},
 	unitCountMaps: {type: Object as PropType<Map<number, number>[]>, required: true},
+	searchTarget: {type: Object as PropType<[null | HistEvent, boolean]>, required: true},
 });
 const emit = defineEmits(['close', 'state-chg', 'event-display', 'info-click']);
 
@@ -444,6 +445,11 @@ const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
 	}
 	return map;
 });
+watch(idToEvent, () => { // Remove highlighting of search results that have become out of range
+	if (searchEvent.value != null && !idToEvent.value.has(searchEvent.value.id)){
+		searchEvent.value = null;
+	}
+});
 const idToPos = computed(() => {
 	if (!mounted.value){
 		return new Map();
@@ -489,6 +495,13 @@ const idToPos = computed(() => {
 	let MAX_ANGLE = 30 / 180 * Math.PI; // Max event-line angle difference (radians) from perpendicular-to-mainline
 	let orderedEvents = [...idToEvent.value.values()];
 	orderedEvents.sort((x, y) => y.pop - x.pop);
+	if (searchEvent.value != null && idToEvent.value.has(searchEvent.value.id)){
+		// Prioritise layout of a searched-for event
+		let targetIdx = orderedEvents.findIndex((evt: HistEvent) => evt.id == searchEvent.value!.id);
+		let temp = orderedEvents[0];
+		orderedEvents[0] = orderedEvents[targetIdx];
+		orderedEvents[targetIdx] = temp;
+	}
 	let numUnits = getNumDisplayUnits();
 	const minOffset = store.spacing;
 	const maxOffset = availLen.value - eventMajorSz.value - store.spacing;
@@ -1105,6 +1118,45 @@ function onStateChg(){
 }
 watch(firstDate, onStateChg);
 
+// For jumping to search result
+const searchEvent = ref(null as null | HistEvent); // Holds most recent search result
+watch(() => props.searchTarget, () => {
+	const event = props.searchTarget[0];
+	if (event == null){
+		return;
+	}
+	if (!idToPos.value.has(event.id)){ // If not already visible
+		// Determine new time range
+		let tempScale = scale.value;
+		let targetDate = event.start;
+		if (targetDate.isEarlier(MIN_CAL_DATE) && tempScale < 1){ // Account for jumping out of calendar limits
+			tempScale = getEventPrecision(event);
+		}
+		targetDate = dateToScaleDate(targetDate, tempScale);
+		const startEndDiff = getUnitDiff(startDate.value, endDate.value, scale.value);
+		let targetStart = stepDate(targetDate, tempScale, {forward: false, count: Math.floor(startEndDiff / 2)});
+		if (targetStart.isEarlier(MIN_DATE)){
+			targetStart = MIN_DATE;
+		}
+		let targetEnd = stepDate(targetStart, tempScale, {count: startEndDiff});
+		if (MAX_DATE.isEarlier(targetEnd)){
+			if (targetStart != MIN_DATE){
+				targetStart = stepDate(targetStart, tempScale,
+					{forward: false, count: getUnitDiff(targetEnd, MAX_DATE, tempScale)});
+				if (targetStart.isEarlier(MIN_DATE)){
+					targetStart = MIN_DATE;
+				}
+			}
+			targetEnd = MAX_DATE;
+		}
+		// Jump to range
+		startDate.value = targetStart;
+		endDate.value = targetEnd;
+		scaleIdx.value = SCALES.findIndex((s: number) => s == tempScale);
+	}
+	searchEvent.value = event;
+});
+
 // For skipping transitions on startup (and on horz/vert swap)
 const skipTransition = ref(true);
 onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
@@ -1163,13 +1215,14 @@ function eventStyles(eventId: number){
 }
 function eventImgStyles(eventId: number){
 	const event = idToEvent.value.get(eventId)!;
+	let isSearchResult = searchEvent.value != null && searchEvent.value.id == eventId;
 	return {
 		width: store.eventImgSz + 'px',
 		height: store.eventImgSz + 'px',
 		//backgroundImage: `url(${getImagePath(event.imgId)})`,
 		backgroundColor: 'black',
 		backgroundSize: 'cover',
-		borderColor: event.ctg == 'discovery' ? store.color.alt2 : store.color.altDark,
+		borderColor: isSearchResult ? 'red' : (event.ctg == 'discovery' ? store.color.alt2 : store.color.altDark),
 		borderWidth: '1px',
 	};
 }

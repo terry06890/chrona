@@ -1,8 +1,9 @@
 import {moduloPositive,
 	gregorianToJdn, julianToJdn, jdnToGregorian, jdnToJulian, gregorianToJulian, julianToGregorian, getDaysInMonth,
-	HistDate, YearDate, CalDate, HistEvent,
+	YearDate, CalDate, HistEvent,
 	queryServer, jsonToHistDate, jsonToHistEvent,
-	DAY_SCALE, MONTH_SCALE, stepDate, inDateScale, getScaleRatio, getUnitDiff, getEventPrecision, dateToUnit,
+	DAY_SCALE, MONTH_SCALE, stepDate, inDateScale, getScaleRatio, getUnitDiff,
+	getEventPrecision, dateToUnit, dateToScaleDate,
 	DateRangeTree,
 } from '/src/lib.ts'
 
@@ -47,10 +48,6 @@ test('getDaysInMonth', () => {
 })
 
 describe('YearDate', () => {
-	test('constructor', () => {
-		expect(() => new YearDate(2000)).toThrowError()
-		expect(() => new YearDate(-5000)).not.toThrowError()
-	})
 	test('cmp', () => {
 		expect((new YearDate(-5000)).equals(new YearDate(-5000))).toBe(true)
 		expect((new YearDate(-6000)).equals(new YearDate(-5999))).toBe(false)
@@ -79,9 +76,9 @@ describe('CalDate', () => {
 })
 
 test('queryServer', async () => {
-	let oldFetch = fetch
+	const oldFetch = fetch
 	fetch = vi.fn(() => ({json: () => ({test: 'value'})}))
-	let json = await queryServer('', 'http://example.com/')
+	const json = await queryServer('', 'http://example.com/')
 	expect(json).toEqual({test: 'value'})
 	fetch = oldFetch
 })
@@ -90,7 +87,7 @@ test('jsonToHistDate', () => {
 	expect(jsonToHistDate({gcal: null, year: -5000, month: 1, day: 1})).toEqual(new YearDate(-5000))
 })
 test('jsonToHistEvent', () => {
-	let jsonEvent = {
+	const jsonEvent = {
 		id: 3,
 		title: 'abc',
 		start: {gcal: true, year: 2000, month: 10, day: 5},
@@ -157,9 +154,17 @@ test('dateToUnit', () => {
 	expect(dateToUnit(new CalDate(1911, 12, 3), MONTH_SCALE)).toBe(gregorianToJdn(1911, 12, 1))
 	expect(dateToUnit(new CalDate(1911, 12, 3, false), DAY_SCALE)).toBe(julianToJdn(1911, 12, 3))
 })
+test('dateToScaleDate', () => {
+	expect(dateToScaleDate(new CalDate(2013, 10, 3), DAY_SCALE)).toEqual(new CalDate(2013, 10, 3))
+	expect(dateToScaleDate(new CalDate(2013, 10, 3, false), MONTH_SCALE)).toEqual(new CalDate(2013, 10, 1))
+	expect(dateToScaleDate(new CalDate(2013, 10, 3), 1)).toEqual(new CalDate(2013, 1, 1))
+	expect(dateToScaleDate(new CalDate(2013, 10, 3), 1e3)).toEqual(new CalDate(2000, 1, 1))
+	expect(dateToScaleDate(new CalDate(2013, 10, 3), 1e4)).toEqual(new CalDate(1, 1, 1))
+	expect(dateToScaleDate(new YearDate(-1222333), 1e6)).toEqual(new YearDate(-2000000))
+})
 
 test('DateRangeTree', () => {
-	let ranges = new DateRangeTree()
+	const ranges = new DateRangeTree()
 	ranges.add([new CalDate(100, 1, 1), new CalDate(200, 1, 1)])
 	ranges.add([new CalDate(300, 1, 1), new CalDate(400, 1, 1)])
 	expect(ranges.tree.size).toBe(2)

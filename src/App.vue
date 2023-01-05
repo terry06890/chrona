@@ -23,7 +23,7 @@
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
 			:vert="vert" :initialState="state" :closeable="timelines.length > 1"
-			:eventTree="eventTree" :unitCountMaps="unitCountMaps"
+			:eventTree="eventTree" :unitCountMaps="unitCountMaps" :searchTarget="timelineTargets[idx]"
 			class="grow basis-full min-h-0 outline outline-1"
 			@close="onTimelineClose(idx)" @state-chg="onTimelineChg($event, idx)" @event-display="onEventDisplay"
 			@info-click="onInfoClick"/>
@@ -54,9 +54,9 @@ import SettingsIcon from './components/icon/SettingsIcon.vue';
 import PlusIcon from './components/icon/PlusIcon.vue';
 import SearchIcon from './components/icon/SearchIcon.vue';
 // Other
-import {HistDate, HistEvent, queryServer, EventResponseJson, jsonToHistEvent,
-	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree,
-	EventInfo, EventInfoJson, jsonToEventInfo} from './lib';
+import {HistDate, HistEvent, queryServer,
+	EventResponseJson, jsonToHistEvent, EventInfo, EventInfoJson, jsonToEventInfo,
+	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree} from './lib';
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
 
@@ -75,7 +75,7 @@ function updateAreaDims(){
 	contentWidth.value = contentAreaEl.offsetWidth;
 	contentHeight.value = contentAreaEl.offsetHeight;
 }
-onMounted(updateAreaDims)
+onMounted(updateAreaDims);
 
 // Timeline data
 const timelines: Ref<TimelineState[]> = ref([]);
@@ -90,9 +90,10 @@ function addTimeline(){
 			last.endDate, last.startOffset, last.endOffset, last.scaleIdx
 		));
 	}
+	timelineTargets.value.push([null, false]);
 	nextTimelineId++;
 }
-addTimeline();
+onMounted(addTimeline);
 function onTimelineChg(state: TimelineState, idx: number){
 	timelines.value[idx] = state;
 }
@@ -113,6 +114,7 @@ function onTimelineClose(idx: number){
 		return;
 	}
 	timelines.value.splice(idx, 1);
+	timelineTargets.value.splice(idx, 1);
 }
 
 // For storing and looking up events
@@ -175,8 +177,11 @@ async function onEventDisplay(
 		timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
 	async function handleEvent(
 			timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
+		let timelineIdx = timelines.value.findIndex((s : TimelineState) => s.id == timelineId);
+		let targetEvent = timelineTargets.value[timelineIdx][0];
 		// Skip if range has been queried, and enough of its events have been obtained
-		if (queriedRanges[scaleIdx].contains([firstDate, lastDate])){
+		if (queriedRanges[scaleIdx].contains([firstDate, lastDate])
+				&& (targetEvent == null || idToEvent.has(targetEvent.id))){
 			// Get number of events in range, server-side
 			let fullCount = 0;
 			let date = firstDate.clone();
@@ -214,17 +219,21 @@ async function onEventDisplay(
 			}
 		}
 		// Get events from server
-		if (lastQueriedRange != null && lastQueriedRange[0].equals(firstDate) && lastQueriedRange[1].equals(lastDate)){
+		if (lastQueriedRange != null && lastQueriedRange[0].equals(firstDate) && lastQueriedRange[1].equals(lastDate)
+				&& (targetEvent == null || idToEvent.has(targetEvent.id))){
 			console.log(`INFO: Skipping redundant server request from ${firstDate} to ${lastDate}`);
 			return;
 		}
-		lastQueriedRange = [firstDate, lastDate]
+		lastQueriedRange = [firstDate, lastDate];
 		let urlParams = new URLSearchParams({
 			type: 'events',
 			range: `${firstDate}.${lastDate}`,
 			scale: String(SCALES[scaleIdx]),
 			limit: String(EVENT_REQ_LIMIT),
 		});
+		if (targetEvent != null){
+			urlParams.append('incl', String(targetEvent.id));
+		}
 		let responseObj: EventResponseJson | null = await queryServer(urlParams);
 		if (responseObj == null){
 			console.log('WARNING: Server gave null response to event query');
@@ -241,6 +250,12 @@ async function onEventDisplay(
 				idToEvent.set(event.id, event);
 				titleToEvent.set(event.title, event);
 			}
+		}
+		if (targetEvent != null){
+			if (!idToEvent.has(targetEvent.id)){
+				console.log(`WARNING: Server response did not include event matching 'incl=${targetEvent.id}'`);
+			}
+			timelineTargets.value[timelineIdx][0] = null;
 		}
 		// Collect unit counts
 		const unitCounts = responseObj.unitCounts;
@@ -289,9 +304,14 @@ async function onInfoClick(eventTitle: string){
 
 // For search modal
 const searchOpen = ref(false);
+const timelineTargets = ref([] as [HistEvent | null, boolean][]); // For communicating search results to timelines
+	// A boolean flag is used to trigger jumping even when the same event occurs twice
 function onSearch(event: HistEvent){
 	searchOpen.value = false;
-	console.log(`Need to jump to event "${event.title}" at ${event.start}`);
+	// Trigger jump in endmost timeline
+	let timelineIdx = timelineTargets.value.length - 1;
+	let oldFlag = timelineTargets.value[timelineIdx];
+	timelineTargets.value.splice(timelineIdx, 1, [event, !oldFlag[1]]);
 }
 
 // For resize handling

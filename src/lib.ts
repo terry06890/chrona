@@ -565,6 +565,21 @@ export function dateToUnit(date: HistDate, scale: number): number {
 		}
 	}
 }
+export function dateToScaleDate(date: HistDate, scale: number): HistDate {
+	// Returns a date representing the unit on 'scale' that 'date' is within
+	if (scale == DAY_SCALE){
+		return new CalDate(date.year, date.month, date.day);
+	} else if (scale == MONTH_SCALE){
+		return new CalDate(date.year, date.month, 1);
+	} else {
+		const year = Math.floor(date.year / scale) * scale;
+		if (year < MIN_CAL_YEAR){
+			return new YearDate(year);
+		} else {
+			return new CalDate(year == 0 ? 1 : year, 1, 1);
+		}
+	}
+}
 
 // For sending timeline-bound data to BaseLine
 export class TimelineState {
