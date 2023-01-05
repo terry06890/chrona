@@ -13,7 +13,7 @@ Expected HTTP query parameters:
 		range=-13000. means '13000 BC onwards'
 - scale: With type=events, specifies a date scale
 - incl: With type=events, specifies an event to include, as an event ID
-- event: With type=info, specifies the event ID to get info for
+- event: With type=info, specifies the event title to get info for
 - input: With type=sugg, specifies a search string to suggest for
 - limit: With type=events or type=sugg, specifies the max number of results
 - ctg: With type=events or type=sugg, specifies an event category to restrict results to
@@ -91,14 +91,15 @@ class ImgInfo:
 		return str(self.__dict__)
 class EventInfo:
 	""" Used when responding to type=info requests """
-	def __init__(self, desc: str, wikiId: int, imgInfo: ImgInfo):
+	def __init__(self, event: Event, desc: str, wikiId: int, imgInfo: ImgInfo):
+		self.event = event
 		self.desc = desc
 		self.wikiId = wikiId
 		self.imgInfo = imgInfo
 	# Used in unit testing
 	def __eq__(self, other):
 		return isinstance(other, EventInfo) and \
-			(self.desc, self.wikiId, self.imgInfo) == (other.desc, other.wikiId, other.imgInfo)
+			(self.event, self.desc, self.wikiId, self.imgInfo) == (other.event, other.desc, other.wikiId, other.imgInfo)
 	def __repr__(self):
 		return str(self.__dict__)
 class SuggResponse:
@@ -109,7 +110,7 @@ class SuggResponse:
 	# Used in unit testing
 	def __eq__(self, other):
 		return isinstance(other, SuggResponse) and \
-			(set(self.suggs), self.hasMore) == (set(other.suggs), other.hasMore)
+			(self.suggs, self.hasMore) == (other.suggs, other.hasMore)
 	def __repr__(self):
 		return str(self.__dict__)
 
@@ -268,8 +269,8 @@ def eventEntryToResults(
 		if n is not None:
 			newDates[i] = dbDateToHistDate(n, fmt, i < 2)
 	#
-	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, 0, pop)
 	#return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
+	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, 0, pop)
 def lookupUnitCounts(
 		start: HistDate | None, end: HistDate | None, scale: int, dbCur: sqlite3.Cursor) -> dict[int, int] | None:
 	# Build query
@@ -294,23 +295,26 @@ def handleInfoReq(params: dict[str, str], dbCur: sqlite3.Cursor):
 	if 'event' not in params:
 		print('INFO: No \'event\' parameter for type=info request', file=sys.stderr)
 		return None
-	try:
-		eventId = int(params['event'])
-	except ValueError:
-		print('INFO: Invalid value for \'event\' parameter', file=sys.stderr)
-		return None
-	return lookupEventInfo(eventId, dbCur)
-def lookupEventInfo(eventId: int, dbCur: sqlite3.Cursor) -> EventInfo | None:
-	""" Look up an event with given ID, and return a descriptive EventInfo """
-	return EventInfo(f'DESC {eventId}', 1, ImgInfo(f'http://example.org/{eventId}', 'license', 'artist', 'credit'))
-	#query = 'SELECT desc, wiki_id, url, license, artist, credit FROM events' \
+	return lookupEventInfo(params['event'], dbCur)
+def lookupEventInfo(eventTitle: str, dbCur: sqlite3.Cursor) -> EventInfo | None:
+	""" Look up an event with given title, and return a descriptive EventInfo """
+	return EventInfo(
+		Event(1, eventTitle, HistDate(True, 2000, 10, 1), None, None, None, 'event', 10, 100),
+		f'DESC for {eventTitle}', 1, ImgInfo(f'http://example.org/{eventTitle}', 'license', 'artist', 'credit'))
+	#query = \
+	#	'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop, ' \
+	#		' descs.desc, descs.wiki_id, ' \
+	#		' images.url, images.license, images.artist, images.credit FROM events' \
+	#	' INNER JOIN pop ON events.id = pop.id' \
 	#	' INNER JOIN descs ON events.id = descs.id' \
-	#	' INNER JOIN event_imgs ON events.id = event_imgs.id INNER JOIN images ON event_imgs.img_id = images.id' \
-	#	' WHERE events.id = ?'
-	#row = dbCur.execute(query, (eventId,)).fetchone()
+	#	' INNER JOIN event_imgs ON events.id = event_imgs.id' \
+	#	' INNER JOIN images ON event_imgs.img_id = images.id' \
+	#	' WHERE events.title = ? COLLATE NOCASE'
+	#row = dbCur.execute(query, (eventTitle,)).fetchone()
 	#if row is not None:
-	#	desc, wikiId, url, license, artist, credit = row
-	#	return EventInfo(desc, wikiId, ImgInfo(url, license, artist, credit))
+	#	event = eventEntryToResults(row[:10])
+	#	desc, wikiId, url, license, artist, credit = row[10:]
+	#	return EventInfo(event, desc, wikiId, ImgInfo(url, license, artist, credit))
 	#else:
 	#	return None
 
@@ -350,12 +354,13 @@ def lookupSuggs(searchStr: str, resultLimit: int, ctg: str | None, dbCur: sqlite
 	for (title,) in dbCur.execute(query, params):
 		suggs.append(title)
 	# If insufficient results, try substring search
-	existing = set(suggs)
 	if len(suggs) < tempLimit:
+		existing = set(suggs)
 		params = ['%' + searchStr + '%'] + ([ctg] if ctg is not None else [])
 		for (title,) in dbCur.execute(query, params):
 			if title not in existing:
 				suggs.append(title)
 				if len(suggs) == tempLimit:
 					break
+	#
 	return SuggResponse(suggs[:resultLimit], len(suggs) > resultLimit)

@@ -280,10 +280,12 @@ export class ImgInfo {
 	}
 }
 export class EventInfo {
+	event: HistEvent;
 	desc: string;
 	wikiId: number;
 	imgInfo: ImgInfo;
-	constructor(desc: string, wikiId: number, imgInfo: ImgInfo){
+	constructor(event: HistEvent, desc: string, wikiId: number, imgInfo: ImgInfo){
+		this.event = event;
 		this.desc = desc;
 		this.wikiId = wikiId;
 		this.imgInfo = imgInfo;
@@ -309,9 +311,6 @@ export async function queryServer(params: URLSearchParams, serverDataUrl=SERVER_
 	} catch (error){
 		console.log(`Error with querying ${url.toString()}: ${error}`);
 		return null;
-	}
-	if (responseObj == null){
-		console.log('WARNING: Server gave null response');
 	}
 	return responseObj;
 }
@@ -341,6 +340,7 @@ export type EventResponseJson = {
 	unitCounts: {[x: number]: number} | null,
 }
 export type EventInfoJson = {
+	event: HistEventJson,
 	desc: string,
 	wikiId: number,
 	imgInfo: ImgInfoJson,
@@ -350,6 +350,10 @@ export type ImgInfoJson = {
 	license: string,
 	artist: string,
 	credit: string,
+}
+export type SuggResponseJson = {
+	suggs: string[],
+	hasMore: boolean,
 }
 export function jsonToHistDate(json: HistDateJson): HistDate {
 	return new HistDate(json.gcal, json.year, json.month, json.day);
@@ -368,7 +372,7 @@ export function jsonToHistEvent(json: HistEventJson): HistEvent {
 	);
 }
 export function jsonToEventInfo(json: EventInfoJson): EventInfo {
-	return new EventInfo(json.desc, json.wikiId, jsonToImgInfo(json.imgInfo));
+	return new EventInfo(jsonToHistEvent(json.event), json.desc, json.wikiId, jsonToImgInfo(json.imgInfo));
 }
 export function jsonToImgInfo(json: ImgInfoJson): ImgInfo {
 	return new ImgInfo(json.url, json.license, json.artist, json.credit);

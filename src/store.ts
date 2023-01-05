@@ -8,19 +8,20 @@ import {CalDate} from './lib';
 export const useStore = defineStore('store', {
 	state: () => {
 		const color = { // Note: For scrollbar colors on chrome, edit ./index.css
-			text: '#fafaf9',     // stone-50
-			textDark: '#a8a29e', // stone-400
-			bg: '#292524',       // stone-800
-			bgLight: '#44403c',  // stone-700
-			bgDark: '#1c1917',   // stone-900
-			bgLight2: '#57534e', // stone-600
-			bgDark2: '#0e0c0b',  // darker version of stone-900
-			alt: '#fde047',      // yellow-300
-			altDark: '#eab308',  // yellow-500
-			altDark2: '#ca8a04', // yellow-600
+			text: '#fafaf9',      // stone-50
+			textDark: '#a8a29e',  // stone-400
+			bg: '#292524',        // stone-800
+			bgLight: '#44403c',   // stone-700
+			bgDark: '#1c1917',    // stone-900
+			bgLight2: '#57534e',  // stone-600
+			bgDark2: '#0e0c0b',   // darker version of stone-900
+			alt: '#fde047',       // yellow-300
+			altDark: '#eab308',   // yellow-500
+			altDark2: '#ca8a04',  // yellow-600
 			altBg: '#6a5e2e',
-			alt2: '#2563eb',     // sky-600
-			bgAlt: '#f5f5f4',    // stone-100
+			alt2: '#2563eb',      // sky-600
+			bgAlt: '#f5f5f4',     // stone-100
+			bgAltDark: '#d6d3d1', // stone-300
 		};
 		return {
 			tickLen: 16,
@@ -46,6 +47,8 @@ export const useStore = defineStore('store', {
 			showEventCounts: true,
 			transitionDuration: 300,
 			borderRadius: 5, // px
+			searchSuggLimit: 10,
+			disableShortcuts: false,
 		};
 	},
 });

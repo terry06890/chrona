@@ -48,7 +48,7 @@
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
 		<!-- Image -->
 		<div class="rounded-full cursor-pointer hover:brightness-125" :style="eventImgStyles(id)"
-			@click="onEventClick(id)"></div>
+			@click="emit('info-click', idToEvent.get(id)!.title)"></div>
 		<!-- Label -->
 		<div class="text-center text-stone-100 text-sm whitespace-nowrap text-ellipsis overflow-hidden">
 			{{idToEvent.get(id)!.title}}
@@ -96,7 +96,7 @@ const props = defineProps({
 	eventTree: {type: Object as PropType<RBTree<HistEvent>>, required: true},
 	unitCountMaps: {type: Object as PropType<Map<number, number>[]>, required: true},
 });
-const emit = defineEmits(['close', 'state-chg', 'event-display', 'event-click']);
+const emit = defineEmits(['close', 'state-chg', 'event-display', 'info-click']);
 
 // For size tracking
 const width = ref(0);
@@ -1108,11 +1108,6 @@ watch(firstDate, onStateChg);
 // For skipping transitions on startup (and on horz/vert swap)
 const skipTransition = ref(true);
 onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
-
-// Click handling
-function onEventClick(eventId: number){
-	emit('event-click', eventId);
-}
 
 // Styles
 const mainlineStyles = computed(() => {

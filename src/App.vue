@@ -5,14 +5,17 @@
 		<h1 class="my-auto ml-2 text-4xl" :style="{color: store.color.altDark}">Histplorer</h1>
 		<div class="mx-auto"/> <!-- Spacer -->
 		<!-- Icons -->
-		<icon-button :size="45" :style="buttonStyles" @click="onTimelineAdd" title="Add a timeline">
-			<plus-icon/>
+		<icon-button :size="45" :style="buttonStyles">
+			<help-icon/>
 		</icon-button>
 		<icon-button :size="45" :style="buttonStyles">
 			<settings-icon/>
 		</icon-button>
-		<icon-button :size="45" :style="buttonStyles">
-			<help-icon/>
+		<icon-button :size="45" :style="buttonStyles" @click="onTimelineAdd" title="Add a timeline">
+			<plus-icon/>
+		</icon-button>
+		<icon-button :size="45" :style="buttonStyles" @click="searchOpen = true" title="Search">
+			<search-icon/>
 		</icon-button>
 	</div>
 	<!-- Content area -->
@@ -23,13 +26,16 @@
 			:eventTree="eventTree" :unitCountMaps="unitCountMaps"
 			class="grow basis-full min-h-0 outline outline-1"
 			@close="onTimelineClose(idx)" @state-chg="onTimelineChg($event, idx)" @event-display="onEventDisplay"
-			@event-click="onEventClick"/>
+			@info-click="onInfoClick"/>
 		<base-line :vert="vert" :timelines="timelines" class='m-1 sm:m-2'/>
 	</div>
 	<!-- Modals -->
 	<transition name="fade">
-		<info-modal v-if="infoModalEvent != null && infoModalData != null"
-			:event="infoModalEvent" :eventInfo="infoModalData" @close="infoModalEvent = null"/>
+		<search-modal v-if="searchOpen" :eventTree="eventTree" :titleToEvent="titleToEvent"
+			@close="searchOpen = false" @search="onSearch" @info-click="onInfoClick"/>
+	</transition>
+	<transition name="fade">
+		<info-modal v-if="infoModalData != null" :eventInfo="infoModalData" @close="infoModalData = null"/>
 	</transition>
 </div>
 </template>
@@ -40,11 +46,13 @@ import {ref, computed, onMounted, onUnmounted, Ref, shallowRef, ShallowRef} from
 import TimeLine from './components/TimeLine.vue';
 import BaseLine from './components/BaseLine.vue';
 import InfoModal from './components/InfoModal.vue';
+import SearchModal from './components/SearchModal.vue';
 import IconButton from './components/IconButton.vue';
 // Icons
-import PlusIcon from './components/icon/PlusIcon.vue';
-import SettingsIcon from './components/icon/SettingsIcon.vue';
 import HelpIcon from './components/icon/HelpIcon.vue';
+import SettingsIcon from './components/icon/SettingsIcon.vue';
+import PlusIcon from './components/icon/PlusIcon.vue';
+import SearchIcon from './components/icon/SearchIcon.vue';
 // Other
 import {HistDate, HistEvent, queryServer, EventResponseJson, jsonToHistEvent,
 	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree,
@@ -110,6 +118,7 @@ function onTimelineClose(idx: number){
 // For storing and looking up events
 const eventTree: ShallowRef<RBTree<HistEvent>> = shallowRef(new RBTree(cmpHistEvent));
 let idToEvent: Map<number, HistEvent> = new Map();
+let titleToEvent: Map<string, HistEvent> = new Map();
 const unitCountMaps: Ref<Map<number, number>[]> = ref(SCALES.map(() => new Map()));
 	// For each scale, maps units to event counts
 // For keeping event data under a memory limit
@@ -149,6 +158,10 @@ function reduceEvents(){
 	eventTree.value = newTree;
 	unitCountMaps.value = newMaps;
 	idToEvent = eventsToKeep;
+	titleToEvent = new Map();
+	for (let event of eventsToKeep.values()){
+		titleToEvent.set(event.title, event);
+	}
 }
 // For getting events from server
 const EVENT_REQ_LIMIT = 300;
@@ -214,6 +227,7 @@ async function onEventDisplay(
 		});
 		let responseObj: EventResponseJson | null = await queryServer(urlParams);
 		if (responseObj == null){
+			console.log('WARNING: Server gave null response to event query');
 			return;
 		}
 		queriedRanges[scaleIdx].add([firstDate, lastDate]);
@@ -225,6 +239,7 @@ async function onEventDisplay(
 			if (success){
 				eventAdded = true;
 				idToEvent.set(event.id, event);
+				titleToEvent.set(event.title, event);
 			}
 		}
 		// Collect unit counts
@@ -260,16 +275,23 @@ async function onEventDisplay(
 }
 
 // For info modal
-const infoModalEvent = ref(null as HistEvent | null);
 const infoModalData = ref(null as EventInfo | null);
-async function onEventClick(eventId: number){
+async function onInfoClick(eventTitle: string){
 	// Query server for event info
-	let urlParams = new URLSearchParams({type: 'info', event: String(eventId)});
+	let urlParams = new URLSearchParams({type: 'info', event: eventTitle});
 	let responseObj: EventInfoJson | null = await queryServer(urlParams);
 	if (responseObj != null){
-		infoModalEvent.value = idToEvent.get(eventId)!;
 		infoModalData.value = jsonToEventInfo(responseObj);
+	} else {
+		console.log('WARNING: Server gave null response to info query');
 	}
+}
+
+// For search modal
+const searchOpen = ref(false);
+function onSearch(event: HistEvent){
+	searchOpen.value = false;
+	console.log(`Need to jump to event "${event.title}" at ${event.start}`);
 }
 
 // For resize handling
@@ -297,6 +319,33 @@ async function onResize(){
 }
 onMounted(() => window.addEventListener('resize', onResize));
 onUnmounted(() => window.removeEventListener('resize', onResize));
+
+// For keyboard shortcuts
+function onKeyDown(evt: KeyboardEvent){
+	if (store.disableShortcuts){
+		return;
+	}
+	if (evt.key == 'Escape'){
+		if (infoModalData.value != null){
+			infoModalData.value = null;
+		} else if (searchOpen.value){
+			searchOpen.value = false;
+		}
+	} else if (evt.key == 'f' && evt.ctrlKey){
+		evt.preventDefault();
+		// Open/focus search bar
+		if (!searchOpen.value){
+			searchOpen.value = true;
+		}
+	}
+}
+onMounted(() => {
+	window.addEventListener('keydown', onKeyDown);
+		// Note: Need 'keydown' instead of 'keyup' to override default CTRL-F
+});
+onUnmounted(() => {
+	window.removeEventListener('keydown', onKeyDown);
+});
 
 // Styles
 const buttonStyles = computed(() => ({

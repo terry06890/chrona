@@ -74,7 +74,7 @@ import SCollapsible from './SCollapsible.vue';
 import CloseIcon from './icon/CloseIcon.vue';
 import DownIcon from './icon/DownIcon.vue';
 import ExternalLinkIcon from './icon/ExternalLinkIcon.vue';
-import {HistEvent, EventInfo} from '../lib';
+import {EventInfo} from '../lib';
 import {useStore} from '../store';
 
 // Refs
@@ -86,14 +86,14 @@ const store = useStore();
 
 // Props + events
 const props = defineProps({
-	event: {type: Object as PropType<HistEvent>, required: true},
 	eventInfo: {type: Object as PropType<EventInfo>, required: true},
 });
 const emit = defineEmits(['close']);
 
 // For data display
+const event = computed(() => props.eventInfo.event)
 const datesDisplayStr = computed(() => {
-	return props.event.start.toString() + (props.event.end == null ? '' : ' to ' + props.event.end.toString())
+	return event.value.start.toString() + (event.value.end == null ? '' : ' to ' + event.value.end.toString())
 });
 function licenseToUrl(license: string){
 	license = license.toLowerCase().replaceAll('-', ' ');

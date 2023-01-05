@@ -25,6 +25,19 @@
 		opacity: 1;
 	}
 }
+.animate-red-then-fade {
+	animation-name: red-then-fade;
+	animation-duration: 500ms;
+	animation-timing-function: ease-in;
+}
+@keyframes red-then-fade {
+	from {
+		background-color: rgba(255,0,0,0.2);
+	}
+	to {
+		background-color: transparent;
+	}
+}
 
 /* Other */
 @font-face {

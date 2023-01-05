@@ -124,12 +124,18 @@ class TestHandleReq(unittest.TestCase):
 		])
 		self.assertEqual(response.unitCounts, {-2000: 1, 1900: 2, 1990: 1})
 	def test_info_req(self):
-		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=info&event=3'})
+		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=info&event=event%20three'})
 		self.assertEqual(response,
-			EventInfo('desc three', 300, ImgInfo('example.com/3', 'cc-by-sa 3.0', 'artist three', 'credits three')))
-		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=info&event=4'})
+			EventInfo(
+				Event(3, 'event three', HistDate(True, 1990, 10, 10), HistDate(True, 2000, 10, 10), None, None,
+					'discovery', 30, 0),
+				'desc three', 300, ImgInfo('example.com/3', 'cc-by-sa 3.0', 'artist three', 'credits three')))
+		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=info&event=event%20four'})
 		self.assertEqual(response,
-			EventInfo('desc four', 400, ImgInfo('example.com/2', 'cc-by', 'artist two', 'credits two')))
+			EventInfo(
+				Event(4, 'event four', HistDate(False, -2000, 10, 10), None, HistDate(False, 1, 10, 10), None,
+					'event', 20, 1000),
+				'desc four', 400, ImgInfo('example.com/2', 'cc-by', 'artist two', 'credits two')))
 	def test_sugg_req(self):
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=sugg&input=event t'})
 		self.assertEqual(response, SuggResponse(['event two', 'event three'], False))
