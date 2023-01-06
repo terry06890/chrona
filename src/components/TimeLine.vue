@@ -38,11 +38,14 @@
 				:style="tickStyles(tick)" class="animate-fadein"/>
 		</template>
 		<!-- Tick labels -->
-		<text v-for="tick in ticks" :key="tick.date.toInt()"
-			x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
-			:fill="store.color.textDark" :style="tickLabelStyles(tick)" class="text-sm animate-fadein cursor-default">
-			{{tick.date.toDisplayString()}}
-		</text>
+		<template v-for="tick in ticks" :key="tick.date.toInt()">
+			<text v-if="tick.major || store.showMinorTicks"
+				x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
+				:fill="store.color.textDark" :style="tickLabelStyles(tick)"
+				class="text-sm animate-fadein cursor-default">
+				{{tick.date.toDisplayString()}}
+			</text>
+		</template>
 	</svg>
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
@@ -1222,7 +1225,7 @@ function eventImgStyles(eventId: number){
 		//backgroundImage: `url(${getImagePath(event.imgId)})`,
 		backgroundColor: 'black',
 		backgroundSize: 'cover',
-		borderColor: isSearchResult ? 'red' : (event.ctg == 'discovery' ? store.color.alt2 : store.color.altDark),
+		borderColor: isSearchResult ? 'red' : (event.ctg == 'discovery' ? '#2563eb' : store.color.altDark),
 		borderWidth: '1px',
 	};
 }

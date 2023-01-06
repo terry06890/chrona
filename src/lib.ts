@@ -5,8 +5,25 @@
 import {RBTree} from './rbtree';
 
 export const DEBUG = true;
-export let WRITING_MODE_HORZ = true;
+// For detecting screen size
+export type Breakpoint = 'sm' | 'md' | 'lg';
+export function getBreakpoint(): Breakpoint {
+	const w = window.innerWidth;
+	if (w < 768){
+		return 'sm';
+	} else if (w < 1024){
+		return 'md';
+	} else {
+		return 'lg';
+	}
+}
+// For detecting a touch device
+export function onTouchDevice(){
+	return window.matchMedia('(pointer: coarse)').matches;
+}
+// For detecting writing-mode
 	// Used with ResizeObserver callbacks, to determine which resized dimensions are width and height
+export let WRITING_MODE_HORZ = true;
 if ('writing-mode' in window.getComputedStyle(document.body)){ // Can be null when testing
 	WRITING_MODE_HORZ = window.getComputedStyle(document.body)['writing-mode' as any].startsWith('horizontal');
 }

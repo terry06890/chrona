@@ -38,6 +38,19 @@
 		background-color: transparent;
 	}
 }
+.animate-flash-yellow {
+	animation-name: flash-yellow;
+	animation-duration: 700ms;
+	animation-timing-function: ease-in;
+}
+@keyframes flash-yellow {
+	from {
+		color: #ca8a04;
+	}
+	to {
+		color: inherit;
+	}
+}
 
 /* Other */
 @font-face {

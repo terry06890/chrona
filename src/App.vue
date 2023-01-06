@@ -8,7 +8,7 @@
 		<icon-button :size="45" :style="buttonStyles">
 			<help-icon/>
 		</icon-button>
-		<icon-button :size="45" :style="buttonStyles">
+		<icon-button :size="45" :style="buttonStyles" @click="settingsOpen = true" title="Show settings">
 			<settings-icon/>
 		</icon-button>
 		<icon-button :size="45" :style="buttonStyles" @click="onTimelineAdd" title="Add a timeline">
@@ -37,6 +37,9 @@
 	<transition name="fade">
 		<info-modal v-if="infoModalData != null" :eventInfo="infoModalData" @close="infoModalData = null"/>
 	</transition>
+	<transition name="fade">
+		<settings-modal v-if="settingsOpen" @close="settingsOpen = false"/>
+	</transition>
 </div>
 </template>
 
@@ -47,6 +50,7 @@ import TimeLine from './components/TimeLine.vue';
 import BaseLine from './components/BaseLine.vue';
 import InfoModal from './components/InfoModal.vue';
 import SearchModal from './components/SearchModal.vue';
+import SettingsModal from './components/SettingsModal.vue';
 import IconButton from './components/IconButton.vue';
 // Icons
 import HelpIcon from './components/icon/HelpIcon.vue';
@@ -313,6 +317,9 @@ function onSearch(event: HistEvent){
 	let oldFlag = timelineTargets.value[timelineIdx];
 	timelineTargets.value.splice(timelineIdx, 1, [event, !oldFlag[1]]);
 }
+
+// For settings modal
+const settingsOpen = ref(false);
 
 // For resize handling
 let lastResizeHdlrTime = 0; // Used to throttle resize handling
