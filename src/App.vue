@@ -2,7 +2,7 @@
 <div class="absolute left-0 top-0 w-screen h-screen overflow-hidden flex flex-col">
 	<!-- Title bar -->
 	<div class="flex gap-2 p-2" :style="{backgroundColor: store.color.bgDark2}">
-		<h1 class="my-auto ml-2 text-4xl" :style="{color: store.color.altDark}">Histplorer</h1>
+		<h1 class="my-auto sm:ml-2 text-3xl sm:text-4xl" :style="{color: store.color.altDark}">Histplorer</h1>
 		<div class="mx-auto"/> <!-- Spacer -->
 		<!-- Icons -->
 		<icon-button :size="45" :style="buttonStyles" @click="helpOpen = true" title="Show help info">
@@ -23,10 +23,11 @@
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
 			:vert="vert" :initialState="state" :closeable="timelines.length > 1"
-			:eventTree="eventTree" :unitCountMaps="unitCountMaps" :searchTarget="timelineTargets[idx]"
+			:eventTree="eventTree" :unitCountMaps="unitCountMaps"
+			:current="idx == currentTimelineIdx && !modalOpen" :searchTarget="timelineTargets[idx]"
 			class="grow basis-full min-h-0 outline outline-1"
 			@close="onTimelineClose(idx)" @state-chg="onTimelineChg($event, idx)" @event-display="onEventDisplay"
-			@info-click="onInfoClick"/>
+			@info-click="onInfoClick" @pointerenter="currentTimelineIdx = idx"/>
 		<base-line :vert="vert" :timelines="timelines" class='m-1 sm:m-2'/>
 	</div>
 	<!-- Modals -->
@@ -87,23 +88,24 @@ onMounted(updateAreaDims);
 
 // Timeline data
 const timelines: Ref<TimelineState[]> = ref([]);
+const currentTimelineIdx = ref(0);
 let nextTimelineId = 1;
 function addTimeline(){
 	if (timelines.value.length == 0){
 		timelines.value.push(new TimelineState(nextTimelineId, store.initialStartDate, store.initialEndDate));
 	} else {
-		let last = timelines.value[timelines.value.length - 1];
-		timelines.value.push(new TimelineState(
-			nextTimelineId, last.startDate,
-			last.endDate, last.startOffset, last.endOffset, last.scaleIdx
-		));
+		let state = timelines.value[currentTimelineIdx.value];
+		timelines.value.splice(currentTimelineIdx.value, 0, new TimelineState(
+			nextTimelineId, state.startDate, state.endDate, state.startOffset, state.endOffset, state.scaleIdx));
 	}
-	timelineTargets.value.push([null, false]);
-	nextTimelineId++;
+	timelineTargets.value.splice(currentTimelineIdx.value, 0, [null, false]);
+	currentTimelineIdx.value += 1;
+	nextTimelineId += 1;
 }
 onMounted(addTimeline);
 function onTimelineChg(state: TimelineState, idx: number){
 	timelines.value[idx] = state;
+	currentTimelineIdx.value = idx;
 }
 
 // For timeline addition/removal
@@ -123,6 +125,9 @@ function onTimelineClose(idx: number){
 	}
 	timelines.value.splice(idx, 1);
 	timelineTargets.value.splice(idx, 1);
+	if (currentTimelineIdx.value >= idx){
+		currentTimelineIdx.value = Math.max(0, idx - 1);
+	}
 }
 
 // For storing and looking up events
@@ -319,9 +324,8 @@ const timelineTargets = ref([] as [HistEvent | null, boolean][]); // For communi
 function onSearch(event: HistEvent){
 	searchOpen.value = false;
 	// Trigger jump in endmost timeline
-	let timelineIdx = timelineTargets.value.length - 1;
-	let oldFlag = timelineTargets.value[timelineIdx];
-	timelineTargets.value.splice(timelineIdx, 1, [event, !oldFlag[1]]);
+	let oldVal = timelineTargets.value[currentTimelineIdx.value];
+	timelineTargets.value.splice(currentTimelineIdx.value, 1, [event, !oldVal[1]]);
 }
 
 // For settings modal
@@ -329,6 +333,10 @@ const settingsOpen = ref(false);
 
 // For help modal
 const helpOpen = ref(false);
+
+//
+const modalOpen = computed(() =>
+	(infoModalData.value != null || searchOpen.value || settingsOpen.value || helpOpen.value));
 
 // For resize handling
 let lastResizeHdlrTime = 0; // Used to throttle resize handling
@@ -366,6 +374,10 @@ function onKeyDown(evt: KeyboardEvent){
 			infoModalData.value = null;
 		} else if (searchOpen.value){
 			searchOpen.value = false;
+		} else if (settingsOpen.value){
+			settingsOpen.value = false;
+		} else if (helpOpen.value){
+			helpOpen.value = false;
 		}
 	} else if (evt.key == 'f' && evt.ctrlKey){
 		evt.preventDefault();
@@ -373,6 +385,36 @@ function onKeyDown(evt: KeyboardEvent){
 		if (!searchOpen.value){
 			searchOpen.value = true;
 		}
+	} else if (evt.key.startsWith('Arrow') && !modalOpen.value && !evt.shiftKey){
+		if (evt.key == 'ArrowUp'){
+			if (!vert.value){
+				if (currentTimelineIdx.value > 0){
+					currentTimelineIdx.value -= 1;
+				}
+			}
+		} else if (evt.key == 'ArrowDown'){
+			if (!vert.value){
+				if (currentTimelineIdx.value < timelines.value.length - 1){
+					currentTimelineIdx.value += 1;
+				}
+			}
+		} else if (evt.key == 'ArrowLeft'){
+			if (vert.value){
+				if (currentTimelineIdx.value > 0){
+					currentTimelineIdx.value -= 1;
+				}
+			}
+		} else if (evt.key == 'ArrowRight'){
+			if (vert.value){
+				if (currentTimelineIdx.value < timelines.value.length - 1){
+					currentTimelineIdx.value += 1;
+				}
+			}
+		}
+	} else if (evt.key == '+' && !modalOpen.value){
+		onTimelineAdd();
+	} else if (evt.key == 'Delete' && !modalOpen.value){
+		onTimelineClose(currentTimelineIdx.value);
 	}
 }
 onMounted(() => {

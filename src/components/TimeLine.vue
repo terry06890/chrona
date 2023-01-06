@@ -58,7 +58,7 @@
 		</div>
 	</div>
 	<!-- Timeline position label -->
-	<div class="absolute top-2 left-2 z-20 text-lg text-stone-50">
+	<div class="absolute top-2 left-2 z-20 text-lg" :class="[current ? 'text-yellow-300' : 'text-stone-50']">
 		{{timelinePosStr}}
 	</div>
 	<!-- Buttons -->
@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, computed, watch, watchEffect, PropType, Ref, shallowRef, ShallowRef} from 'vue';
+import {ref, onMounted, onUnmounted, computed, watch, watchEffect, PropType, Ref, shallowRef, ShallowRef} from 'vue';
 // Components
 import IconButton from './IconButton.vue';
 // Icons
@@ -98,6 +98,7 @@ const props = defineProps({
 	initialState: {type: Object as PropType<TimelineState>, required: true},
 	eventTree: {type: Object as PropType<RBTree<HistEvent>>, required: true},
 	unitCountMaps: {type: Object as PropType<Map<number, number>[]>, required: true},
+	current: {type: Boolean, required: true},
 	searchTarget: {type: Object as PropType<[null | HistEvent, boolean]>, required: true},
 });
 const emit = defineEmits(['close', 'state-chg', 'event-display', 'info-click']);
@@ -820,7 +821,7 @@ function panTimeline(scrollRatio: number){
 	startOffset.value = newStartOffset;
 	endOffset.value = newEndOffset;
 }
-function zoomTimeline(zoomRatio: number){
+function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	if (zoomRatio > 1
 			&& startDate.value.equals(MIN_DATE, scale.value)
 			&& endDate.value.equals(MAX_DATE, scale.value)){
@@ -833,9 +834,9 @@ function zoomTimeline(zoomRatio: number){
 	let startChg: number;
 	let endChg: number;
 	let ptrOffset = props.vert ? pointerY : pointerX;
-	if (ptrOffset == null){
+	if (ptrOffset == null || ignorePointer){
 		let unitChg = newNumUnits - numUnits;
-		startChg = unitChg / 2;
+		startChg = -unitChg / 2;
 		endChg = unitChg / 2;
 	} else { // Pointer-centered zoom
 		// Get element-relative ptrOffset
@@ -1122,7 +1123,7 @@ function onStateChg(){
 		ID, startDate.value, endDate.value, startOffset.value, endOffset.value, scaleIdx.value
 	));
 }
-watch(firstDate, onStateChg);
+watch(startDate, onStateChg);
 
 // For jumping to search result
 const searchEvent = ref(null as null | HistEvent); // Holds most recent search result
@@ -1161,6 +1162,40 @@ watch(() => props.searchTarget, () => {
 		scaleIdx.value = SCALES.findIndex((s: number) => s == tempScale);
 	}
 	searchEvent.value = event;
+});
+
+// For keyboard shortcuts
+function onKeyDown(evt: KeyboardEvent){
+	if (!props.current || store.disableShortcuts){
+		return;
+	}
+	if (evt.key == 'ArrowUp'){
+		if (evt.shiftKey){
+			zoomTimeline(1/store.zoomRatio, true);
+		} else if (props.vert){
+			panTimeline(-store.scrollRatio);
+		}
+	} else if (evt.key == 'ArrowDown'){
+		if (evt.shiftKey){
+			zoomTimeline(store.zoomRatio, true);
+		} else if (props.vert){
+			panTimeline(store.scrollRatio);
+		}
+	} else if (evt.key == 'ArrowLeft'){
+		if (!props.vert){
+			panTimeline(-store.scrollRatio);
+		}
+	} else if (evt.key == 'ArrowRight'){
+		if (!props.vert){
+			panTimeline(store.scrollRatio);
+		}
+	}
+}
+onMounted(() => {
+	window.addEventListener('keydown', onKeyDown);
+});
+onUnmounted(() => {
+	window.removeEventListener('keydown', onKeyDown);
 });
 
 // For skipping transitions on startup (and on horz/vert swap)
