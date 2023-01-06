@@ -5,7 +5,7 @@
 		<h1 class="my-auto ml-2 text-4xl" :style="{color: store.color.altDark}">Histplorer</h1>
 		<div class="mx-auto"/> <!-- Spacer -->
 		<!-- Icons -->
-		<icon-button :size="45" :style="buttonStyles">
+		<icon-button :size="45" :style="buttonStyles" @click="helpOpen = true" title="Show help info">
 			<help-icon/>
 		</icon-button>
 		<icon-button :size="45" :style="buttonStyles" @click="settingsOpen = true" title="Show settings">
@@ -40,6 +40,9 @@
 	<transition name="fade">
 		<settings-modal v-if="settingsOpen" @close="settingsOpen = false"/>
 	</transition>
+	<transition name="fade">
+		<help-modal v-if="helpOpen" @close="helpOpen = false"/>
+	</transition>
 </div>
 </template>
 
@@ -51,6 +54,7 @@ import BaseLine from './components/BaseLine.vue';
 import InfoModal from './components/InfoModal.vue';
 import SearchModal from './components/SearchModal.vue';
 import SettingsModal from './components/SettingsModal.vue';
+import HelpModal from './components/HelpModal.vue';
 import IconButton from './components/IconButton.vue';
 // Icons
 import HelpIcon from './components/icon/HelpIcon.vue';
@@ -322,6 +326,9 @@ function onSearch(event: HistEvent){
 
 // For settings modal
 const settingsOpen = ref(false);
+
+// For help modal
+const helpOpen = ref(false);
 
 // For resize handling
 let lastResizeHdlrTime = 0; // Used to throttle resize handling
