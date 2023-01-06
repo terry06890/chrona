@@ -1,13 +1,13 @@
 <template>
 <div class="touch-none relative overflow-hidden z-0" ref="rootRef"
-	@wheel.exact.prevent="onWheel" @wheel.shift.exact.prevent="onShiftWheel">
+	@pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp"
+	@pointercancel="onPointerUp" @pointerout="onPointerUp" @pointerleave="onPointerUp"
+	@wheel.exact="onWheel" @wheel.shift.exact="onShiftWheel">
 	<template v-if="store.showEventCounts">
 		<div v-for="[tickIdx, count] in tickToCount.entries()" :key="ticks[tickIdx].date.toInt()"
 			:style="countDivStyles(tickIdx, count)" class="absolute animate-fadein"></div>
 	</template>
-	<svg :viewBox="`0 0 ${width} ${height}`" class="relative z-10" ref="svgRef"
-		@pointerdown.prevent="onPointerDown" @pointermove.prevent="onPointerMove" @pointerup.prevent="onPointerUp"
-		@pointercancel.prevent="onPointerUp" @pointerout.prevent="onPointerUp" @pointerleave.prevent="onPointerUp">
+	<svg :viewBox="`0 0 ${width} ${height}`" class="relative z-10" ref="svgRef">
 		<defs>
 			<linearGradient id="eventLineGradient">
 				<stop offset="5%" stop-color="#a3691e"/>
@@ -42,7 +42,7 @@
 			<text v-if="tick.major || store.showMinorTicks"
 				x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
 				:fill="store.color.textDark" :style="tickLabelStyles(tick)"
-				class="text-sm animate-fadein cursor-default">
+				class="text-sm animate-fadein cursor-default select-none">
 				{{tick.date.toDisplayString()}}
 			</text>
 		</template>
@@ -53,7 +53,7 @@
 		<div class="rounded-full cursor-pointer hover:brightness-125" :style="eventImgStyles(id)"
 			@click="emit('info-click', idToEvent.get(id)!.title)"></div>
 		<!-- Label -->
-		<div class="text-center text-stone-100 text-sm whitespace-nowrap text-ellipsis overflow-hidden">
+		<div class="text-center text-stone-100 text-sm whitespace-nowrap text-ellipsis overflow-hidden select-none">
 			{{idToEvent.get(id)!.title}}
 		</div>
 	</div>
@@ -1084,8 +1084,8 @@ function onPointerMove(evt: PointerEvent){
 	pointerY = evt.clientY;
 }
 function onPointerUp(evt: PointerEvent){
-	// Ignore for dragging between SVG elements
-	if (evt.relatedTarget != null && svgRef.value!.contains(evt.relatedTarget as HTMLElement)){
+	// Ignore for dragging between child elements
+	if (evt.relatedTarget != null && rootRef.value!.contains(evt.relatedTarget as HTMLElement)){
 		return;
 	}
 	// Remove from event cache
