@@ -444,6 +444,9 @@ const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
 		if (!event.start.isEarlier(lastDate.value)){
 			break;
 		}
+		if ((store.ctgs as {[ctg: string]: boolean})[event.ctg] == false){
+			continue;
+		}
 		map.set(event.id, event);
 	}
 	return map;

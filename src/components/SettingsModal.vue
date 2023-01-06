@@ -9,18 +9,18 @@
 			<h2 class="font-bold md:text-xl text-center pt-1 md:pt-2 md:pb-1">Categories</h2>
 			<ul class="px-2 grid grid-cols-3">
 				<!-- Row 1 -->
-				<li> <label> <input type="checkbox" v-model="store.ctgs.event"
+				<li> <label> <input type="checkbox" v-model="store.ctgs.event" :disabled="lastCtg == 'event'"
 					@change="onSettingChg('ctgs.event')"/> Event </label> </li>
-				<li> <label> <input type="checkbox" v-model="store.ctgs.person"
+				<li> <label> <input type="checkbox" v-model="store.ctgs.person" :disabled="lastCtg == 'person'"
 					@change="onSettingChg('ctgs.person')"/> Person </label> </li>
-				<li> <label> <input type="checkbox" v-model="store.ctgs.work"
+				<li> <label> <input type="checkbox" v-model="store.ctgs.work" :disabled="lastCtg == 'work'"
 					@change="onSettingChg('ctgs.work')"/> Work </label> </li>
 				<!-- Row 2 -->
-				<li> <label> <input type="checkbox" v-model="store.ctgs.place"
+				<li> <label> <input type="checkbox" v-model="store.ctgs.place" :disabled="lastCtg == 'place'"
 					@change="onSettingChg('ctgs.place')"/> Place </label> </li>
-				<li> <label> <input type="checkbox" v-model="store.ctgs.organism"
+				<li> <label> <input type="checkbox" v-model="store.ctgs.organism" :disabled="lastCtg == 'organism'"
 					@change="onSettingChg('ctgs.organism')"/> Organism </label> </li>
-				<li> <label> <input type="checkbox" v-model="store.ctgs.discovery"
+				<li> <label> <input type="checkbox" v-model="store.ctgs.discovery" :disabled="lastCtg == 'discovery'"
 					@change="onSettingChg('ctgs.discovery')"/> Discovery </label> </li>
 			</ul>
 		</div>
@@ -88,6 +88,14 @@ const emit = defineEmits(['close']);
 
 // Settings change handling
 const saved = ref(false); // Set to true after a setting is saved
+const lastCtg = computed(() => { // When all but one category is disabled, names the remaining category
+	let enabledCtgs = Object.entries(store.ctgs).filter(([, enabled]) => enabled).map(([ctg, ]) => ctg);
+	if (enabledCtgs.length == 1){
+		return enabledCtgs[0];
+	} else {
+		return null;
+	}
+});
 function onSettingChg(option: string){ 
 	store.save(option);
 	// Make 'Saved' indicator appear/animate

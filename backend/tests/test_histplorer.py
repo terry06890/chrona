@@ -12,7 +12,7 @@ def initTestDb(dbFile: str) -> None:
 		'INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
 		{
 			(1, 'event one', 1900, None, None, None, 0, 'event'),
-			(2, 'event two', 2452594, None, 2455369, None, 3, 'human'), # 2/11/2002 to 21/06/2010
+			(2, 'event two', 2452594, None, 2455369, None, 3, 'person'), # 2/11/2002 to 21/06/2010
 			(3, 'event three', 2448175, 2451828, None, None, 1, 'discovery'), # 10/10/1990 til 10/10/2000
 			(4, 'event four', 991206, None, 1721706, None, 2, 'event'), # 10/10/-2000 to 10/10/1
 			(5, 'event five', 2000, None, 2001, None, 0, 'event'),
@@ -116,7 +116,7 @@ class TestHandleReq(unittest.TestCase):
 				'discovery', 30, 0),
 		])
 		self.assertEqual(response.unitCounts, {1900: 2, 1990: 1, 2000: 1, 2001: 1})
-		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=.1999-11-27&scale=1&ctg=event'})
+		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=.1999-11-27&scale=1&ctgs=event'})
 		self.assertEqual(response.events, [
 			Event(4, 'event four', HistDate(False, -2000, 10, 10), None, HistDate(False, 1, 10, 10), None,
 				'event', 20, 1000),
@@ -139,7 +139,7 @@ class TestHandleReq(unittest.TestCase):
 	def test_sugg_req(self):
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=sugg&input=event t'})
 		self.assertEqual(response, SuggResponse(['event two', 'event three'], False))
-		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=sugg&input=o&ctg=event'})
-		self.assertEqual(response, SuggResponse(['event four', 'event one'], False))
-		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=sugg&input=event&ctg=event&limit=1'})
+		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=sugg&input=o&ctgs=event.person'})
+		self.assertEqual(response, SuggResponse(['event four', 'event two', 'event one'], False))
+		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=sugg&input=event&ctgs=event&limit=1'})
 		self.assertEqual(response, SuggResponse(['event four'], True))

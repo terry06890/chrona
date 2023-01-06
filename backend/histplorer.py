@@ -16,7 +16,8 @@ Expected HTTP query parameters:
 - event: With type=info, specifies the event title to get info for
 - input: With type=sugg, specifies a search string to suggest for
 - limit: With type=events or type=sugg, specifies the max number of results
-- ctg: With type=events or type=sugg, specifies an event category to restrict results to
+- ctgs: With type=events or type=sugg, specifies event categories to restrict results to
+	Interpreted as a period-separated list of category names (eg: person.place). An empty string is ignored.
 """
 
 from typing import Iterable
@@ -171,7 +172,7 @@ def handleEventsReq(params: dict[str, str], dbCur: sqlite3.Cursor) -> EventRespo
 		print('INFO: Invalid scale value', file=sys.stderr)
 		return None
 	# Get event category
-	ctg = params['ctg'] if 'ctg' in params else None
+	ctgs = params['ctgs'].split('.') if 'ctgs' in params else None
 	# Get incl value
 	try:
 		incl = int(params['incl']) if 'incl' in params else None
@@ -188,7 +189,7 @@ def handleEventsReq(params: dict[str, str], dbCur: sqlite3.Cursor) -> EventRespo
 		print(f'INFO: Invalid results limit {resultLimit}', file=sys.stderr)
 		return None
 	#
-	events = lookupEvents(start, end, scale, ctg, incl, resultLimit, dbCur)
+	events = lookupEvents(start, end, scale, ctgs, incl, resultLimit, dbCur)
 	unitCounts = lookupUnitCounts(start, end, scale, dbCur)
 	return EventResponse(events, unitCounts)
 def reqParamToHistDate(s: str):
@@ -202,7 +203,7 @@ def reqParamToHistDate(s: str):
 		return HistDate(None, int(m.group(1)))
 	else:
 		return HistDate(True, int(m.group(1)), int(m.group(2)), int(m.group(3)))
-def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: str | None,
+def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctgs: list[str] | None,
 		incl: int | None, resultLimit: int, dbCur: sqlite3.Cursor) -> list[Event]:
 	""" Looks for events within a date range, in given scale,
 		restricted by event category, an optional particular inclusion, and a result limit """
@@ -232,9 +233,9 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctg: 
 			constraints.append('event_disp.unit < ?')
 			params.append(endUnit)
 	# Constrain by event category
-	if ctg is not None:
-		constraints.append('ctg = ?')
-		params.append(ctg)
+	if ctgs is not None:
+		constraints.append('ctg IN (' + ','.join('?' * len(ctgs)) + ')')
+		params.extend(ctgs)
 	# Add constraints to query
 	query2 = query
 	if constraints:
@@ -341,24 +342,24 @@ def handleSuggReq(params: dict[str, str], dbCur: sqlite3.Cursor):
 		print(f'INFO: Invalid suggestion limit {resultLimit}', file=sys.stderr)
 		return None
 	#
-	ctg = params['ctg'] if 'ctg' in params else None
-	return lookupSuggs(searchStr, resultLimit, ctg, dbCur)
-def lookupSuggs(searchStr: str, resultLimit: int, ctg: str | None, dbCur: sqlite3.Cursor) -> SuggResponse:
+	ctgs = params['ctgs'].split('.') if 'ctgs' in params else None
+	return lookupSuggs(searchStr, resultLimit, ctgs, dbCur)
+def lookupSuggs(searchStr: str, resultLimit: int, ctgs: list[str] | None, dbCur: sqlite3.Cursor) -> SuggResponse:
 	""" For a search string, returns a SuggResponse describing search suggestions """
 	tempLimit = resultLimit + 1 # For determining if 'more suggestions exist'
 	query = 'SELECT title FROM events LEFT JOIN pop ON events.id = pop.id WHERE title LIKE ?'
-	if ctg is not None:
-		query += ' AND ctg = ?'
-	query += f' ORDER BY pop.pop DESC LIMIT + {tempLimit}'
+	if ctgs is not None:
+		query += ' AND ctg IN (' + ','.join('?' * len(ctgs)) + ')'
+	query += f' ORDER BY pop.pop DESC LIMIT {tempLimit}'
 	suggs: list[str] = []
 	# Prefix search
-	params = [searchStr + '%'] + ([ctg] if ctg is not None else [])
+	params = [searchStr + '%'] + (ctgs if ctgs is not None else [])
 	for (title,) in dbCur.execute(query, params):
 		suggs.append(title)
 	# If insufficient results, try substring search
 	if len(suggs) < tempLimit:
 		existing = set(suggs)
-		params = ['%' + searchStr + '%'] + ([ctg] if ctg is not None else [])
+		params = ['%' + searchStr + '%'] + (ctgs if ctgs is not None else [])
 		for (title,) in dbCur.execute(query, params):
 			if title not in existing:
 				suggs.append(title)

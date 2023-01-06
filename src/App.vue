@@ -230,6 +230,8 @@ async function onEventDisplay(
 		}
 		lastQueriedRange = [firstDate, lastDate];
 		let urlParams = new URLSearchParams({
+			// Note: Intentionally not filtering by event categories (would need category-sensitive
+			// unit count data to determine when enough events have been obtained)
 			type: 'events',
 			range: `${firstDate}.${lastDate}`,
 			scale: String(SCALES[scaleIdx]),

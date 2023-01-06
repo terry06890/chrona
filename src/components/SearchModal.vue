@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, computed, onMounted, onUnmounted, PropType} from 'vue';
+import {ref, computed, onMounted, PropType} from 'vue';
 import SearchIcon from './icon/SearchIcon.vue';
 import InfoIcon from './icon/InfoIcon.vue';
 import {HistEvent, queryServer, EventInfoJson, jsonToEventInfo, SuggResponseJson} from '../lib';
@@ -93,6 +93,11 @@ async function onInput(){
 		input: input.value,
 		limit: String(store.searchSuggLimit),
 	});
+	// Check if any event categories are disabled
+	if (Object.values(store.ctgs).some((b: boolean) => !b)){
+		let visibleCtgs = Object.entries(store.ctgs).filter(([, enabled]) => enabled).map(([ctg, ]) => ctg);
+		urlParams.append('ctgs', visibleCtgs.join('.'));
+	}
 	// Code for querying server
 	pendingReqParams.value = urlParams;
 	pendingReqInput.value = input.value;
