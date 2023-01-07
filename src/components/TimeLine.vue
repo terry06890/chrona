@@ -887,7 +887,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	}
 	// Possibly zoom in/out
 	let tickDiff = availLen.value / newNumUnits;
-	if (tickDiff < store.minTickSep){ // If trying to zoom out
+	if (tickDiff < store.minTickSep){ // Zoom out into new scale
 		if (scaleIdx.value == 0){
 			console.log('Reached zoom out limit');
 			return;
@@ -898,12 +898,10 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 			newStartOffset /= oldUnitsPerNew;
 			newEndOffset /= oldUnitsPerNew;
 			// Shift starting and ending points to align with new scale
-				// Note: There is some distortion due to not fully accounting for no year 0 AD here,
-					// but the result seems tolerable, and resolving it adds a fair bit of code complexity
 			let newStartSubUnits =
 				(scale.value == DAY_SCALE) ? getDaysInMonth(newStart.year, newStart.month) :
 				(scale.value == MONTH_SCALE) ? 12 :
-				getScaleRatio(scale.value, newScale);
+				getScaleRatio(scale.value, newScale); // Note: Not accounting for no year 0 CE here
 			let newStartIdx =
 				(scale.value == DAY_SCALE) ? newStart.day - 1 :
 				(scale.value == MONTH_SCALE) ? newStart.month - 1 :
@@ -962,21 +960,31 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 			let newScale = SCALES[scaleIdx.value + 1];
 			let newUnitsPerOld = getScaleRatio(newScale, scale.value);
 			let zoomedTickDiff = tickDiff / newUnitsPerOld;
-			if (zoomedTickDiff > store.minTickSep){
-				// Update offsets
+			if (zoomedTickDiff > store.minTickSep){ // Zoom in into new scale
+				// Update newStart
 				newStartOffset *= newUnitsPerOld;
 				stepDate(newStart, newScale, {forward: false, count: Math.floor(newStartOffset), inplace: true});
 				newStartOffset %= 1;
+				if (newStart.isEarlier(MIN_DATE, newScale)){ // Avoid going before MIN_DATE
+					newStart = dateToScaleDate(MIN_DATE, newScale);
+				}
+				if (newStart.equals(MIN_DATE, newScale) // Avoid having large pre-MIN_DATE unit
+						&& newStartOffset % 1 > store.defaultEndTickOffset){
+					newStartOffset = store.defaultEndTickOffset;
+				}
+				// Update newEnd
 				newEndOffset *= newUnitsPerOld;
 				stepDate(newEnd, newScale, {count: Math.floor(newEndOffset), inplace: true});
 				newEndOffset %= 1;
-				//
+				if (MAX_DATE.isEarlier(newEnd, newScale)){
+					newEnd = dateToScaleDate(MAX_DATE, newScale);
+				}
+				if (newEnd.equals(MAX_DATE, newScale) && newEndOffset % 1 > store.defaultEndTickOffset){
+					newEndOffset = store.defaultEndTickOffset;
+				}
+				// Account for zooming into sub-year dates before MIN_CAL_DATE
 				if (newStart.isEarlier(MIN_CAL_DATE, newScale) && (newScale == MONTH_SCALE || newScale == DAY_SCALE)){
 					console.log('Unable to zoom into range where month/day scale is invalid');
-					return;
-				}
-				if (newStart.isEarlier(MIN_DATE, newScale) || MAX_DATE.isEarlier(newEnd, newScale)){
-					console.log('Disallowing zooming in beyond min/max dates');
 					return;
 				}
 				scaleIdx.value += 1;
