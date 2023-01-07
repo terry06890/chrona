@@ -57,6 +57,7 @@ export type StoreState = {
 		altBg: string,
 		bgAlt: string,
 		bgAltDark: string,
+		accent: string,
 	},
 	borderRadius: number, // px
 	transitionDuration: number, // ms
@@ -77,6 +78,7 @@ function getDefaultState(): StoreState {
 		altBg: '#6a5e2e',
 		bgAlt: '#f5f5f4',     // stone-100
 		bgAltDark: '#d6d3d1', // stone-300
+		accent: '#2563eb',    // blue-600
 	};
 	return {
 		// Device info

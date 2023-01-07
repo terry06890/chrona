@@ -1290,14 +1290,16 @@ function eventStyles(eventId: number){
 function eventImgStyles(eventId: number){
 	const event = idToEvent.value.get(eventId)!;
 	let isSearchResult = searchEvent.value != null && searchEvent.value.id == eventId;
+	let color = event.ctg == 'discovery' ? store.color.accent : store.color.altDark;
 	return {
 		width: store.eventImgSz + 'px',
 		height: store.eventImgSz + 'px',
 		//backgroundImage: `url(${getImagePath(event.imgId)})`,
 		backgroundColor: 'black',
 		backgroundSize: 'cover',
-		borderColor: isSearchResult ? 'red' : (event.ctg == 'discovery' ? '#2563eb' : store.color.altDark),
+		borderColor: color,
 		borderWidth: '1px',
+		boxShadow: isSearchResult ? '0 0 4px 2px ' + color : 'none',
 	};
 }
 function eventLineStyles(eventId: number){
