@@ -51,7 +51,7 @@
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
 		<!-- Image -->
 		<div class="rounded-full cursor-pointer hover:brightness-125" :style="eventImgStyles(id)"
-			@click="emit('info-click', idToEvent.get(id)!.title)"></div>
+			:title="idToEvent.get(id)!.title" @click="emit('info-click', idToEvent.get(id)!.title)"></div>
 		<!-- Label -->
 		<div class="text-center text-stone-100 text-sm whitespace-nowrap text-ellipsis overflow-hidden select-none">
 			{{idToEvent.get(id)!.title}}
