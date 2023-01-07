@@ -755,8 +755,20 @@ function panTimeline(scrollRatio: number){
 	let [numStartSteps, numEndSteps, newStartOffset, newEndOffset] =
 		getMovedBounds(startOffset.value, endOffset.value, chgUnits, chgUnits);
 	if (scrollRatio > 0){
-		while (true){
-			if (newEnd.equals(MAX_DATE, scale.value)){
+		while (true){ // Incrementally update newStart and newEnd using getMovedBounds() result
+			if (newEnd.isEarlier(MAX_DATE, scale.value)){
+				if (numEndSteps > 0){
+					stepDate(newEnd, scale.value, {inplace: true});
+					numEndSteps -= 1;
+					if (numStartSteps > 0){
+						stepDate(newStart, scale.value, {inplace: true});
+						numStartSteps -= 1;
+					}
+				} else {
+					stepDate(newStart, scale.value, {count: numStartSteps, inplace: true});
+					break;
+				}
+			} else {
 				// Pan up to an offset of store.defaultEndTickOffset
 				if (store.defaultEndTickOffset == endOffset.value){
 					console.log('Reached maximum date limit');
@@ -771,31 +783,28 @@ function panTimeline(scrollRatio: number){
 							getMovedBounds(startOffset.value, endOffset.value, chgUnits, chgUnits);
 						stepDate(newStart, scale.value, {count: extraStartSteps, inplace: true});
 					} else {
-						if (numStartSteps > 0){
-							stepDate(newStart, scale.value, {count: numStartSteps, inplace: true});
-						}
+						stepDate(newStart, scale.value, {count: numStartSteps, inplace: true});
 					}
 				}
 				numStartSteps = 0;
 				break;
 			}
-			if (numEndSteps > 0){
-				stepDate(newEnd, scale.value, {inplace: true});
-				numEndSteps -= 1;
-				if (numStartSteps > 0){
-					stepDate(newStart, scale.value, {inplace: true});
-					numStartSteps -= 1;
-				}
-			} else {
-				if (numStartSteps > 0){
-					stepDate(newStart, scale.value, {count: numStartSteps, inplace: true});
-				}
-				break;
-			}
 		}
 	} else {
 		while (true){
-			if (MIN_DATE.equals(newStart, scale.value)){
+			if (MIN_DATE.isEarlier(newStart, scale.value)){
+				if (numStartSteps < 0){
+					stepDate(newStart, scale.value, {forward: false, inplace: true});
+					numStartSteps += 1;
+					if (numEndSteps < 0){
+						stepDate(newEnd, scale.value, {forward: false, inplace: true});
+						numEndSteps += 1;
+					}
+				} else {
+					stepDate(newEnd, scale.value, {count: numEndSteps, inplace: true});
+					break;
+				}
+			} else {
 				// Pan up to an offset of store.defaultEndTickOffset
 				if (store.defaultEndTickOffset == startOffset.value){
 					console.log('Reached minimum date limit');
@@ -810,25 +819,10 @@ function panTimeline(scrollRatio: number){
 							getMovedBounds(startOffset.value, endOffset.value, chgUnits, chgUnits);
 						stepDate(newEnd, scale.value, {count: extraEndSteps, inplace: true});
 					} else {
-						if (numEndSteps < 0){
-							stepDate(newEnd, scale.value, {count: numEndSteps, inplace: true});
-						}
+						stepDate(newEnd, scale.value, {count: numEndSteps, inplace: true});
 					}
 				}
 				numEndSteps = 0;
-				break;
-			}
-			if (numStartSteps < 0){
-				stepDate(newStart, scale.value, {forward: false, inplace: true});
-				numStartSteps += 1;
-				if (numEndSteps < 0){
-					stepDate(newEnd, scale.value, {forward: false, inplace: true});
-					numEndSteps += 1;
-				}
-			} else {
-				if (numEndSteps < 0){
-					stepDate(newEnd, scale.value, {count: numEndSteps, inplace: true});
-				}
 				break;
 			}
 		}
