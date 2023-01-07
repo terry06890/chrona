@@ -71,7 +71,7 @@
 </template>
 
 <script setup lang="ts">
-import {ref, onMounted, onUnmounted, computed, watch, watchEffect, PropType, Ref, shallowRef, ShallowRef} from 'vue';
+import {ref, onMounted, onUnmounted, computed, watch, PropType, Ref} from 'vue';
 // Components
 import IconButton from './IconButton.vue';
 // Icons
@@ -457,11 +457,15 @@ watch(idToEvent, () => { // Remove highlighting of search results that have beco
 		searchEvent.value = null;
 	}
 });
-const idToPos = computed(() => {
+const idToPos: Ref<Map<number, [number, number, number, number]>> = ref(new Map()); // Maps event IDs to x/y/w/h
+const idsToSkipTransition: Ref<Set<number>> = ref(new Set()); // Used to prevent events moving across mainline
+type LineCoords = [number, number, number, number]; // x, y, length, angle
+const eventLines: Ref<Map<number, LineCoords>> = ref(new Map()); // Maps event ID to event line data
+function getEventLayout(): Map<number, [number, number, number, number]> {
+	let map: Map<number, [number, number, number, number]> = new Map();
 	if (!mounted.value){
-		return new Map();
+		return map;
 	}
-	let map: Map<number, [number, number, number, number]> = new Map(); // Maps visible event IDs to x/y/l/h
 	// Determine columns to place event elements in (or rows if !props.vert)
 	let cols: [number, number][][] = []; // For each column, for each laid out event, stores an ID and pixel offset
 	let colOffsets: number[] = []; // Stores the pixel offset of each column
@@ -627,19 +631,38 @@ const idToPos = computed(() => {
 			}
 		}
 	}
-	// Notify parent
-	emit('event-display', ID, [...map.keys()], firstDate.value, lastDate.value, minorScaleIdx.value);
 	return map;
-});
-
-// For event lines
-type LineCoords = [number, number, number, number];
-const eventLines: ShallowRef<Map<number, LineCoords>> = shallowRef(new Map());
-	// Maps event ID to event line data (x, y, length, and angle)
-watchEffect(() => { // Used instead of computed() in order to access old values
+}
+watch(idToEvent, () => { // Updates idToPos and eventLines
+	let map = getEventLayout();
+	// Check for events that cross mainline
+	idsToSkipTransition.value.clear();
+	for (let [eventId, [x, y, , ]] of map.entries()){
+		if (idToPos.value.has(eventId)){
+			let [oldX, oldY, , ] = idToPos.value.get(eventId)!;
+			if (props.vert && (oldX - mainlineOffset.value) * (x - mainlineOffset.value) < 0
+					|| !props.vert && (oldY - mainlineOffset.value) * (y - mainlineOffset.value) < 0){
+				idsToSkipTransition.value.add(eventId);
+			}
+		}
+	}
+	// Update idToPos // Note: For some reason, if the map is assigned directly, events won't consistently transition
+	let toDelete = [];
+	for (let eventId of idToPos.value.keys()){
+		if (!map.has(eventId)){
+			toDelete.push(eventId);
+		}
+	}
+	for (let eventId of toDelete){
+		idToPos.value.delete(eventId);
+	}
+	for (let [eventId, pos] of map.entries()){
+		idToPos.value.set(eventId, pos);
+	}
+	// Update event lines
 	let newEventLines: Map<number, LineCoords> = new Map();
 	let numUnits = getNumDisplayUnits();
-	for (let [id, [eventX, eventY, eventW, eventH]] of idToPos.value){
+	for (let [id, [eventX, eventY, eventW, eventH]] of map){
 		let x: number; // For line end on mainline
 		let y: number;
 		let x2: number; // For line end at event
@@ -677,6 +700,8 @@ watchEffect(() => { // Used instead of computed() in order to access old values
 		newEventLines.set(id, [x, y, l, a]);
 	}
 	eventLines.value = newEventLines;
+	// Notify parent
+	emit('event-display', ID, [...map.keys()], firstDate.value, lastDate.value, minorScaleIdx.value);
 });
 
 // For event-count indicators
@@ -1257,7 +1282,7 @@ function eventStyles(eventId: number){
 		top: y + 'px',
 		width: w + 'px',
 		height: h + 'px',
-		transitionProperty: skipTransition.value ? 'none' : 'all',
+		transitionProperty: (skipTransition.value || idsToSkipTransition.value.has(eventId)) ? 'none' : 'all',
 		transitionDuration: store.transitionDuration + 'ms',
 		transitionTimingFunction: 'ease-out',
 	};
@@ -1279,7 +1304,7 @@ function eventLineStyles(eventId: number){
 	const [x, y, , a] = eventLines.value.get(eventId)!;
 	return {
 		transform: `translate(${x}px, ${y}px) rotate(${a}deg)`,
-		transitionProperty: skipTransition.value ? 'none' : 'transform',
+		transitionProperty: (skipTransition.value || idsToSkipTransition.value.has(eventId)) ? 'none' : 'transform',
 		transitionDuration: store.transitionDuration + 'ms',
 		transitionTimingFunction: 'ease-out',
 	};
