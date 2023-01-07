@@ -442,7 +442,7 @@ const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
 	while (itr.data() != null){
 		let event = itr.data()!;
 		itr.next();
-		if (!event.start.isEarlier(lastDate.value)){
+		if (dateToUnit(event.start, scale.value) > dateToUnit(lastDate.value, scale.value)){
 			break;
 		}
 		if ((store.ctgs as {[ctg: string]: boolean})[event.ctg] == false){
