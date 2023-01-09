@@ -1136,7 +1136,7 @@ function onPointerUp(evt: PointerEvent){
 	dragDiff = 0;
 }
 function onWheel(evt: WheelEvent){
-	let shiftDir = evt.deltaY > 0 ? 1 : -1;
+	let shiftDir = (evt.deltaY > 0 ? 1 : -1) * (!props.vert ? -1 : 1);
 	panTimeline(shiftDir * store.scrollRatio);
 }
 function onShiftWheel(evt: WheelEvent){
