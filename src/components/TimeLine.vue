@@ -80,7 +80,7 @@ import CloseIcon from './icon/CloseIcon.vue';
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MONTH_NAMES, MIN_CAL_DATE,
 	getDaysInMonth, HistDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
 	getEventPrecision, dateToUnit, dateToScaleDate,
-	moduloPositive, TimelineState, HistEvent} from '../lib';
+	moduloPositive, TimelineState, HistEvent, getImagePath} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 
@@ -1288,7 +1288,7 @@ function eventImgStyles(eventId: number){
 	return {
 		width: store.eventImgSz + 'px',
 		height: store.eventImgSz + 'px',
-		//backgroundImage: `url(${getImagePath(event.imgId)})`,
+		backgroundImage: `url(${getImagePath(event.imgId)})`,
 		backgroundColor: 'black',
 		backgroundSize: 'cover',
 		borderColor: color,

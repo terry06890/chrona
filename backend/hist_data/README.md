@@ -68,10 +68,13 @@ Some of the scripts use third-party packages:
     USER_AGENT variable applies here as well.
 1.  Run `gen_imgs.py`, which creates resized/cropped images in img/, from images in enwiki/imgs/.
     Adds the `imgs` and `event_imgs` tables. <br>
-    The output images may need additional manual changes:
+    The output images might need additional manual changes:
     -   An input image might have no output produced, possibly due to
         data incompatibilities, memory limits, etc.
     -   An input x.gif might produce x-1.jpg, x-2.jpg, etc, instead of x.jpg.
+    -   An input image might produce output with unexpected dimensions.
+        This seems to happen when the image is very large, and triggers a
+        decompression bomb warning.
 
 ## Generate Description Data
 1.  In enwiki/, run `gen_desc_data.py`, which extracts page descriptions into a database.

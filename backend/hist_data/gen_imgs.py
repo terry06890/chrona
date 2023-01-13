@@ -10,6 +10,8 @@ processing. It uses already-existing database entries to decide what
 to skip.
 """
 
+# Took about 10 hours to process about 60k images
+
 import argparse
 import os, subprocess, signal
 import sqlite3, urllib.parse
@@ -44,7 +46,7 @@ def genImgs(imgDir: str, imgDb: str, outDir: str, dbFile: str):
 			imgsDone.add(imgId)
 		print(f'Found {len(eventsDone)} events and {len(imgsDone)} images to skip')
 	#
-	print('Processing images from eol and enwiki')
+	print('Processing images')
 	processImgs(imgDir, imgDb, outDir, dbCur, eventsDone, imgsDone)
 	#
 	dbCon.commit()
@@ -89,8 +91,7 @@ def processImgs(imgDir: str, imgDb: str, outDir: str, dbCur: sqlite3.Cursor,
 			if not success:
 				flag = True
 				break
-		# Add entry to db
-		if imgId not in imgsDone:
+			# Add image to db
 			row = imgDbCur.execute('SELECT name, license, artist, credit FROM imgs WHERE id = ?', (imgId,)).fetchone()
 			if row is None:
 				print(f'ERROR: No image record for ID {imgId}')
@@ -99,6 +100,7 @@ def processImgs(imgDir: str, imgDb: str, outDir: str, dbCur: sqlite3.Cursor,
 			name, license, artist, credit = row
 			url = 'https://en.wikipedia.org/wiki/File:' + urllib.parse.quote(name)
 			dbCur.execute('INSERT INTO images VALUES (?, ?, ?, ?, ?)', (imgId, url, license, artist, credit))
+		# Add event association to db
 		for eventId in eventIds:
 			dbCur.execute('INSERT INTO event_imgs VALUES (?, ?)', (eventId, imgId))
 	imgDbCon.close()

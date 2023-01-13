@@ -9,6 +9,8 @@ The program can be re-run to continue downloading, and looks
 in the output directory do decide what to skip.
 """
 
+# Took about a week to downloaded about 60k images
+
 import argparse
 import re, os, time, signal
 import sqlite3

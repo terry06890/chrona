@@ -207,16 +207,12 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctgs:
 		incl: int | None, resultLimit: int, dbCur: sqlite3.Cursor) -> list[Event]:
 	""" Looks for events within a date range, in given scale,
 		restricted by event category, an optional particular inclusion, and a result limit """
-	#query = \
-	#	'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop FROM events' \
-	#	' INNER JOIN event_disp ON events.id = event_disp.id' \
-	#	' INNER JOIN pop ON events.id = pop.id' \
-	#	' INNER JOIN event_imgs ON events.id = event_imgs.id' \
-	#	' INNER JOIN images ON event_imgs.img_id = images.id'
 	query = \
-		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, pop.pop FROM events' \
+		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop FROM events' \
 		' INNER JOIN event_disp ON events.id = event_disp.id' \
-		' INNER JOIN pop ON events.id = pop.id'
+		' INNER JOIN pop ON events.id = pop.id' \
+		' INNER JOIN event_imgs ON events.id = event_imgs.id' \
+		' INNER JOIN images ON event_imgs.img_id = images.id'
 	constraints = ['event_disp.scale = ?']
 	params: list[str | int] = [scale]
 	# Constrain by start/end
@@ -260,10 +256,8 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctgs:
 	#
 	return results
 def eventEntryToResults(
-		#row: tuple[int, str, int, int | None, int | None, int | None, int, str, int, int]) -> Event:
-		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int]) -> Event:
-	#eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, pop = row
-	eventId, title, start, startUpper, end, endUpper, fmt, ctg, pop = row
+		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int, int]) -> Event:
+	eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, pop = row
 	""" Helper for converting an 'events' db entry into an Event object """
 	# Convert dates
 	dateVals: list[int | None] = [start, startUpper, end, endUpper]
@@ -272,8 +266,7 @@ def eventEntryToResults(
 		if n is not None:
 			newDates[i] = dbDateToHistDate(n, fmt, i < 2)
 	#
-	#return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
-	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, 0, pop)
+	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
 def lookupUnitCounts(
 		start: HistDate | None, end: HistDate | None, scale: int, dbCur: sqlite3.Cursor) -> dict[int, int] | None:
 	# Build query
@@ -301,25 +294,22 @@ def handleInfoReq(params: dict[str, str], dbCur: sqlite3.Cursor):
 	return lookupEventInfo(params['event'], dbCur)
 def lookupEventInfo(eventTitle: str, dbCur: sqlite3.Cursor) -> EventInfo | None:
 	""" Look up an event with given title, and return a descriptive EventInfo """
-	return EventInfo(
-		Event(1, eventTitle, HistDate(True, 2000, 10, 1), None, None, None, 'event', 10, 100),
-		f'DESC for {eventTitle}', 1, ImgInfo(f'http://example.org/{eventTitle}', 'license', 'artist', 'credit'))
-	#query = \
-	#	'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop, ' \
-	#		' descs.desc, descs.wiki_id, ' \
-	#		' images.url, images.license, images.artist, images.credit FROM events' \
-	#	' INNER JOIN pop ON events.id = pop.id' \
-	#	' INNER JOIN descs ON events.id = descs.id' \
-	#	' INNER JOIN event_imgs ON events.id = event_imgs.id' \
-	#	' INNER JOIN images ON event_imgs.img_id = images.id' \
-	#	' WHERE events.title = ? COLLATE NOCASE'
-	#row = dbCur.execute(query, (eventTitle,)).fetchone()
-	#if row is not None:
-	#	event = eventEntryToResults(row[:10])
-	#	desc, wikiId, url, license, artist, credit = row[10:]
-	#	return EventInfo(event, desc, wikiId, ImgInfo(url, license, artist, credit))
-	#else:
-	#	return None
+	query = \
+		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop, ' \
+			' descs.desc, descs.wiki_id, ' \
+			' images.url, images.license, images.artist, images.credit FROM events' \
+		' INNER JOIN pop ON events.id = pop.id' \
+		' INNER JOIN descs ON events.id = descs.id' \
+		' INNER JOIN event_imgs ON events.id = event_imgs.id' \
+		' INNER JOIN images ON event_imgs.img_id = images.id' \
+		' WHERE events.title = ? COLLATE NOCASE'
+	row = dbCur.execute(query, (eventTitle,)).fetchone()
+	if row is not None:
+		event = eventEntryToResults(row[:10])
+		desc, wikiId, url, license, artist, credit = row[10:]
+		return EventInfo(event, desc, wikiId, ImgInfo(url, license, artist, credit))
+	else:
+		return None
 
 # For type=sugg
 def handleSuggReq(params: dict[str, str], dbCur: sqlite3.Cursor):
