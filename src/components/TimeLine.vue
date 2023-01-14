@@ -636,7 +636,7 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 	}
 	return map;
 }
-watch(idToEvent, () => { // Updates idToPos and eventLines
+function updateLayout(){ // Updates idToPos and eventLines
 	let map = getEventLayout();
 	// Check for events that cross mainline
 	idsToSkipTransition.value.clear();
@@ -705,7 +705,10 @@ watch(idToEvent, () => { // Updates idToPos and eventLines
 	eventLines.value = newEventLines;
 	// Notify parent
 	emit('event-display', ID, [...map.keys()], firstDate.value, lastDate.value, minorScaleIdx.value);
-});
+}
+watch(idToEvent, updateLayout);
+watch(width, updateLayout);
+watch(height, updateLayout);
 
 // For event-count indicators
 const tickToCount = computed((): Map<number, number> => {
