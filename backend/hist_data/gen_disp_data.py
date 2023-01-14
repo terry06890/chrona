@@ -18,7 +18,7 @@ from cal import SCALES, dbDateToHistDate, dateToUnit
 MAX_DISPLAYED_PER_UNIT = 4
 DB_FILE = 'data.db'
 
-def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
+def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int, forImageTables: bool) -> None:
 	dbCon = sqlite3.connect(dbFile)
 	dbCur = dbCon.cursor()
 	#
@@ -28,7 +28,9 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
 		# Only includes events with popularity values
 	idScales: dict[int, list[tuple[int, int]]] = {} # Maps event ids to scales+units they are displayable on
 	iterNum = 0
-	query = 'SELECT events.id, start, fmt FROM events INNER JOIN pop ON events.id = pop.id ORDER BY pop.pop DESC'
+	query = 'SELECT events.id, start, fmt FROM events INNER JOIN pop ON events.id = pop.id' \
+		+ ('' if not forImageTables else ' INNER JOIN event_imgs ON events.id = event_imgs.id') \
+		+ ' ORDER BY pop.pop DESC'
 	for eventId, eventStart, fmt in dbCur.execute(query):
 		iterNum += 1
 		if iterNum % 1e5 == 0:
@@ -70,25 +72,28 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
 		eventsToDel.append(eventId)
 	print(f'Found {len(eventsToDel)}')
 	#
-	print(f'Deleting {len(eventsToDel)} events')
-	iterNum = 0
-	for eventId in eventsToDel:
-		iterNum += 1
-		if iterNum % 1e5 == 0:
-			print(f'At iteration {iterNum}')
-		#
-		dbCur.execute('DELETE FROM events WHERE id = ?', (eventId,))
-		dbCur.execute('DELETE FROM pop WHERE id = ?', (eventId,))
+	if not forImageTables:
+		print(f'Deleting {len(eventsToDel)} events')
+		iterNum = 0
+		for eventId in eventsToDel:
+			iterNum += 1
+			if iterNum % 1e5 == 0:
+				print(f'At iteration {iterNum}')
+			#
+			dbCur.execute('DELETE FROM events WHERE id = ?', (eventId,))
+			dbCur.execute('DELETE FROM pop WHERE id = ?', (eventId,))
 	#
 	print('Writing to db')
-	dbCur.execute('CREATE TABLE dist (scale INT, unit INT, count INT, PRIMARY KEY (scale, unit))')
+	distTable = 'dist' if not forImageTables else 'img_dist'
+	dispTable = 'event_disp' if not forImageTables else 'img_disp'
+	dbCur.execute(f'CREATE TABLE {distTable} (scale INT, unit INT, count INT, PRIMARY KEY (scale, unit))')
 	for (scale, unit), (count, _) in scaleUnitToCounts.items():
-		dbCur.execute('INSERT INTO dist VALUES (?, ?, ?)', (scale, unit, count))
-	dbCur.execute('CREATE TABLE event_disp (id INT, scale INT, unit INT, PRIMARY KEY (id, scale))')
-	dbCur.execute('CREATE INDEX event_disp_scale_unit_idx ON event_disp(scale, unit)')
+		dbCur.execute(f'INSERT INTO {distTable} VALUES (?, ?, ?)', (scale, unit, count))
+	dbCur.execute(f'CREATE TABLE {dispTable} (id INT, scale INT, unit INT, PRIMARY KEY (id, scale))')
+	dbCur.execute(f'CREATE INDEX {dispTable}_scale_unit_idx ON event_disp(scale, unit)')
 	for eventId, scaleUnits in idScales.items():
 		for [scale, unit] in scaleUnits:
-			dbCur.execute('INSERT INTO event_disp VALUES (?, ?, ?)', (eventId, scale, unit))
+			dbCur.execute(f'INSERT INTO {dispTable} VALUES (?, ?, ?)', (eventId, scale, unit))
 	#
 	print('Closing db')
 	dbCon.commit()
@@ -96,6 +101,8 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int) -> None:
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+	parser.add_argument(
+		'type', nargs='?', choices=['event', 'img'], default='event', help='The type of tables to generate')
 	args = parser.parse_args()
 	#
-	genData(DB_FILE, SCALES, MAX_DISPLAYED_PER_UNIT)
+	genData(DB_FILE, SCALES, MAX_DISPLAYED_PER_UNIT, args.type == 'img')

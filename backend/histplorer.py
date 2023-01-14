@@ -192,7 +192,7 @@ def handleEventsReq(params: dict[str, str], dbCur: sqlite3.Cursor) -> EventRespo
 	imgonly = 'imgonly' in params
 	#
 	events = lookupEvents(start, end, scale, incl, resultLimit, ctgs, imgonly, dbCur)
-	unitCounts = lookupUnitCounts(start, end, scale, dbCur)
+	unitCounts = lookupUnitCounts(start, end, scale, imgonly, dbCur)
 	return EventResponse(events, unitCounts)
 def reqParamToHistDate(s: str):
 	""" Produces a HistDate from strings like '2010-10-3', '-8000', and '' (throws ValueError if invalid) """
@@ -210,27 +210,27 @@ def lookupEvents(
 		ctgs: list[str] | None, imgonly: bool, dbCur: sqlite3.Cursor) -> list[Event]:
 	""" Looks for events within a date range, in given scale,
 		restricted by event category, an optional particular inclusion, and a result limit """
-	imgJoin = 'INNER JOIN' if imgonly else 'LEFT JOIN'
+	dispTable = 'event_disp' if not imgonly else 'img_disp'
 	query = \
 		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop FROM events' \
-		' INNER JOIN event_disp ON events.id = event_disp.id' \
+		f' INNER JOIN {dispTable} ON events.id = {dispTable}.id' \
 		' INNER JOIN pop ON events.id = pop.id' \
-		f' {imgJoin} event_imgs ON events.id = event_imgs.id' \
-		f' {imgJoin} images ON event_imgs.img_id = images.id'
-	constraints = ['event_disp.scale = ?']
+		' LEFT JOIN event_imgs ON events.id = event_imgs.id' \
+		' LEFT JOIN images ON event_imgs.img_id = images.id'
+	constraints = [f'{dispTable}.scale = ?']
 	params: list[str | int] = [scale]
 	# Constrain by start/end
 	startUnit = dateToUnit(start, scale) if start is not None else None
 	endUnit = dateToUnit(end, scale) if end is not None else None
 	if startUnit is not None and startUnit == endUnit:
-		constraints.append('event_disp.unit = ?')
+		constraints.append(f'{dispTable}.unit = ?')
 		params.append(startUnit)
 	else:
 		if startUnit is not None:
-			constraints.append('event_disp.unit >= ?')
+			constraints.append(f'{dispTable}.unit >= ?')
 			params.append(startUnit)
 		if endUnit is not None:
-			constraints.append('event_disp.unit < ?')
+			constraints.append(f'{dispTable}.unit < ?')
 			params.append(endUnit)
 	# Constrain by event category
 	if ctgs is not None:
@@ -272,9 +272,11 @@ def eventEntryToResults(
 	#
 	return Event(eventId, title, cast(HistDate, newDates[0]), newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
 def lookupUnitCounts(
-		start: HistDate | None, end: HistDate | None, scale: int, dbCur: sqlite3.Cursor) -> dict[int, int] | None:
+		start: HistDate | None, end: HistDate | None, scale: int,
+		imgonly: bool, dbCur: sqlite3.Cursor) -> dict[int, int] | None:
 	# Build query
-	query = 'SELECT unit, count FROM dist WHERE scale = ?'
+	distTable = 'dist' if not imgonly else 'img_dist'
+	query = f'SELECT unit, count FROM {distTable} WHERE scale = ?'
 	params = [scale]
 	if start:
 		query += ' AND unit >= ?'

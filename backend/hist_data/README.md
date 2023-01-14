@@ -27,6 +27,10 @@ This directory holds files used to generate the history database data.db.
 -   `event_disp`: <br>
     Format: `id INT, scale INT, unit INT, PRIMARY KEY (id, scale)` <br>
     Maps events to scales+units they are 'displayable' on (used to make displayed events more uniform across time).
+-   `img_dist`: <br>
+    Like `dist`, but only counts events with images.
+-   `img_disp`: <br>
+    Like `events_disp`, but only counts events with images.
 -   `images`: <br>
     Format: `id INT PRIMARY KEY, url TEXT, license TEXT, artist TEXT, credit TEXT` <br>
     Holds metadata for available images
@@ -84,3 +88,6 @@ Some of the scripts use third-party packages:
 1.  Additional events can be described in `picked/events.json`, with images for them put
     in `picked` (see the README for details).
 1.  Can run `gen_picked_data.py` to add those described events to the database.
+
+## Generation Event Image Display Data
+1. Run `gen_disp_data.py img`, which adds the `img_dist` and `img_disp` tables.

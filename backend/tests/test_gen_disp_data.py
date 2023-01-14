@@ -46,8 +46,21 @@ class TestGenData(unittest.TestCase):
 					(11, 45),
 				}
 			)
+			createTestDbTable(
+				dbFile,
+				'CREATE TABLE event_imgs (id INT PRIMARY KEY, img_id INT)',
+				'INSERT INTO event_imgs VALUES (?, ?)',
+				{
+					(1, 10),
+					(4, 40),
+					(5, 50),
+					(6, 60),
+					(7, 70),
+				}
+			)
 			# Run
-			genData(dbFile, [10, 1, MONTH_SCALE, DAY_SCALE], 2)
+			genData(dbFile, [10, 1, MONTH_SCALE, DAY_SCALE], 2, False)
+			genData(dbFile, [10, 1, MONTH_SCALE, DAY_SCALE], 2, True)
 			# Check
 			self.assertEqual(
 				readTestDbTable(dbFile, 'SELECT * FROM events'),
@@ -115,5 +128,39 @@ class TestGenData(unittest.TestCase):
 					(5, DAY_SCALE, 2415307),
 					(11, DAY_SCALE, 2415307),
 					(2, DAY_SCALE, 2452607),
+				}
+			)
+			self.assertEqual(
+				readTestDbTable(dbFile, 'SELECT scale, unit, count FROM img_dist'),
+				{
+					(10, 190, 5),
+					(1, 1900, 4),
+					(1, 1901, 1),
+					(MONTH_SCALE, gregorianToJdn(1900, 1, 1), 3),
+					(MONTH_SCALE, gregorianToJdn(1901, 1, 1), 1),
+					(MONTH_SCALE, julianToJdn(1900, 10, 1), 1),
+					(DAY_SCALE, gregorianToJdn(1900, 1, 1), 2),
+					(DAY_SCALE, gregorianToJdn(1900, 1, 10), 1),
+					(DAY_SCALE, julianToJdn(1900, 10, 1), 1),
+					(DAY_SCALE, gregorianToJdn(1901, 1, 1), 1),
+				}
+			)
+			self.assertEqual(
+				readTestDbTable(dbFile, 'SELECT id, scale, unit FROM img_disp'),
+				{
+					(5, 10, 190),
+					(7, 10, 190),
+					(5, 1, 1900),
+					(7, 1, 1900),
+					(4, 1, 1901),
+					(1, MONTH_SCALE, 2415021),
+					(7, MONTH_SCALE, 2415021),
+					(4, MONTH_SCALE, 2415386),
+					(5, MONTH_SCALE, 2415307),
+					(1, DAY_SCALE, 2415021),
+					(7, DAY_SCALE, 2415021),
+					(6, DAY_SCALE, 2415030),
+					(4, DAY_SCALE, 2415386),
+					(5, DAY_SCALE, 2415307),
 				}
 			)
