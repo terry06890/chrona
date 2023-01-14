@@ -93,10 +93,12 @@ async function onInput(){
 		input: input.value,
 		limit: String(store.searchSuggLimit),
 	});
-	// Check if any event categories are disabled
-	if (Object.values(store.ctgs).some((b: boolean) => !b)){
+	if (Object.values(store.ctgs).some((b: boolean) => !b)){ // If any event categories are disabled
 		let visibleCtgs = Object.entries(store.ctgs).filter(([, enabled]) => enabled).map(([ctg, ]) => ctg);
 		urlParams.append('ctgs', visibleCtgs.join('.'));
+	}
+	if (store.reqImgs){
+		urlParams.append('imgonly', 'true');
 	}
 	// Code for querying server
 	pendingReqParams.value = urlParams;
@@ -173,6 +175,9 @@ async function resolveSearch(eventTitle: string){
 	let urlParams = new URLSearchParams({type: 'info', event: eventTitle});
 	if (visibleCtgs != null){
 		urlParams.append('ctgs', visibleCtgs.join('.'));
+	}
+	if (store.reqImgs){
+		urlParams.append('imgonly', 'true');
 	}
 	let responseObj: EventInfoJson | null = await queryServer(urlParams);
 	if (responseObj != null){

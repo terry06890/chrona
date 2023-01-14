@@ -84,6 +84,3 @@ Some of the scripts use third-party packages:
 1.  Additional events can be described in `picked/events.json`, with images for them put
     in `picked` (see the README for details).
 1.  Can run `gen_picked_data.py` to add those described events to the database.
-
-## Remove Events Without Images/Descs
-1.  Run `reduce_event_data.py` to remove data for events that have no image.

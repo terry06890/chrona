@@ -249,6 +249,9 @@ async function onEventDisplay(
 		if (targetEvent != null){
 			urlParams.append('incl', String(targetEvent.id));
 		}
+		if (store.reqImgs){
+			urlParams.append('imgonly', 'true');
+		}
 		let responseObj: EventResponseJson | null = await queryServer(urlParams);
 		if (responseObj == null){
 			console.log('WARNING: Server gave null response to event query');

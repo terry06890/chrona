@@ -18,9 +18,10 @@ Expected HTTP query parameters:
 - limit: With type=events or type=sugg, specifies the max number of results
 - ctgs: With type=events|info|sugg, specifies event categories to restrict results to
 	Interpreted as a period-separated list of category names (eg: person.place). An empty string is ignored.
+- imgonly: With type=events|info|sugg, if present, restricts results to events with images.
 """
 
-from typing import Iterable
+from typing import Iterable, cast
 import sys, re
 import urllib.parse, sqlite3
 import gzip, jsonpickle
@@ -171,8 +172,6 @@ def handleEventsReq(params: dict[str, str], dbCur: sqlite3.Cursor) -> EventRespo
 	except ValueError:
 		print('INFO: Invalid scale value', file=sys.stderr)
 		return None
-	# Get event category
-	ctgs = params['ctgs'].split('.') if 'ctgs' in params else None
 	# Get incl value
 	try:
 		incl = int(params['incl']) if 'incl' in params else None
@@ -189,7 +188,10 @@ def handleEventsReq(params: dict[str, str], dbCur: sqlite3.Cursor) -> EventRespo
 		print(f'INFO: Invalid results limit {resultLimit}', file=sys.stderr)
 		return None
 	#
-	events = lookupEvents(start, end, scale, ctgs, incl, resultLimit, dbCur)
+	ctgs = params['ctgs'].split('.') if 'ctgs' in params else None
+	imgonly = 'imgonly' in params
+	#
+	events = lookupEvents(start, end, scale, incl, resultLimit, ctgs, imgonly, dbCur)
 	unitCounts = lookupUnitCounts(start, end, scale, dbCur)
 	return EventResponse(events, unitCounts)
 def reqParamToHistDate(s: str):
@@ -203,16 +205,18 @@ def reqParamToHistDate(s: str):
 		return HistDate(None, int(m.group(1)))
 	else:
 		return HistDate(True, int(m.group(1)), int(m.group(2)), int(m.group(3)))
-def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctgs: list[str] | None,
-		incl: int | None, resultLimit: int, dbCur: sqlite3.Cursor) -> list[Event]:
+def lookupEvents(
+		start: HistDate | None, end: HistDate | None, scale: int, incl: int | None, resultLimit: int,
+		ctgs: list[str] | None, imgonly: bool, dbCur: sqlite3.Cursor) -> list[Event]:
 	""" Looks for events within a date range, in given scale,
 		restricted by event category, an optional particular inclusion, and a result limit """
+	imgJoin = 'INNER JOIN' if imgonly else 'LEFT JOIN'
 	query = \
 		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop FROM events' \
 		' INNER JOIN event_disp ON events.id = event_disp.id' \
 		' INNER JOIN pop ON events.id = pop.id' \
-		' LEFT JOIN event_imgs ON events.id = event_imgs.id' \
-		' LEFT JOIN images ON event_imgs.img_id = images.id'
+		f' {imgJoin} event_imgs ON events.id = event_imgs.id' \
+		f' {imgJoin} images ON event_imgs.img_id = images.id'
 	constraints = ['event_disp.scale = ?']
 	params: list[str | int] = [scale]
 	# Constrain by start/end
@@ -266,7 +270,7 @@ def eventEntryToResults(
 		if n is not None:
 			newDates[i] = dbDateToHistDate(n, fmt, i < 2)
 	#
-	return Event(eventId, title, newDates[0], newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
+	return Event(eventId, title, cast(HistDate, newDates[0]), newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
 def lookupUnitCounts(
 		start: HistDate | None, end: HistDate | None, scale: int, dbCur: sqlite3.Cursor) -> dict[int, int] | None:
 	# Build query
@@ -292,16 +296,18 @@ def handleInfoReq(params: dict[str, str], dbCur: sqlite3.Cursor):
 		print('INFO: No \'event\' parameter for type=info request', file=sys.stderr)
 		return None
 	ctgs = params['ctgs'].split('.') if 'ctgs' in params else None
-	return lookupEventInfo(params['event'], ctgs, dbCur)
-def lookupEventInfo(eventTitle: str, ctgs: list[str] | None, dbCur: sqlite3.Cursor) -> EventInfo | None:
+	imgonly = 'imgonly' in params
+	return lookupEventInfo(params['event'], ctgs, imgonly, dbCur)
+def lookupEventInfo(eventTitle: str, ctgs: list[str] | None, imgonly: bool, dbCur: sqlite3.Cursor) -> EventInfo | None:
 	""" Look up an event with given title, and return a descriptive EventInfo """
+	imgJoin = 'INNER JOIN' if imgonly else 'LEFT JOIN'
 	query = \
 		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop, ' \
 			' descs.desc, descs.wiki_id, ' \
 			' images.url, images.license, images.artist, images.credit FROM events' \
 		' INNER JOIN pop ON events.id = pop.id' \
-		' LEFT JOIN event_imgs ON events.id = event_imgs.id' \
-		' LEFT JOIN images ON event_imgs.img_id = images.id' \
+		f' {imgJoin} event_imgs ON events.id = event_imgs.id' \
+		f' {imgJoin} images ON event_imgs.img_id = images.id' \
 		' LEFT JOIN descs ON events.id = descs.id' \
 		' WHERE events.title = ? COLLATE NOCASE'
 	row = dbCur.execute(query, (eventTitle,)).fetchone()
@@ -336,11 +342,15 @@ def handleSuggReq(params: dict[str, str], dbCur: sqlite3.Cursor):
 		return None
 	#
 	ctgs = params['ctgs'].split('.') if 'ctgs' in params else None
-	return lookupSuggs(searchStr, resultLimit, ctgs, dbCur)
-def lookupSuggs(searchStr: str, resultLimit: int, ctgs: list[str] | None, dbCur: sqlite3.Cursor) -> SuggResponse:
+	imgonly = 'imgonly' in params
+	return lookupSuggs(searchStr, resultLimit, ctgs, imgonly, dbCur)
+def lookupSuggs(
+		searchStr: str, resultLimit: int, ctgs: list[str] | None, imgonly: bool, dbCur: sqlite3.Cursor) -> SuggResponse:
 	""" For a search string, returns a SuggResponse describing search suggestions """
 	tempLimit = resultLimit + 1 # For determining if 'more suggestions exist'
-	query = 'SELECT title FROM events LEFT JOIN pop ON events.id = pop.id WHERE title LIKE ?'
+	query = 'SELECT title FROM events LEFT JOIN pop ON events.id = pop.id' \
+		+ (' INNER JOIN event_imgs ON events.id = event_imgs.id' if imgonly else '') \
+		+ ' WHERE title LIKE ?'
 	if ctgs is not None:
 		query += ' AND ctg IN (' + ','.join('?' * len(ctgs)) + ')'
 	query += f' ORDER BY pop.pop DESC LIMIT {tempLimit}'
