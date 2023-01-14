@@ -16,7 +16,7 @@
 		</div>
 		<!-- Main content -->
 		<div class="border-t border-stone-400 p-2 md:p-3">
-			<div class="mt-1 mr-2 md:mb-2 md:mr-4 md:float-left">
+			<div v-if="eventInfo.imgInfo != null" class="mt-1 mr-2 md:mb-2 md:mr-4 md:float-left">
 				<!-- Image -->
 				<a :href="eventInfo.imgInfo.url" target="_blank" class="block w-fit mx-auto" :style="imgStyles"></a>
 				<!-- Image Source -->
@@ -153,7 +153,7 @@ const imgStyles = computed(() => {
 	return {
 		width: '200px',
 		height: '200px',
-		backgroundImage: `url(${getImagePath(event.value.imgId)})`,
+		backgroundImage: event.value.imgId == null ? 'none' : `url(${getImagePath(event.value.imgId)})`,
 		backgroundColor: store.color.bgDark,
 		backgroundSize: 'cover',
 		borderRadius: store.borderRadius + 'px',

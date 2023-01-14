@@ -315,8 +315,8 @@ export class EventInfo {
 	event: HistEvent;
 	desc: string | null;
 	wikiId: number;
-	imgInfo: ImgInfo;
-	constructor(event: HistEvent, desc: string, wikiId: number, imgInfo: ImgInfo){
+	imgInfo: ImgInfo | null;
+	constructor(event: HistEvent, desc: string, wikiId: number, imgInfo: ImgInfo | null){
 		this.event = event;
 		this.desc = desc;
 		this.wikiId = wikiId;
@@ -459,7 +459,7 @@ export type EventInfoJson = {
 	event: HistEventJson,
 	desc: string,
 	wikiId: number,
-	imgInfo: ImgInfoJson,
+	imgInfo: ImgInfoJson | null,
 }
 export type ImgInfoJson = {
 	url: string,
@@ -490,8 +490,8 @@ export function jsonToHistEvent(json: HistEventJson): HistEvent {
 export function jsonToEventInfo(json: EventInfoJson): EventInfo {
 	return new EventInfo(jsonToHistEvent(json.event), json.desc, json.wikiId, jsonToImgInfo(json.imgInfo));
 }
-export function jsonToImgInfo(json: ImgInfoJson): ImgInfo {
-	return new ImgInfo(json.url, json.license, json.artist, json.credit);
+export function jsonToImgInfo(json: ImgInfoJson | null): ImgInfo | null {
+	return json == null ? null : new ImgInfo(json.url, json.license, json.artist, json.credit);
 }
 
 // For dates in a timeline

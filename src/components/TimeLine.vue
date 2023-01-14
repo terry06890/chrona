@@ -448,6 +448,9 @@ const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
 		if ((store.ctgs as {[ctg: string]: boolean})[event.ctg] == false){
 			continue;
 		}
+		if (store.reqImgs && event.imgId == null){
+			continue;
+		}
 		map.set(event.id, event);
 	}
 	return map;
@@ -1288,7 +1291,7 @@ function eventImgStyles(eventId: number){
 	return {
 		width: store.eventImgSz + 'px',
 		height: store.eventImgSz + 'px',
-		backgroundImage: `url(${getImagePath(event.imgId)})`,
+		backgroundImage: event.imgId == null ? 'none' : `url(${getImagePath(event.imgId)})`,
 		backgroundColor: store.color.bgDark,
 		backgroundSize: 'cover',
 		borderColor: color,

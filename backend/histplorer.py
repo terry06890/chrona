@@ -45,7 +45,7 @@ class Event:
 			end: HistDate | None,
 			endUpper: HistDate | None,
 			ctg: str,
-			imgId: int,
+			imgId: int | None,
 			pop: int):
 		self.id = id
 		self.title = title
@@ -92,7 +92,7 @@ class ImgInfo:
 		return str(self.__dict__)
 class EventInfo:
 	""" Used when responding to type=info requests """
-	def __init__(self, event: Event, desc: str | None, wikiId: int, imgInfo: ImgInfo):
+	def __init__(self, event: Event, desc: str | None, wikiId: int, imgInfo: ImgInfo | None):
 		self.event = event
 		self.desc = desc
 		self.wikiId = wikiId
@@ -211,8 +211,8 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctgs:
 		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop FROM events' \
 		' INNER JOIN event_disp ON events.id = event_disp.id' \
 		' INNER JOIN pop ON events.id = pop.id' \
-		' INNER JOIN event_imgs ON events.id = event_imgs.id' \
-		' INNER JOIN images ON event_imgs.img_id = images.id'
+		' LEFT JOIN event_imgs ON events.id = event_imgs.id' \
+		' LEFT JOIN images ON event_imgs.img_id = images.id'
 	constraints = ['event_disp.scale = ?']
 	params: list[str | int] = [scale]
 	# Constrain by start/end
@@ -256,7 +256,7 @@ def lookupEvents(start: HistDate | None, end: HistDate | None, scale: int, ctgs:
 	#
 	return results
 def eventEntryToResults(
-		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int, int]) -> Event:
+		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int | None, int]) -> Event:
 	eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, pop = row
 	""" Helper for converting an 'events' db entry into an Event object """
 	# Convert dates
@@ -299,15 +299,15 @@ def lookupEventInfo(eventTitle: str, dbCur: sqlite3.Cursor) -> EventInfo | None:
 			' descs.desc, descs.wiki_id, ' \
 			' images.url, images.license, images.artist, images.credit FROM events' \
 		' INNER JOIN pop ON events.id = pop.id' \
-		' INNER JOIN event_imgs ON events.id = event_imgs.id' \
-		' INNER JOIN images ON event_imgs.img_id = images.id' \
+		' LEFT JOIN event_imgs ON events.id = event_imgs.id' \
+		' LEFT JOIN images ON event_imgs.img_id = images.id' \
 		' LEFT JOIN descs ON events.id = descs.id' \
 		' WHERE events.title = ? COLLATE NOCASE'
 	row = dbCur.execute(query, (eventTitle,)).fetchone()
 	if row is not None:
 		event = eventEntryToResults(row[:10])
 		desc, wikiId, url, license, artist, credit = row[10:]
-		return EventInfo(event, desc, wikiId, ImgInfo(url, license, artist, credit))
+		return EventInfo(event, desc, wikiId, None if url is None else ImgInfo(url, license, artist, credit))
 	else:
 		return None
 

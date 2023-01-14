@@ -157,11 +157,16 @@ async function resolveSearch(eventTitle: string){
 	}
 	// Check if the event data is already here
 	if (props.titleToEvent.has(eventTitle)){
-		if (visibleCtgs != null && !visibleCtgs.includes(props.titleToEvent.get(eventTitle).ctg)){
+		let event = props.titleToEvent.get(eventTitle)!;
+		if (visibleCtgs != null && !visibleCtgs.includes(event.ctg)){
 			console.log('INFO: Ignoring search for known event due to category filter');
 			return;
 		}
-		emit('search', props.titleToEvent.get(eventTitle));
+		if (store.reqImgs && event.imgId == null){
+			console.log('INFO: Ignoring search for known event due to image-only display');
+			return;
+		}
+		emit('search', event);
 		return;
 	}
 	// Query server for event
@@ -169,9 +174,12 @@ async function resolveSearch(eventTitle: string){
 	let responseObj: EventInfoJson | null = await queryServer(urlParams);
 	if (responseObj != null){
 		let eventInfo = jsonToEventInfo(responseObj);
-		// Check if event category is disabled
 		if (visibleCtgs != null && !visibleCtgs.includes(eventInfo.event.ctg)){
 			console.log('INFO: Ignoring search result due to category filter');
+			return;
+		}
+		if (store.reqImgs && eventInfo.event.imgId == null){
+			console.log('INFO: Ignoring search result due to image-only display');
 			return;
 		}
 		emit('search', eventInfo.event);

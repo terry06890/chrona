@@ -30,6 +30,7 @@ export type StoreState = {
 	dragInertia: number, // Multiplied by final-drag-speed (pixels-per-sec) to get extra scroll distance
 	disableShortcuts: boolean,
 	// Other feature-specific
+	reqImgs: boolean, // Only show events with images
 	showEventCounts: boolean,
 	searchSuggLimit: number,
 	ctgs: { // Specifies event categories, and which ones should be visible
@@ -104,6 +105,7 @@ function getDefaultState(): StoreState {
 		dragInertia: 0.1,
 		disableShortcuts: false,
 		// Other feature-specific
+		reqImgs: true,
 		showEventCounts: true,
 		searchSuggLimit: 10,
 		ctgs: {

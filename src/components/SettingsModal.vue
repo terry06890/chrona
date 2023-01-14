@@ -27,6 +27,10 @@
 		<div class="pb-2" :class="borderBClasses">
 			<h2 class="font-bold md:text-xl text-center pt-1 md:pt-2 md:pb-1">Display</h2>
 			<div class="px-2">
+				<label> <input type="checkbox" v-model="store.reqImgs"
+					@change="onSettingChg('reqImgs')"/> Only show events with images </label>
+			</div>
+			<div class="px-2">
 				<label> <input type="checkbox" v-model="store.showEventCounts"
 					@change="onSettingChg('showEventCounts')"/> Show event count indicators </label>
 			</div>
