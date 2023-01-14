@@ -244,29 +244,6 @@ export class HistDate {
 			return intToOrdinal(this.day);
 		}
 	}
-	toDisplayString(){
-		if (this.year <= -1e4){ // N.NNN billion/million/thousand years ago
-			if (this.year <= -1e9){
-				return `${Math.round(-this.year / 1e6) / 1e3} billion years ago`;
-			} else if (this.year <= -1e6){
-				return `${Math.round(-this.year / 1e3) / 1e3} million years ago`;
-			} else {
-				return `${Math.round(-this.year / 1e3)} thousand years ago`;
-			}
-		} else if (this.gcal == null){
-			if (this.year < 0){ // eg: 1,000 BC
-				return `${(-this.year).toLocaleString()} BC`;
-			} else if (this.year < 1500){ // eg: 10 AD
-				return `${this.year} AD`;
-			} else {
-				return `${this.year}`; // eg: 2010
-			}
-		} else { // eg: 2nd Mar 1710 BC (O.S.)
-			const bcSuffix = this.year < 0 ? ' BC' : (this.year < 1500 ? ' AD' : '');
-			const calStr = this.gcal ? '' : ' (O.S.)';
-			return `${intToOrdinal(this.day)} ${MONTH_NAMES[this.month-1]} ${Math.abs(this.year)}${bcSuffix}${calStr}`;
-		}
-	}
 	toInt(){ // Used for v-for keys
 		return this.day + this.month * 50 + this.year * 1000;
 	}
@@ -296,120 +273,6 @@ export class CalDate extends HistDate {
 	}
 }
 export const MIN_CAL_DATE = new CalDate(MIN_CAL_YEAR, 1, 1);
-export function boundedDateToStr(start: HistDate, end: HistDate | null) : string {
-	// Converts a date with uncertain end bound to string for display
-	if (end == null){
-		return start.toDisplayString();
-	}
-	const startStr = start.toDisplayString();
-	const endStr = end.toDisplayString();
-	if (startStr == endStr){
-		return startStr;
-	}
-	if (start.gcal == null && end.gcal == null){
-		if (startStr.endsWith(' years ago') && endStr.endsWith(' years ago')){
-			const dateRegex = /^(.*) (.*) years ago$/;
-			const startMatch = dateRegex.exec(startStr)!;
-			const endMatch = dateRegex.exec(endStr)!;
-			if (startMatch[2] == endMatch[2]){ // Same billion/million/thousand scale
-				const startZeros = getNumTrailingZeros(start.year);
-				if (startZeros >= 4 && end.year == start.year + 10 ** startZeros - 1
-					|| (start.year - 1) % 1e3 == 0 && end.year == start.year + 999){
-					return `About ${startStr}`; // Includes cases like -20_000 to -10_001 and -21999 to -21000
-				}
-				return `${startMatch[1]} to ${endMatch[1]} ${startMatch[2]} years ago`;
-			} else {
-				return `${startMatch[1]} ${startMatch[2]} to ${endMatch[1]} ${endMatch[2]} years ago`;
-			}
-		} else if (moduloPositive(start.year, 1000) == 1 && end.year == start.year + 999){ // eg: 2nd millenium
-			const ordinal = intToOrdinal(Math.abs(start.year - 1) / 1000 + (start.year > 0 ? 1 : 0));
-			return ordinal + ' millenium' + (start.year < 0 ? ' BC' : '');
-		} else if (moduloPositive(start.year, 100) == 1 && end.year == start.year + 99){ // eg: 4th century BC
-			const ordinal = intToOrdinal(Math.abs(start.year - 1) / 100 + (start.year > 0 ? 1 : 0));
-			return ordinal + ' century' + (start.year < 0 ? ' BC' : '');
-		} else if (start.year % 10 == 0 && end.year == start.year + 9){ // eg: 1880s
-			return String(start.year) + 's';
-		} else {
-			const bcRegex = /^(.*)( (BC|AD))$/;
-			const startMatch = bcRegex.exec(startStr);
-			const endMatch = bcRegex.exec(endStr);
-			if (startMatch != null && endMatch != null && startMatch[2] == endMatch[2]){
-				return `${startMatch[1]} to ${endStr}`;
-			}
-		}
-	} else if (start.gcal != null && end.gcal != null){
-		const dateRegex = /^(\S+) (\S+) (.*)$/; // Matches day, month, and suffix
-		const startMatch = dateRegex.exec(startStr);
-		const endMatch = dateRegex.exec(endStr);
-		if (startMatch != null && endMatch != null && startMatch[3] == endMatch[3]){ // Same suffix
-			if (startMatch[2] == endMatch[2]){ // Same month
-				const calToJdn = start.gcal ? gregorianToJdn : julianToJdn;
-				if (start.day == 1 && calToJdn(end.year, end.month, end.day) == calToJdn(end.year, end.month+1, 0)){
-					return `${startMatch[2]} ${startMatch[3]}`; // eg: Jan 2002
-				}
-				return `${startMatch[1]} to ${endMatch[1]} ${startMatch[2]} ${startMatch[3]}`;
-			}
-			return `${startMatch[1]} ${startMatch[2]} to ${endMatch[1]} ${endMatch[2]} ${startMatch[3]}`;
-		}
-	}
-	return `${startStr} to ${endStr}`;
-}
-export function eventDatesToStrings(
-		start: HistDate, startUpper: HistDate | null, end: HistDate | null, endUpper: HistDate | null)
-		: [string] | [string, string] {
-	if (end == null){
-		return [boundedDateToStr(start, startUpper)];
-	}
-	const startStr = boundedDateToStr(start, startUpper);
-	const endStr = boundedDateToStr(end, endUpper);
-	if (startStr == endStr){
-		return [startStr];
-	}
-	if (startStr.includes(' to ') || startStr.startsWith('About ')
-			|| endStr.includes(' to ') || endStr.startsWith('About ')){
-		return [startStr, endStr];
-	}
-	let startMatch: null | string[];
-	let endMatch: null | string[];
-	if (start.gcal == null && end.gcal == null){
-		if (startStr.endsWith(' years ago') && endStr.endsWith(' years ago')){
-			const yaRegex = /^(.*) (.*) years ago$/;
-			startMatch = yaRegex.exec(startStr)!;
-			endMatch = yaRegex.exec(endStr)!;
-			if (startMatch[2] == endMatch[2]){ // Same billion/million/thousand scale
-				return [`${startMatch[1]} to ${endMatch[1]} ${startMatch[2]} years ago`];
-			} else {
-				return [`${startMatch[1]} ${startMatch[2]} to ${endMatch[1]} ${endMatch[2]} years ago`];
-			}
-		}
-		const mcRegex = /^(.*) (millenium|century( (BC|AD))?)$/;
-		startMatch = mcRegex.exec(startStr);
-		endMatch = mcRegex.exec(endStr);
-		if (startMatch != null && endMatch != null && startMatch[2] == endMatch[2]){
-			return [`${startMatch[1]} to ${endMatch[1]} ${startMatch[2]}`];
-		}
-		const bcRegex = /^(.*) (BC|AD)$/;
-		startMatch = bcRegex.exec(startStr);
-		endMatch = bcRegex.exec(endStr);
-		if (startMatch != null && endMatch != null && startMatch[2] == endMatch[2]){
-			return [`${startMatch[1]} to ${endStr}`];
-		}
-	} else if (start.gcal != null && end.gcal != null){
-		const calRegex = /^(\S+ )?(\S+) (.*)$/; // Matches day (optional), month, and suffix
-		startMatch = calRegex.exec(startStr);
-		endMatch = calRegex.exec(endStr);
-		if (startMatch != null && endMatch != null && startMatch[3] == endMatch[3]){ // Same suffix
-			if (startMatch[2] == endMatch[2]){ // Same month
-				return [`${startMatch[1]}to ${endMatch[1]}${startMatch[2]} ${startMatch[3]}`];
-			}
-			if (startMatch[1] == null){
-				return [`${startMatch[2]} to ${endMatch[2]} ${startMatch[3]}`];
-			}
-			return [`${startMatch[1]}${startMatch[2]} to ${endMatch[1]}${endMatch[2]} ${startMatch[3]}`];
-		}
-	}
-	return [startStr, endStr];
-}
 
 // For event representation
 export class HistEvent {
@@ -464,6 +327,90 @@ export function cmpHistEvent(event: HistEvent, event2: HistEvent){
 	const cmp = event.start.cmp(event2.start);
 	return cmp != 0 ? cmp : event.id - event2.id;
 }
+
+// For date display
+export function dateToDisplayStr(date: HistDate){
+	if (date.year <= -1e4){ // N.NNN billion/million/thousand years ago
+		if (date.year <= -1e9){
+			return `${Math.round(-date.year / 1e6) / 1e3} billion years ago`;
+		} else if (date.year <= -1e6){
+			return `${Math.round(-date.year / 1e3) / 1e3} million years ago`;
+		} else {
+			return `${Math.round(-date.year / 1e3)} thousand years ago`;
+		}
+	} else if (date.gcal == null){
+		if (date.year < 0){ // eg: 1,000 BC
+			return `${(-date.year).toLocaleString()} BC`;
+		} else if (date.year < 1500){ // eg: 10 AD
+			return `${date.year} AD`;
+		} else {
+			return `${date.year}`; // eg: 2010
+		}
+	} else { // eg: 2nd Mar 1710 BC (O.S.)
+		const bcSuffix = date.year < 0 ? ' BC' : (date.year < 1500 ? ' AD' : '');
+		const calStr = date.gcal ? '' : ' (O.S.)';
+		return `${intToOrdinal(date.day)} ${MONTH_NAMES[date.month-1]} ${Math.abs(date.year)}${bcSuffix}${calStr}`;
+	}
+}
+export function boundedDateToStr(start: HistDate, end: HistDate | null) : string {
+	// Converts a date with uncertain end bound to string for display
+	if (end == null){
+		return dateToDisplayStr(start);
+	}
+	const startStr = dateToDisplayStr(start);
+	const endStr = dateToDisplayStr(end);
+	if (startStr == endStr){
+		return startStr;
+	}
+	if (start.gcal == null && end.gcal == null){
+		if (startStr.endsWith(' years ago') && endStr.endsWith(' years ago')){
+			const dateRegex = /^(.*) (.*) years ago$/;
+			const startMatch = dateRegex.exec(startStr)!;
+			const endMatch = dateRegex.exec(endStr)!;
+			if (startMatch[2] == endMatch[2]){ // Same billion/million/thousand scale
+				const startZeros = getNumTrailingZeros(start.year);
+				if (startZeros >= 4 && end.year == start.year + 10 ** startZeros - 1
+					|| (start.year - 1) % 1e3 == 0 && end.year == start.year + 999){
+					return `About ${startStr}`; // Includes cases like -20_000 to -10_001 and -21999 to -21000
+				}
+				return `${startMatch[1]} to ${endMatch[1]} ${startMatch[2]} years ago`;
+			} else {
+				return `${startMatch[1]} ${startMatch[2]} to ${endMatch[1]} ${endMatch[2]} years ago`;
+			}
+		} else if (moduloPositive(start.year, 1000) == 1 && end.year == start.year + 999){ // eg: 2nd millenium
+			const ordinal = intToOrdinal(Math.abs(start.year - 1) / 1000 + (start.year > 0 ? 1 : 0));
+			return ordinal + ' millenium' + (start.year < 0 ? ' BC' : '');
+		} else if (moduloPositive(start.year, 100) == 1 && end.year == start.year + 99){ // eg: 4th century BC
+			const ordinal = intToOrdinal(Math.abs(start.year - 1) / 100 + (start.year > 0 ? 1 : 0));
+			return ordinal + ' century' + (start.year < 0 ? ' BC' : '');
+		} else if (start.year % 10 == 0 && end.year == start.year + 9){ // eg: 1880s
+			return String(start.year) + 's';
+		} else {
+			const bcRegex = /^(.*)( (BC|AD))$/;
+			const startMatch = bcRegex.exec(startStr);
+			const endMatch = bcRegex.exec(endStr);
+			if (startMatch != null && endMatch != null && startMatch[2] == endMatch[2]){
+				return `${startMatch[1]} to ${endStr}`;
+			}
+		}
+	} else if (start.gcal != null && end.gcal != null){
+		const dateRegex = /^(\S+) (\S+) (.*)$/; // Matches day, month, and suffix
+		const startMatch = dateRegex.exec(startStr);
+		const endMatch = dateRegex.exec(endStr);
+		if (startMatch != null && endMatch != null && startMatch[3] == endMatch[3]){ // Same suffix
+			if (startMatch[2] == endMatch[2]){ // Same month
+				const calToJdn = start.gcal ? gregorianToJdn : julianToJdn;
+				if (start.day == 1 && calToJdn(end.year, end.month, end.day) == calToJdn(end.year, end.month+1, 0)){
+					return `${startMatch[2]} ${startMatch[3]}`; // eg: Jan 2002
+				}
+				return `${startMatch[1]} to ${endMatch[1]} ${startMatch[2]} ${startMatch[3]}`;
+			}
+			return `${startMatch[1]} ${startMatch[2]} to ${endMatch[1]} ${endMatch[2]} ${startMatch[3]}`;
+		}
+	}
+	return `${startStr} to ${endStr}`;
+}
+
 
 // For server requests
 const SERVER_DATA_URL = (new URL(window.location.href)).origin + '/data/'
