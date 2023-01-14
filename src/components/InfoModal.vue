@@ -7,7 +7,14 @@
 		<h1 class="text-center text-xl font-bold pt-2 pb-1 md:text-2xl md:pt-3 md:pb-1">
 			{{event.title}}
 		</h1>
-		<p class="text-center text-sm md:text-base">{{datesDisplayStr}}</p>
+		<!-- Time Display -->
+		<div class="text-center text-sm md:text-base">
+			{{datesDisplayStrs.length == 1 ? 'Time' : 'Start'}}: {{datesDisplayStrs[0]}}
+		</div>
+		<div v-if="datesDisplayStrs.length > 1" class="text-center text-sm md:text-base">
+			End: {{datesDisplayStrs[1]}}
+		</div>
+		<!-- Main content -->
 		<div class="border-t border-stone-400 p-2 md:p-3">
 			<div class="mt-1 mr-2 md:mb-2 md:mr-4 md:float-left">
 				<!-- Image -->
@@ -75,7 +82,7 @@ import SCollapsible from './SCollapsible.vue';
 import CloseIcon from './icon/CloseIcon.vue';
 import DownIcon from './icon/DownIcon.vue';
 import ExternalLinkIcon from './icon/ExternalLinkIcon.vue';
-import {EventInfo, boundedDateToStr, getImagePath} from '../lib';
+import {EventInfo, eventDatesToStrings, getImagePath} from '../lib';
 import {useStore} from '../store';
 
 // Refs
@@ -93,11 +100,8 @@ const emit = defineEmits(['close']);
 
 // For data display
 const event = computed(() => props.eventInfo.event)
-const datesDisplayStr = computed(() => {
-	const startStr = boundedDateToStr(event.value.start, event.value.startUpper);
-	const endStr = event.value.end == null ? null : boundedDateToStr(event.value.end, event.value.endUpper);
-	return 'Start: ' + startStr + (endStr == null ? '' : ', End: ' + endStr);
-});
+const datesDisplayStrs = computed(
+	() => eventDatesToStrings(event.value.start, event.value.startUpper, event.value.end, event.value.endUpper));
 function licenseToUrl(license: string){
 	license = license.toLowerCase().replaceAll('-', ' ');
 	if (license == 'cc0'){
