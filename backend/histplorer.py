@@ -16,7 +16,7 @@ Expected HTTP query parameters:
 - event: With type=info, specifies the event title to get info for
 - input: With type=sugg, specifies a search string to suggest for
 - limit: With type=events or type=sugg, specifies the max number of results
-- ctgs: With type=events or type=sugg, specifies event categories to restrict results to
+- ctgs: With type=events|info|sugg, specifies event categories to restrict results to
 	Interpreted as a period-separated list of category names (eg: person.place). An empty string is ignored.
 """
 
@@ -291,8 +291,9 @@ def handleInfoReq(params: dict[str, str], dbCur: sqlite3.Cursor):
 	if 'event' not in params:
 		print('INFO: No \'event\' parameter for type=info request', file=sys.stderr)
 		return None
-	return lookupEventInfo(params['event'], dbCur)
-def lookupEventInfo(eventTitle: str, dbCur: sqlite3.Cursor) -> EventInfo | None:
+	ctgs = params['ctgs'].split('.') if 'ctgs' in params else None
+	return lookupEventInfo(params['event'], ctgs, dbCur)
+def lookupEventInfo(eventTitle: str, ctgs: list[str] | None, dbCur: sqlite3.Cursor) -> EventInfo | None:
 	""" Look up an event with given title, and return a descriptive EventInfo """
 	query = \
 		'SELECT events.id, title, start, start_upper, end, end_upper, fmt, ctg, images.id, pop.pop, ' \
@@ -307,6 +308,8 @@ def lookupEventInfo(eventTitle: str, dbCur: sqlite3.Cursor) -> EventInfo | None:
 	if row is not None:
 		event = eventEntryToResults(row[:10])
 		desc, wikiId, url, license, artist, credit = row[10:]
+		if ctgs is not None and event.ctg not in ctgs:
+			return None
 		return EventInfo(event, desc, wikiId, None if url is None else ImgInfo(url, license, artist, credit))
 	else:
 		return None

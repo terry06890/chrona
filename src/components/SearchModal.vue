@@ -151,13 +151,13 @@ async function resolveSearch(eventTitle: string){
 		return;
 	}
 	let visibleCtgs = null as null | string[];
-	// Check if any event categories are disabled
 	if (Object.values(store.ctgs).some((b: boolean) => !b)){
 		visibleCtgs = Object.entries(store.ctgs).filter(([, enabled]) => enabled).map(([ctg, ]) => ctg);
 	}
 	// Check if the event data is already here
 	if (props.titleToEvent.has(eventTitle)){
 		let event = props.titleToEvent.get(eventTitle)!;
+		// Check for disabled event categories
 		if (visibleCtgs != null && !visibleCtgs.includes(event.ctg)){
 			console.log('INFO: Ignoring search for known event due to category filter');
 			return;
@@ -171,13 +171,12 @@ async function resolveSearch(eventTitle: string){
 	}
 	// Query server for event
 	let urlParams = new URLSearchParams({type: 'info', event: eventTitle});
+	if (visibleCtgs != null){
+		urlParams.append('ctgs', visibleCtgs.join('.'));
+	}
 	let responseObj: EventInfoJson | null = await queryServer(urlParams);
 	if (responseObj != null){
 		let eventInfo = jsonToEventInfo(responseObj);
-		if (visibleCtgs != null && !visibleCtgs.includes(eventInfo.event.ctg)){
-			console.log('INFO: Ignoring search result due to category filter');
-			return;
-		}
 		if (store.reqImgs && eventInfo.event.imgId == null){
 			console.log('INFO: Ignoring search result due to image-only display');
 			return;
