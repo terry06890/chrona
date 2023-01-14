@@ -88,7 +88,7 @@ const saveIndRef = ref(null as HTMLDivElement | null);
 const store = useStore();
 
 // Events
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'change']);
 
 // Settings change handling
 const saved = ref(false); // Set to true after a setting is saved
@@ -102,6 +102,7 @@ const lastCtg = computed(() => { // When all but one category is disabled, names
 });
 function onSettingChg(option: string){ 
 	store.save(option);
+	emit('change', option);
 	// Make 'Saved' indicator appear/animate
 	if (!saved.value){
 		saved.value = true;

@@ -39,7 +39,7 @@
 		<info-modal v-if="infoModalData != null" :eventInfo="infoModalData" @close="infoModalData = null"/>
 	</transition>
 	<transition name="fade">
-		<settings-modal v-if="settingsOpen" @close="settingsOpen = false"/>
+		<settings-modal v-if="settingsOpen" @close="settingsOpen = false" @change="onSettingChg"/>
 	</transition>
 	<transition name="fade">
 		<help-modal v-if="helpOpen" @close="helpOpen = false"/>
@@ -173,7 +173,7 @@ function reduceEvents(){
 	eventTree.value = newTree;
 	unitCountMaps.value = newMaps;
 	idToEvent = eventsToKeep;
-	titleToEvent = new Map();
+	titleToEvent.clear();
 	for (let event of eventsToKeep.values()){
 		titleToEvent.set(event.title, event);
 	}
@@ -333,6 +333,16 @@ function onSearch(event: HistEvent){
 
 // For settings modal
 const settingsOpen = ref(false);
+function onSettingChg(option: string){
+	if (option == 'reqImgs'){
+		// Reset event data
+		eventTree.value = new RBTree(cmpHistEvent); // Will trigger event re-query
+		unitCountMaps.value = SCALES.map(() => new Map());
+		idToEvent.clear();
+		titleToEvent.clear();
+		lastQueriedRange = null;
+	}
+}
 
 // For help modal
 const helpOpen = ref(false);
