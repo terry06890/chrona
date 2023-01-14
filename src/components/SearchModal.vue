@@ -140,7 +140,7 @@ async function onInput(){
 // For search events
 function onSearch(){
 	if (focusedSuggIdx.value == null){
-		let input = inputRef.value!.value.toLowerCase();
+		let input = inputRef.value!.value;
 		resolveSearch(input)
 	} else {
 		resolveSearch(searchSuggs.value[focusedSuggIdx.value]);
@@ -150,8 +150,17 @@ async function resolveSearch(eventTitle: string){
 	if (eventTitle == ''){
 		return;
 	}
+	let visibleCtgs = null as null | string[];
+	// Check if any event categories are disabled
+	if (Object.values(store.ctgs).some((b: boolean) => !b)){
+		visibleCtgs = Object.entries(store.ctgs).filter(([, enabled]) => enabled).map(([ctg, ]) => ctg);
+	}
 	// Check if the event data is already here
 	if (props.titleToEvent.has(eventTitle)){
+		if (visibleCtgs != null && !visibleCtgs.includes(props.titleToEvent.get(eventTitle).ctg)){
+			console.log('INFO: Ignoring search for known event due to category filter');
+			return;
+		}
 		emit('search', props.titleToEvent.get(eventTitle));
 		return;
 	}
@@ -160,6 +169,11 @@ async function resolveSearch(eventTitle: string){
 	let responseObj: EventInfoJson | null = await queryServer(urlParams);
 	if (responseObj != null){
 		let eventInfo = jsonToEventInfo(responseObj);
+		// Check if event category is disabled
+		if (visibleCtgs != null && !visibleCtgs.includes(eventInfo.event.ctg)){
+			console.log('INFO: Ignoring search result due to category filter');
+			return;
+		}
 		emit('search', eventInfo.event);
 	} else {
 		// Trigger failure animation
