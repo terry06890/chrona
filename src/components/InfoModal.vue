@@ -9,9 +9,9 @@
 		</h1>
 		<!-- Time Display -->
 		<div class="text-center text-sm md:text-base">
-			{{datesDisplayStrs.length == 1 ? 'Time' : 'Start'}}: {{datesDisplayStrs[0]}}
+			Start: {{datesDisplayStrs[0]}}
 		</div>
-		<div v-if="datesDisplayStrs.length > 1" class="text-center text-sm md:text-base">
+		<div v-if="datesDisplayStrs[1] != null" class="text-center text-sm md:text-base">
 			End: {{datesDisplayStrs[1]}}
 		</div>
 		<!-- Main content -->
@@ -82,7 +82,7 @@ import SCollapsible from './SCollapsible.vue';
 import CloseIcon from './icon/CloseIcon.vue';
 import DownIcon from './icon/DownIcon.vue';
 import ExternalLinkIcon from './icon/ExternalLinkIcon.vue';
-import {EventInfo, eventDatesToStrings, getImagePath} from '../lib';
+import {EventInfo, boundedDateToStr, getImagePath} from '../lib';
 import {useStore} from '../store';
 
 // Refs
@@ -100,8 +100,11 @@ const emit = defineEmits(['close']);
 
 // For data display
 const event = computed(() => props.eventInfo.event)
-const datesDisplayStrs = computed(
-	() => eventDatesToStrings(event.value.start, event.value.startUpper, event.value.end, event.value.endUpper));
+const datesDisplayStrs = computed(() => {
+	let startStr = boundedDateToStr(event.value.start, event.value.startUpper);
+	let endStr = event.value.end == null ? null : boundedDateToStr(event.value.end, event.value.endUpper);
+	return [startStr, endStr];
+});
 function licenseToUrl(license: string){
 	license = license.toLowerCase().replaceAll('-', ' ');
 	if (license == 'cc0'){
