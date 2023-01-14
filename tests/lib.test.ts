@@ -1,6 +1,7 @@
-import {moduloPositive,
+import {
+	moduloPositive, intToOrdinal, getNumTrailingZeros,
 	gregorianToJdn, julianToJdn, jdnToGregorian, jdnToJulian, gregorianToJulian, julianToGregorian, getDaysInMonth,
-	YearDate, CalDate, HistEvent,
+	YearDate, CalDate, boundedDateToStr, HistEvent,
 	queryServer, jsonToHistDate, jsonToHistEvent,
 	DAY_SCALE, MONTH_SCALE, stepDate, inDateScale, getScaleRatio, getUnitDiff,
 	getEventPrecision, dateToUnit, dateToScaleDate,
@@ -11,6 +12,21 @@ test('moduloPositive', () => {
 	expect(moduloPositive(4, 2)).toBe(0)
 	expect(moduloPositive(5, 3)).toBe(2)
 	expect(moduloPositive(-5, 3)).toBe(1)
+})
+test('intToOrdinal', () => {
+	expect(intToOrdinal(1)).toBe('1st')
+	expect(intToOrdinal(3)).toBe('3rd')
+	expect(intToOrdinal(22)).toBe('22nd')
+	expect(intToOrdinal(294)).toBe('294th')
+	expect(intToOrdinal(10301)).toBe('10301st')
+})
+test('getNumTrailingZeros', () => {
+	expect(getNumTrailingZeros(1)).toBe(0)
+	expect(getNumTrailingZeros(20)).toBe(1)
+	expect(getNumTrailingZeros(32000)).toBe(3)
+	expect(getNumTrailingZeros(1040)).toBe(1)
+	expect(getNumTrailingZeros(380402000)).toBe(3)
+	expect(getNumTrailingZeros(1e20)).toBe(20)
 })
 
 test('gregorianToJdn', () => {
@@ -73,6 +89,47 @@ describe('CalDate', () => {
 		expect((new CalDate(100, 11, 30)).getMonthDiff(new CalDate(101, 4, 1))).toBe(5)
 		expect((new CalDate(-1, 10, 3)).getYearDiff(new CalDate(1, 1, 1))).toBe(1)
 	})
+})
+test('toDisplayString', () => {
+	expect(new YearDate(-14_000_000_000).toDisplayString()).equals('14 billion years ago')
+	expect(new YearDate(-14_300_000_000).toDisplayString()).equals('14.3 billion years ago')
+	expect(new YearDate(     -1_230_000).toDisplayString()).equals('1.23 million years ago')
+	expect(new YearDate(     -1_234_567).toDisplayString()).equals('1.235 million years ago')
+	expect(new YearDate(       -123_456).toDisplayString()).equals('123 thousand years ago')
+	expect(new YearDate(         -9_999).toDisplayString()).equals('9,999 BC')
+	expect(new YearDate(           -200).toDisplayString()).equals('200 BC')
+	expect(new YearDate(              1).toDisplayString()).equals('1 AD')
+	expect(new YearDate(           1500).toDisplayString()).equals('1500')
+	expect(new CalDate(2000, 10, 3).toDisplayString()).equals('3rd Oct 2000')
+	expect(new CalDate(-2000, 1, 1).toDisplayString()).equals('1st Jan 2000 BC')
+	expect(new CalDate(1610, 8, 6, false).toDisplayString()).equals('6th Aug 1610 (OS)')
+	expect(new CalDate(-100, 2, 2, false).toDisplayString()).equals('2nd Feb 100 BC (OS)')
+})
+test('boundedDateToStr', () => {
+	// Start and end N billion/million/thousand years ago
+	expect(boundedDateToStr(new YearDate(-1e9),    new YearDate(-1e9))).equals('1 billion years ago')
+	expect(boundedDateToStr(new YearDate(-2e9),    new YearDate(-1.2e9))).equals('2 to 1.2 billion years ago')
+	expect(boundedDateToStr(new YearDate(-2e6),    new YearDate(-30e3))).equals('2 million to 30 thousand years ago')
+	expect(boundedDateToStr(new YearDate(-2e6),    new YearDate(-1e6 - 1))).equals('About 2 million years ago')
+	expect(boundedDateToStr(new YearDate(-10_999), new YearDate(-10_000))).equals('About 11 thousand years ago')
+	// Other year-based start and end
+	expect(boundedDateToStr(new YearDate(-2e6), new YearDate(100))).equals('2 million years ago to 100 AD')
+	expect(boundedDateToStr(new YearDate(1),    new YearDate(1000))).equals('1st millenium')
+	expect(boundedDateToStr(new YearDate(1301), new YearDate(1400))).equals('14th century')
+	expect(boundedDateToStr(new YearDate(-199), new YearDate(-100))).equals('2nd century BC')
+	expect(boundedDateToStr(new YearDate(1880), new YearDate(1889))).equals('1880s')
+	expect(boundedDateToStr(new YearDate(-100), new YearDate(-50))).equals('100 to 50 BC')
+	expect(boundedDateToStr(new YearDate(310),  new YearDate(1001))).equals('310 to 1001 AD')
+	expect(boundedDateToStr(new YearDate(-10),  new YearDate(2000))).equals('10 BC to 2000')
+	// Calendar-based start and end
+	expect(boundedDateToStr(new CalDate(100, 1, 2), new CalDate(101, 10, 3))).equals('2nd Jan 100 AD to 3rd Oct 101 AD')
+	expect(boundedDateToStr(new CalDate(100, 1, 2), new CalDate(100, 10, 3))).equals('2nd Jan to 3rd Oct 100 AD')
+	expect(boundedDateToStr(new CalDate(100, 1, 2), new CalDate(100, 1, 3))).equals('2nd to 3rd Jan 100 AD')
+	expect(boundedDateToStr(new CalDate(100, 1, 1), new CalDate(100, 1, 31))).equals('Jan 100 AD')
+	expect(boundedDateToStr(new CalDate(100, 1, 1, false), new CalDate(100, 1, 31, false))).equals('Jan 100 AD (OS)')
+	// Other
+	expect(boundedDateToStr(new CalDate(10, 1, 2), null)).equals('2nd Jan 10 AD')
+	expect(boundedDateToStr(new YearDate(-1e7), new CalDate(1610, 3, 2))).equals('10 million years ago to 2nd Mar 1610')
 })
 
 test('queryServer', async () => {

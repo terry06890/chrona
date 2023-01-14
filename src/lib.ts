@@ -36,6 +36,29 @@ export function moduloPositive(x: number, y: number){
 export async function timeout(ms: number){
 	return new Promise(resolve => setTimeout(resolve, ms))
 }
+// For positive int n, converts 1 to '1st', 2 to '2nd', etc
+export function intToOrdinal(n: number){
+	if (n == 1 || n > 20 && n % 10 == 1){
+		return `${n == 1 ? '' : Math.floor(n / 10)}1st`;
+	} else if (n == 2 || n > 20 && n % 10 == 2){
+		return `${n == 2 ? '' : Math.floor(n / 10)}2nd`;
+	} else if (n == 3 || n > 20 && n % 10 == 3){
+		return `${n == 3 ? '' : Math.floor(n / 10)}3rd`;
+	} else {
+		return String(n) + 'th';
+	}
+}
+// For positive int n, returns number of trailing zeros in decimal representation
+export function getNumTrailingZeros(n: number): number {
+	let pow10 = 10;
+	while (pow10 != Infinity){
+		if (n % pow10 != 0){
+			return Math.log10(pow10 / 10);
+		}
+		pow10 *= 10;
+	}
+	throw new Error('Exceeded floating point precision');
+}
 
 // For calendar conversion (mostly copied from backend/hist_data/cal.py)
 export function gregorianToJdn(year: number, month: number, day: number): number {
@@ -212,21 +235,36 @@ export class HistDate {
 			}
 		}
 	}
-	toDisplayString(){
+	toTickString(){
 		if (this.month == 1 && this.day == 1){
 			return this.toYearString();
 		} else if (this.day == 1){
 			return MONTH_NAMES[this.month - 1];
 		} else {
-			if (this.day == 1){
-				return '1st';
-			} else if (this.day == 2){
-				return '2nd';
-			} else if (this.day == 3){
-				return '3rd';
+			return intToOrdinal(this.day);
+		}
+	}
+	toDisplayString(){
+		if (this.year <= -1e4){ // N.NNN billion/million/thousand years ago
+			if (this.year <= -1e9){
+				return `${Math.round(-this.year / 1e6) / 1e3} billion years ago`;
+			} else if (this.year <= -1e6){
+				return `${Math.round(-this.year / 1e3) / 1e3} million years ago`;
 			} else {
-				return String(this.day) + 'th';
+				return `${Math.round(-this.year / 1e3)} thousand years ago`;
 			}
+		} else if (this.gcal == null){
+			if (this.year < 0){ // eg: 1,000 BC
+				return `${(-this.year).toLocaleString()} BC`;
+			} else if (this.year < 1500){ // eg: 10 AD
+				return `${this.year} AD`;
+			} else {
+				return `${this.year}`; // eg: 2010
+			}
+		} else { // eg: 2nd Mar 1710 BC (OS)
+			let bcSuffix = this.year < 0 ? ' BC' : (this.year < 1500 ? ' AD' : '');
+			let calStr = this.gcal ? '' : ' (OS)';
+			return `${intToOrdinal(this.day)} ${MONTH_NAMES[this.month-1]} ${Math.abs(this.year)}${bcSuffix}${calStr}`;
 		}
 	}
 	toInt(){ // Used for v-for keys
@@ -258,6 +296,64 @@ export class CalDate extends HistDate {
 	}
 }
 export const MIN_CAL_DATE = new CalDate(MIN_CAL_YEAR, 1, 1);
+export function boundedDateToStr(start: HistDate, end: HistDate | null) : string {
+	// Converts a date with uncertain end bound to string for display
+	if (end == null){
+		return start.toDisplayString();
+	}
+	const startStr = start.toDisplayString();
+	const endStr = end.toDisplayString();
+	if (startStr == endStr){
+		return startStr;
+	}
+	if (start.gcal == null && end.gcal == null){
+		if (startStr.endsWith(' years ago') && endStr.endsWith(' years ago')){
+			const dateRegex = /^(.*) (.*) years ago$/;
+			const startMatch = dateRegex.exec(startStr)!;
+			const endMatch = dateRegex.exec(endStr)!;
+			if (startMatch[2] == endMatch[2]){ // Same billion/million/thousand scale
+				let startZeros = getNumTrailingZeros(start.year);
+				if (startZeros >= 4 && end.year == start.year + 10 ** startZeros - 1
+					|| (start.year - 1) % 1e3 == 0 && end.year == start.year + 999){
+					return `About ${startStr}`; // Includes cases like -20_000 to -10_001 and -21999 to -21000
+				}
+				return `${startMatch[1]} to ${endMatch[1]} ${startMatch[2]} years ago`;
+			} else {
+				return `${startMatch[1]} ${startMatch[2]} to ${endMatch[1]} ${endMatch[2]} years ago`;
+			}
+		} else if (moduloPositive(start.year, 1000) == 1 && end.year == start.year + 999){ // eg: 2nd millenium
+			let ordinal = intToOrdinal(Math.abs(start.year - 1) / 1000 + (start.year > 0 ? 1 : 0));
+			return ordinal + ' millenium' + (start.year < 0 ? ' BC' : '');
+		} else if (moduloPositive(start.year, 100) == 1 && end.year == start.year + 99){ // eg: 4th century BC
+			let ordinal = intToOrdinal(Math.abs(start.year - 1) / 100 + (start.year > 0 ? 1 : 0));
+			return ordinal + ' century' + (start.year < 0 ? ' BC' : '');
+		} else if (start.year % 10 == 0 && end.year == start.year + 9){ // eg: 1880s
+			return String(start.year) + 's';
+		} else {
+			const suffixes = [' BC', ' AD'];
+			for (let suffix of suffixes){ // eg: 1st Jan to 2nd Feb 100 AD
+				if (startStr.endsWith(suffix) && endStr.endsWith(suffix)){
+					return startStr.slice(0, startStr.length - suffix.length) + ' to ' + endStr;
+				}
+			}
+		}
+	} else if (start.gcal != null && end.gcal != null){
+		const dateRegex = /^(\S*) (\S*) (.*)$/; // Matches day, month, and suffix
+		const startMatch = dateRegex.exec(startStr);
+		const endMatch = dateRegex.exec(endStr);
+		if (startMatch != null && endMatch != null && startMatch[3] == endMatch[3]){ // Same suffix
+			if (startMatch[2] == endMatch[2]){ // Same month
+				const calToJdn = start.gcal ? gregorianToJdn : julianToJdn;
+				if (start.day == 1 && calToJdn(end.year, end.month, end.day) == calToJdn(end.year, end.month+1, 0)){
+					return `${startMatch[2]} ${startMatch[3]}`; // eg: Jan 2002
+				}
+				return `${startMatch[1]} to ${endMatch[1]} ${startMatch[2]} ${startMatch[3]}`;
+			}
+			return `${startMatch[1]} ${startMatch[2]} to ${endMatch[1]} ${endMatch[2]} ${startMatch[3]}`;
+		}
+	}
+	return `${startStr} to ${endStr}`;
+}
 
 // For event representation
 export class HistEvent {
@@ -298,7 +394,7 @@ export class ImgInfo {
 }
 export class EventInfo {
 	event: HistEvent;
-	desc: string;
+	desc: string | null;
 	wikiId: number;
 	imgInfo: ImgInfo;
 	constructor(event: HistEvent, desc: string, wikiId: number, imgInfo: ImgInfo){

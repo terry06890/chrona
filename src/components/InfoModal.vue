@@ -57,7 +57,8 @@
 					</template>
 				</s-collapsible>
 			</div>
-			<div>{{eventInfo.desc}}</div>
+			<div v-if="eventInfo.desc != null">{{eventInfo.desc}}</div>
+			<div v-else class="text-center text-stone-500 text-sm">(No description found)</div>
 			<div class="text-sm text-right">
 				<a :href="'https://en.wikipedia.org/?curid=' + eventInfo.wikiId" target="_blank">From Wikipedia</a>
 				(via <a :href="'https://www.wikidata.org/wiki/Q' + event.id" target="_blank">Wikidata</a>)
@@ -74,7 +75,7 @@ import SCollapsible from './SCollapsible.vue';
 import CloseIcon from './icon/CloseIcon.vue';
 import DownIcon from './icon/DownIcon.vue';
 import ExternalLinkIcon from './icon/ExternalLinkIcon.vue';
-import {EventInfo} from '../lib';
+import {EventInfo, boundedDateToStr, getImagePath} from '../lib';
 import {useStore} from '../store';
 
 // Refs
@@ -93,7 +94,9 @@ const emit = defineEmits(['close']);
 // For data display
 const event = computed(() => props.eventInfo.event)
 const datesDisplayStr = computed(() => {
-	return event.value.start.toString() + (event.value.end == null ? '' : ' to ' + event.value.end.toString())
+	const startStr = boundedDateToStr(event.value.start, event.value.startUpper);
+	const endStr = event.value.end == null ? null : boundedDateToStr(event.value.end, event.value.endUpper);
+	return 'Start: ' + startStr + (endStr == null ? '' : ', End: ' + endStr);
 });
 function licenseToUrl(license: string){
 	license = license.toLowerCase().replaceAll('-', ' ');
@@ -143,9 +146,9 @@ const imgStyles = computed(() => {
 	return {
 		width: '200px',
 		height: '200px',
-		//backgroundImage:
+		backgroundImage: `url(${getImagePath(event.value.imgId)})`,
 		backgroundColor: store.color.bgDark,
-		//backgroundSize: 'cover',
+		backgroundSize: 'cover',
 		borderRadius: store.borderRadius + 'px',
 	};
 });

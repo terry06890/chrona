@@ -92,7 +92,7 @@ class ImgInfo:
 		return str(self.__dict__)
 class EventInfo:
 	""" Used when responding to type=info requests """
-	def __init__(self, event: Event, desc: str, wikiId: int, imgInfo: ImgInfo):
+	def __init__(self, event: Event, desc: str | None, wikiId: int, imgInfo: ImgInfo):
 		self.event = event
 		self.desc = desc
 		self.wikiId = wikiId
@@ -299,9 +299,9 @@ def lookupEventInfo(eventTitle: str, dbCur: sqlite3.Cursor) -> EventInfo | None:
 			' descs.desc, descs.wiki_id, ' \
 			' images.url, images.license, images.artist, images.credit FROM events' \
 		' INNER JOIN pop ON events.id = pop.id' \
-		' INNER JOIN descs ON events.id = descs.id' \
 		' INNER JOIN event_imgs ON events.id = event_imgs.id' \
 		' INNER JOIN images ON event_imgs.img_id = images.id' \
+		' LEFT JOIN descs ON events.id = descs.id' \
 		' WHERE events.title = ? COLLATE NOCASE'
 	row = dbCur.execute(query, (eventTitle,)).fetchone()
 	if row is not None:

@@ -43,7 +43,7 @@
 				x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
 				:fill="store.color.textDark" :style="tickLabelStyles(tick)"
 				class="text-sm animate-fadein cursor-default select-none">
-				{{tick.date.toDisplayString()}}
+				{{tick.date.toTickString()}}
 			</text>
 		</template>
 	</svg>
@@ -1289,7 +1289,7 @@ function eventImgStyles(eventId: number){
 		width: store.eventImgSz + 'px',
 		height: store.eventImgSz + 'px',
 		backgroundImage: `url(${getImagePath(event.imgId)})`,
-		backgroundColor: 'black',
+		backgroundColor: store.color.bgDark,
 		backgroundSize: 'cover',
 		borderColor: color,
 		borderWidth: '1px',
