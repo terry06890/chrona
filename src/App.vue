@@ -35,7 +35,8 @@
 	<!-- Modals -->
 	<transition name="fade">
 		<search-modal v-if="searchOpen" :eventTree="eventTree" :titleToEvent="titleToEvent"
-			@close="searchOpen = false" @search="onSearch" @info-click="onInfoClick"/>
+			@close="searchOpen = false" @search="onSearch" @info-click="onInfoClick"
+			@net-wait="primeLoadInd(SERVER_WAIT_MSG)" @net-get="endLoadInd"/>
 	</transition>
 	<transition name="fade">
 		<info-modal v-if="infoModalData != null" :eventInfo="infoModalData" @close="infoModalData = null"/>
@@ -45,6 +46,9 @@
 	</transition>
 	<transition name="fade">
 		<help-modal v-if="helpOpen" @close="helpOpen = false"/>
+	</transition>
+	<transition name="fade">
+		<loading-modal v-if="loadingMsg != null" :msg="loadingMsg"/>
 	</transition>
 </div>
 </template>
@@ -58,6 +62,7 @@ import InfoModal from './components/InfoModal.vue';
 import SearchModal from './components/SearchModal.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import HelpModal from './components/HelpModal.vue';
+import LoadingModal from './components/LoadingModal.vue';
 import IconButton from './components/IconButton.vue';
 // Icons
 import HelpIcon from './components/icon/HelpIcon.vue';
@@ -259,7 +264,7 @@ async function onEventDisplay(
 		if (store.reqImgs){
 			urlParams.append('imgonly', 'true');
 		}
-		let responseObj: EventResponseJson | null = await queryServer(urlParams);
+		let responseObj: EventResponseJson | null = await loadFromServer(urlParams, 2000);
 		if (responseObj == null){
 			console.log('WARNING: Server gave null response to event query');
 			return;
@@ -319,7 +324,7 @@ const infoModalData = ref(null as EventInfo | null);
 async function onInfoClick(eventTitle: string){
 	// Query server for event info
 	let urlParams = new URLSearchParams({type: 'info', event: eventTitle});
-	let responseObj: EventInfoJson | null = await queryServer(urlParams);
+	let responseObj: EventInfoJson | null = await loadFromServer(urlParams);
 	if (responseObj != null){
 		infoModalData.value = jsonToEventInfo(responseObj);
 	} else {
@@ -353,6 +358,30 @@ function onSettingChg(option: string){
 
 // For help modal
 const helpOpen = ref(false);
+
+// For loading modal
+const SERVER_WAIT_MSG = 'Loading data';
+const loadingMsg = ref(null as null | string);
+const pendingLoadingRevealHdlr = ref(0); // Used to delay showing the loading modal
+function primeLoadInd(msg: string, delay?: number){ // Sets up a loading message to display after a timeout
+	clearTimeout(pendingLoadingRevealHdlr.value);
+	pendingLoadingRevealHdlr.value = window.setTimeout(() => {
+		loadingMsg.value = msg;
+	}, delay == null ? 500 : delay);
+}
+function endLoadInd(){ // Cancels or closes a loading message
+	clearTimeout(pendingLoadingRevealHdlr.value);
+	pendingLoadingRevealHdlr.value = 0;
+	if (loadingMsg.value != null){
+		loadingMsg.value = null;
+	}
+}
+async function loadFromServer(urlParams: URLSearchParams, delay?: number){ // Like queryServer() but uses loading modal
+	primeLoadInd(SERVER_WAIT_MSG, delay);
+	let responseObj = await queryServer(urlParams);
+	endLoadInd();
+	return responseObj;
+}
 
 // For timeline reset
 const resetFlags: Ref<boolean[]> = ref([]);

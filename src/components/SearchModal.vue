@@ -47,7 +47,7 @@ const props = defineProps({
 	eventTree: {type: Object as PropType<RBTree<HistEvent>>, required: true},
 	titleToEvent: {type: Object as PropType<Map<string, HistEvent>>, required: true},
 });
-const emit = defineEmits(['search', 'close', 'info-click']);
+const emit = defineEmits(['search', 'close', 'info-click', 'net-wait', 'net-get']);
 
 // Search-suggestion data
 const searchSuggs = ref([] as string[]);
@@ -179,7 +179,9 @@ async function resolveSearch(eventTitle: string){
 	if (store.reqImgs){
 		urlParams.append('imgonly', 'true');
 	}
+	emit('net-wait'); // Allows the parent component to show a loading-indicator
 	let responseObj: EventInfoJson | null = await queryServer(urlParams);
+	emit('net-get');
 	if (responseObj != null){
 		let eventInfo = jsonToEventInfo(responseObj);
 		if (store.reqImgs && eventInfo.event.imgId == null){
