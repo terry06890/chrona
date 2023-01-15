@@ -808,8 +808,8 @@ function panTimeline(scrollRatio: number){
 			} else {
 				// Pan up to an offset of store.defaultEndTickOffset
 				if (store.defaultEndTickOffset == endOffset.value){
-					animateFailDiv('max');
 					console.log('Reached maximum date limit');
+					animateFailDiv('max');
 					newStartOffset = startOffset.value;
 					newEndOffset = endOffset.value;
 				} else {
@@ -845,8 +845,8 @@ function panTimeline(scrollRatio: number){
 			} else {
 				// Pan up to an offset of store.defaultEndTickOffset
 				if (store.defaultEndTickOffset == startOffset.value){
-					animateFailDiv('min');
 					console.log('Reached minimum date limit');
+					animateFailDiv('min');
 					newStartOffset = startOffset.value;
 					newEndOffset = endOffset.value;
 				} else {
@@ -883,8 +883,8 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	if (zoomRatio > 1
 			&& startDate.value.equals(MIN_DATE, scale.value)
 			&& endDate.value.equals(MAX_DATE, scale.value)){
-		animateFailDiv('both');
 		console.log('Reached upper scale limit');
+		animateFailDiv('both');
 		return;
 	}
 	let numUnits = getNumDisplayUnits();
@@ -948,8 +948,8 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	let tickDiff = availLen.value / newNumUnits;
 	if (tickDiff < store.minTickSep){ // Zoom out into new scale
 		if (scaleIdx.value == 0){
-			animateFailDiv('both');
 			console.log('Reached zoom out limit');
+			animateFailDiv('both');
 			return;
 		} else {
 			// Scale starting/ending offsets
@@ -1013,8 +1013,8 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	} else { // If trying to zoom in
 		if (scaleIdx.value == SCALES.length - 1){
 			if (newNumUnits < store.minLastTicks){
-				animateFailDiv('bg');
 				console.log('Reached zoom in limit');
+				animateFailDiv('bg');
 				return;
 			}
 		} else {
@@ -1045,8 +1045,8 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 				}
 				// Account for zooming into sub-year dates before MIN_CAL_DATE
 				if (newStart.isEarlier(MIN_CAL_DATE, newScale) && (newScale == MONTH_SCALE || newScale == DAY_SCALE)){
-					animateFailDiv('bg');
 					console.log('Unable to zoom into range where month/day scale is invalid');
+					animateFailDiv('bg');
 					return;
 				}
 				scaleIdx.value += 1;
@@ -1201,6 +1201,11 @@ let pendingSearch = false;
 watch(() => props.searchTarget, () => {
 	const event = props.searchTarget[0];
 	if (event == null){
+		return;
+	}
+	if (MAX_DATE.isEarlier(event.start)){
+		console.log('Target is past maximum date');
+		animateFailDiv('max');
 		return;
 	}
 	if (!idToPos.value.has(event.id)){ // If not already visible
