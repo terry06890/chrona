@@ -1,8 +1,10 @@
 <template>
 <div class="flex relative" :class="{'flex-col': vert}"
 	:style="{color: store.color.text}" ref="rootRef">
-	<div v-for="p in periods" :key="p.label" :style="periodStyles(p)">
+	<div v-for="p in periods" :key="p.label" class="relative" :style="periodStyles(p)">
 		<div :style="labelStyles">{{p.label}}</div>
+		<div v-if="props.vert" class="absolute bottom-0 w-full h-6"
+			style="background-image: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,1))"></div>
 	</div>
 	<TransitionGroup name="fade" v-if="mounted">
 		<div v-for="(state, idx) in timelines" :key="state.id" class="absolute" :style="spanStyles(idx)"></div>
