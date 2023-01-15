@@ -25,18 +25,11 @@
 		<!-- Main line (unit horizontal line that gets transformed, with extra length to avoid gaps when panning) -->
 		<line :stroke="store.color.alt" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
 		<!-- Tick markers -->
-		<template v-for="tick in ticks" :key="tick.date.toInt()">
-			<line v-if="tick.major && (tick.date.equals(MIN_DATE, scale) || tick.date.equals(MAX_DATE, scale))"
-				:x1="vert ? -store.endTickSz / 2 : 0" :y1="vert ? 0 : -store.endTickSz / 2"
-				:x2="vert ?  store.endTickSz / 2 : 0" :y2="vert ? 0 :  store.endTickSz / 2"
-				:stroke="store.color.alt" :stroke-width="`${store.endTickSz}px`"
-				:style="tickStyles(tick)" class="animate-fadein"/>
-			<line v-else
-				:x1="vert ? -store.tickLen / 2 : 0" :y1="vert ? 0 : -store.tickLen / 2"
-				:x2="vert ?  store.tickLen / 2 : 0" :y2="vert ? 0 :  store.tickLen / 2"
-				:stroke="store.color.alt" stroke-width="1px"
-				:style="tickStyles(tick)" class="animate-fadein"/>
-		</template>
+		<line v-for="tick in ticks" :key="tick.date.toInt()"
+			:x1="tick.x1" :y1="tick.y1" :x2="tick.x2" :y2="tick.y2"
+			:stroke="store.color.alt" :stroke-width="`${tick.width}px`"
+			:style="tickStyles(tick)" class="animate-fadein"
+			:class="{'max-tick': tick.bound == 'max', 'min-tick': tick.bound == 'min'}"/>
 		<!-- Tick labels -->
 		<template v-for="tick in ticks" :key="tick.date.toInt()">
 			<text v-if="tick.major || store.showMinorTicks"
@@ -47,6 +40,10 @@
 			</text>
 		</template>
 	</svg>
+	<!-- Movement fail indicators -->
+	<div class="absolute z-20" :style="failDivStyles(true)" ref="minFailRef"></div>
+	<div class="absolute z-20" :style="failDivStyles(false)" ref="maxFailRef"></div>
+	<div class="absolute top-0 left-0 w-full h-full z-20" ref="bgFailRef"></div>
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
 		<!-- Image -->
@@ -80,13 +77,16 @@ import CloseIcon from './icon/CloseIcon.vue';
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MONTH_NAMES, MIN_CAL_DATE,
 	getDaysInMonth, HistDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
 	getEventPrecision, dateToUnit, dateToScaleDate,
-	moduloPositive, TimelineState, HistEvent, getImagePath} from '../lib';
+	moduloPositive, TimelineState, HistEvent, getImagePath, animateWithClass} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 
 // Refs
 const rootRef: Ref<HTMLElement | null> = ref(null);
 const svgRef: Ref<HTMLElement | null> = ref(null);
+const minFailRef: Ref<HTMLElement | null> = ref(null);
+const maxFailRef: Ref<HTMLElement | null> = ref(null);
+const bgFailRef: Ref<HTMLElement | null> = ref(null);
 
 // Global store
 const store = useStore();
@@ -239,10 +239,32 @@ class Tick {
 	date: HistDate;
 	major: boolean; // False if tick is on the minor scale
 	offset: number; // Distance from start of visible timeline, in major units
-	constructor(date: HistDate, major: boolean, offset: number){
+	bound: null | 'min' | 'max'; // Indicates MIN_DATE or MAX_DATE tick
+	// SVG attributes
+	x1: number;
+	y1: number;
+	x2: number;
+	y2: number;
+	width: number;
+	//
+	constructor(date: HistDate, major: boolean, offset: number, bound=null as null | 'min' | 'max'){
 		this.date = date;
 		this.major = major;
 		this.offset = offset;
+		this.bound = bound;
+		if (this.bound == null){
+			this.x1 = props.vert ? -store.tickLen / 2 : 0;
+			this.y1 = props.vert ? 0 : -store.tickLen / 2;
+			this.x2 = props.vert ?  store.tickLen / 2 : 0;
+			this.y2 = props.vert ? 0 :  store.tickLen / 2;
+			this.width = 1;
+		} else {
+			this.x1 = props.vert ? -store.endTickSz / 2 : 0;
+			this.y1 = props.vert ? 0 : -store.endTickSz / 2;
+			this.x2 = props.vert ?  store.endTickSz / 2 : 0;
+			this.y2 = props.vert ? 0 :  store.endTickSz / 2;
+			this.width = store.endTickSz;
+		}
 	}
 }
 function getNumDisplayUnits({inclOffsets=true} = {}): number { // Get num major units in display range
@@ -303,7 +325,15 @@ const ticks = computed((): Tick[] => {
 	date = startDate.value.clone();
 	let numMajorUnits = getNumDisplayUnits({inclOffsets: false});
 	for (let i = 0; i <= numMajorUnits; i++){
-		ticks.push(new Tick(date, true, startOffset.value + i));
+		// Check for MIN_DATE or MAX_DATE
+		let minOrMax = null as null | 'min' | 'max';
+		if (i == 0 && date.equals(MIN_DATE, scale.value)){
+			minOrMax = 'min';
+		} else if (i == numMajorUnits && date.equals(MAX_DATE, scale.value)){
+			minOrMax = 'max';
+		}
+		// Add ticks
+		ticks.push(new Tick(date, true, startOffset.value + i, minOrMax));
 		if (i == numMajorUnits){
 			break;
 		}
@@ -777,6 +807,7 @@ function panTimeline(scrollRatio: number){
 			} else {
 				// Pan up to an offset of store.defaultEndTickOffset
 				if (store.defaultEndTickOffset == endOffset.value){
+					animateFailDiv('max');
 					console.log('Reached maximum date limit');
 					newStartOffset = startOffset.value;
 					newEndOffset = endOffset.value;
@@ -813,6 +844,7 @@ function panTimeline(scrollRatio: number){
 			} else {
 				// Pan up to an offset of store.defaultEndTickOffset
 				if (store.defaultEndTickOffset == startOffset.value){
+					animateFailDiv('min');
 					console.log('Reached minimum date limit');
 					newStartOffset = startOffset.value;
 					newEndOffset = endOffset.value;
@@ -850,6 +882,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	if (zoomRatio > 1
 			&& startDate.value.equals(MIN_DATE, scale.value)
 			&& endDate.value.equals(MAX_DATE, scale.value)){
+		animateFailDiv('both');
 		console.log('Reached upper scale limit');
 		return;
 	}
@@ -914,6 +947,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	let tickDiff = availLen.value / newNumUnits;
 	if (tickDiff < store.minTickSep){ // Zoom out into new scale
 		if (scaleIdx.value == 0){
+			animateFailDiv('both');
 			console.log('Reached zoom out limit');
 			return;
 		} else {
@@ -978,6 +1012,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	} else { // If trying to zoom in
 		if (scaleIdx.value == SCALES.length - 1){
 			if (newNumUnits < store.minLastTicks){
+				animateFailDiv('bg');
 				console.log('Reached zoom in limit');
 				return;
 			}
@@ -1009,6 +1044,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 				}
 				// Account for zooming into sub-year dates before MIN_CAL_DATE
 				if (newStart.isEarlier(MIN_CAL_DATE, newScale) && (newScale == MONTH_SCALE || newScale == DAY_SCALE)){
+					animateFailDiv('bg');
 					console.log('Unable to zoom into range where month/day scale is invalid');
 					return;
 				}
@@ -1329,5 +1365,30 @@ function countDivStyles(tickIdx: number, count: number): Record<string,string> {
 		transitionDuration: store.transitionDuration + 'ms',
 		transitionTimingFunction: 'linear',
 	}
+}
+function animateFailDiv(which: 'min' | 'max' | 'both' | 'bg'){
+	if (which == 'min'){
+		animateWithClass(minFailRef.value!, 'animate-show-then-fade');
+	} else if (which == 'max'){
+		animateWithClass(maxFailRef.value!, 'animate-show-then-fade');
+	} else if (which == 'both'){
+		animateWithClass(minFailRef.value!, 'animate-show-then-fade');
+		animateWithClass(maxFailRef.value!, 'animate-show-then-fade');
+	} else {
+		animateWithClass(bgFailRef.value!, 'animate-red-then-fade');
+	}
+}
+function failDivStyles(minDiv: boolean){
+	const gradientDir = props.vert ? (minDiv ? 'top' : 'bottom') : (minDiv ? 'left' : 'right');
+	return {
+		top: props.vert ? (minDiv ? 0 : 'auto') : 0,
+		bottom: props.vert ? (minDiv ? 'auto' : 0) : 'auto',
+		left: props.vert ? 0 : (minDiv ? 0 : 'auto'),
+		right: props.vert ? 'auto' : (minDiv ? 'auto' : 0),
+		width: props.vert ? '100%' : '2cm',
+		height: props.vert ? '2cm' : '100%',
+		backgroundImage: `linear-gradient(to ${gradientDir}, rgba(255,0,0,0), rgba(255,0,0,0.3))`,
+		opacity: 0,
+	};
 }
 </script>

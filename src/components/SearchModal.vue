@@ -31,7 +31,7 @@
 import {ref, computed, onMounted, PropType} from 'vue';
 import SearchIcon from './icon/SearchIcon.vue';
 import InfoIcon from './icon/InfoIcon.vue';
-import {HistEvent, queryServer, EventInfoJson, jsonToEventInfo, SuggResponseJson} from '../lib';
+import {HistEvent, queryServer, EventInfoJson, jsonToEventInfo, SuggResponseJson, animateWithClass} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 
@@ -187,12 +187,8 @@ async function resolveSearch(eventTitle: string){
 			return;
 		}
 		emit('search', eventInfo.event);
-	} else {
-		// Trigger failure animation
-		let input = inputRef.value!;
-		input.classList.remove('animate-red-then-fade');
-		input.offsetWidth; // Triggers reflow
-		input.classList.add('animate-red-then-fade');
+	} else { // Trigger failure animation
+		animateWithClass(inputRef.value!, 'animate-red-then-fade');
 	}
 }
 

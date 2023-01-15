@@ -59,6 +59,11 @@ export function getNumTrailingZeros(n: number): number {
 	}
 	throw new Error('Exceeded floating point precision');
 }
+export function animateWithClass(el: HTMLElement, className: string){
+	el.classList.remove(className);
+	el.offsetWidth; // Triggers reflow
+	el.classList.add(className);
+}
 
 // For calendar conversion (mostly copied from backend/hist_data/cal.py)
 export function gregorianToJdn(year: number, month: number, day: number): number {
