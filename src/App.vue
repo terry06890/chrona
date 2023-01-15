@@ -2,7 +2,8 @@
 <div class="absolute left-0 top-0 w-screen h-screen overflow-hidden flex flex-col">
 	<!-- Title bar -->
 	<div class="flex gap-2 p-2" :style="{backgroundColor: store.color.bgDark2}">
-		<h1 class="my-auto sm:ml-2 text-3xl sm:text-4xl" :style="{color: store.color.altDark}">Histplorer</h1>
+		<h1 class="my-auto sm:ml-2 text-3xl sm:text-4xl hover:cursor-pointer" :style="{color: store.color.altDark}"
+			@click="onReset" title="Reset Timeline">Histplorer</h1>
 		<div class="mx-auto"/> <!-- Spacer -->
 		<!-- Icons -->
 		<icon-button :size="45" :style="buttonStyles" @click="helpOpen = true" title="Show help info">
@@ -24,8 +25,8 @@
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
 			:vert="vert" :initialState="state" :closeable="timelines.length > 1"
-			:eventTree="eventTree" :unitCountMaps="unitCountMaps"
-			:current="idx == currentTimelineIdx && !modalOpen" :searchTarget="timelineTargets[idx]"
+			:eventTree="eventTree" :unitCountMaps="unitCountMaps" :current="idx == currentTimelineIdx && !modalOpen"
+			:searchTarget="searchTargets[idx]" :reset="resetFlags[idx]"
 			class="grow basis-full min-h-0 outline outline-1"
 			@close="onTimelineClose(idx)" @state-chg="onTimelineChg($event, idx)" @event-display="onEventDisplay"
 			@info-click="onInfoClick" @pointerenter="currentTimelineIdx = idx"/>
@@ -99,7 +100,8 @@ function addTimeline(){
 		timelines.value.splice(currentTimelineIdx.value, 0, new TimelineState(
 			nextTimelineId, state.startDate, state.endDate, state.startOffset, state.endOffset, state.scaleIdx));
 	}
-	timelineTargets.value.splice(currentTimelineIdx.value, 0, [null, false]);
+	searchTargets.value.splice(currentTimelineIdx.value, 0, [null, false]);
+	resetFlags.value.splice(currentTimelineIdx.value, 0, false);
 	currentTimelineIdx.value += 1;
 	nextTimelineId += 1;
 }
@@ -128,7 +130,8 @@ function onTimelineClose(idx: number){
 		return;
 	}
 	timelines.value.splice(idx, 1);
-	timelineTargets.value.splice(idx, 1);
+	searchTargets.value.splice(idx, 1);
+	resetFlags.value.splice(idx, 1);
 	if (currentTimelineIdx.value >= idx){
 		currentTimelineIdx.value = Math.max(0, idx - 1);
 	}
@@ -195,7 +198,7 @@ async function onEventDisplay(
 	async function handleEvent(
 			timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
 		let timelineIdx = timelines.value.findIndex((s : TimelineState) => s.id == timelineId);
-		let targetEvent = timelineTargets.value[timelineIdx][0];
+		let targetEvent = searchTargets.value[timelineIdx][0];
 		// Skip if range has been queried, and enough of its events have been obtained
 		if (queriedRanges[scaleIdx].contains([firstDate, lastDate])
 				&& (targetEvent == null || idToEvent.has(targetEvent.id))){
@@ -277,7 +280,7 @@ async function onEventDisplay(
 			if (!idToEvent.has(targetEvent.id)){
 				console.log(`WARNING: Server response did not include event matching 'incl=${targetEvent.id}'`);
 			}
-			timelineTargets.value[timelineIdx][0] = null;
+			searchTargets.value[timelineIdx][0] = null;
 		}
 		// Collect unit counts
 		const unitCounts = responseObj.unitCounts;
@@ -326,13 +329,13 @@ async function onInfoClick(eventTitle: string){
 
 // For search modal
 const searchOpen = ref(false);
-const timelineTargets = ref([] as [HistEvent | null, boolean][]); // For communicating search results to timelines
+const searchTargets = ref([] as [HistEvent | null, boolean][]); // For communicating search results to timelines
 	// A boolean flag is used to trigger jumping even when the same event occurs twice
 function onSearch(event: HistEvent){
 	searchOpen.value = false;
-	// Trigger jump in endmost timeline
-	let oldVal = timelineTargets.value[currentTimelineIdx.value];
-	timelineTargets.value.splice(currentTimelineIdx.value, 1, [event, !oldVal[1]]);
+	// Trigger jump in current timeline
+	let oldVal = searchTargets.value[currentTimelineIdx.value];
+	searchTargets.value.splice(currentTimelineIdx.value, 1, [event, !oldVal[1]]);
 }
 
 // For settings modal
@@ -350,6 +353,13 @@ function onSettingChg(option: string){
 
 // For help modal
 const helpOpen = ref(false);
+
+// For timeline reset
+const resetFlags: Ref<boolean[]> = ref([]);
+function onReset(){
+	let oldFlag = resetFlags.value[currentTimelineIdx.value];
+	resetFlags.value.splice(currentTimelineIdx.value, 1, !oldFlag);
+}
 
 //
 const modalOpen = computed(() =>

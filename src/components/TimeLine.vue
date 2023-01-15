@@ -102,6 +102,7 @@ const props = defineProps({
 	unitCountMaps: {type: Object as PropType<Map<number, number>[]>, required: true},
 	current: {type: Boolean, required: true},
 	searchTarget: {type: Object as PropType<[null | HistEvent, boolean]>, required: true},
+	reset: {type: Boolean, required: true},
 });
 const emit = defineEmits(['close', 'state-chg', 'event-display', 'info-click']);
 
@@ -1254,6 +1255,15 @@ watch(idToEvent, () => { // Remove highlighting of search results that have beco
 	if (searchEvent.value != null && !idToEvent.value.has(searchEvent.value.id) && !pendingSearch){
 		searchEvent.value = null;
 	}
+});
+
+// For resets
+watch(() => props.reset, () => {
+	startDate.value = store.initialStartDate;
+	endDate.value = store.initialEndDate;
+	startOffset.value = store.defaultEndTickOffset;
+	endOffset.value = store.defaultEndTickOffset;
+	initScale();
 });
 
 // For keyboard shortcuts
