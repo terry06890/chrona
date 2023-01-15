@@ -500,9 +500,8 @@ export function jsonToImgInfo(json: ImgInfoJson | null): ImgInfo | null {
 }
 
 // For dates in a timeline
-const currentDate = new Date();
 export const MIN_DATE = new YearDate(-13.8e9);
-export const MAX_DATE = new CalDate(currentDate.getFullYear(), currentDate.getMonth() + 1, currentDate.getDate());
+export const MAX_DATE = new CalDate(2030, 1, 1);
 export const MONTH_SCALE = -1;
 export const DAY_SCALE = -2;
 export const SCALES = [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE];

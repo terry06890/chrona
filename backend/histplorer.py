@@ -250,9 +250,7 @@ def lookupEvents(
 			incl = None
 	# Get any additional inclusion
 	if incl is not None:
-		constraints.append('events.id = ?')
-		params.append(incl)
-		row = dbCur.execute(query + ' WHERE ' + ' AND '.join(constraints), params).fetchone()
+		row = dbCur.execute(query + ' WHERE events.id = ?', (incl,)).fetchone()
 		if row is not None:
 			if len(results) == resultLimit:
 				results.pop()

@@ -465,7 +465,8 @@ function dateToOffset(date: HistDate){ // Assumes 'date' is >=firstDate and <=la
 		return tick.offset + getUnitDiff(tick.date, date, minorScale.value) / getNumSubUnits(tick.date, scaleIdx.value);
 	}
 }
-const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
+const idToEvent: Ref<Map<number, HistEvent>> = ref(new Map()); // Maps visible event IDs to HistEvents
+function updateIdToEvent(){
 	let map: Map<number, HistEvent> = new Map();
 	// Find events to display
 	let itr = props.eventTree.lowerBound(new HistEvent(0, '', firstDate.value));
@@ -483,13 +484,10 @@ const idToEvent = computed(() => { // Maps visible event IDs to HistEvents
 		}
 		map.set(event.id, event);
 	}
-	return map;
-});
-watch(idToEvent, () => { // Remove highlighting of search results that have become out of range
-	if (searchEvent.value != null && !idToEvent.value.has(searchEvent.value.id)){
-		searchEvent.value = null;
-	}
-});
+	idToEvent.value = map;
+}
+watch(() => props.eventTree, updateIdToEvent);
+watch(ticks, updateIdToEvent);
 const idToPos: Ref<Map<number, [number, number, number, number]>> = ref(new Map()); // Maps event IDs to x/y/w/h
 const idsToSkipTransition: Ref<Set<number>> = ref(new Set()); // Used to prevent events moving across mainline
 type LineCoords = [number, number, number, number]; // x, y, length, angle
@@ -669,7 +667,6 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 function updateLayout(){ // Updates idToPos and eventLines
 	let map = getEventLayout();
 	// Check for events that cross mainline
-	idsToSkipTransition.value.clear();
 	for (let [eventId, [x, y, , ]] of map.entries()){
 		if (idToPos.value.has(eventId)){
 			let [oldX, oldY, , ] = idToPos.value.get(eventId)!;
@@ -679,6 +676,7 @@ function updateLayout(){ // Updates idToPos and eventLines
 			}
 		}
 	}
+	setTimeout(() => idsToSkipTransition.value.clear(), store.transitionDuration);
 	// Update idToPos // Note: For some reason, if the map is assigned directly, events won't consistently transition
 	let toDelete = [];
 	for (let eventId of idToPos.value.keys()){
@@ -691,6 +689,9 @@ function updateLayout(){ // Updates idToPos and eventLines
 	}
 	for (let [eventId, pos] of map.entries()){
 		idToPos.value.set(eventId, pos);
+	}
+	if (pendingSearch && idToPos.value.has(searchEvent.value!.id)){
+		pendingSearch = false;
 	}
 	// Update event lines
 	let newEventLines: Map<number, LineCoords> = new Map();
@@ -1196,6 +1197,7 @@ watch(startDate, onStateChg);
 
 // For jumping to search result
 const searchEvent = ref(null as null | HistEvent); // Holds most recent search result
+let pendingSearch = false;
 watch(() => props.searchTarget, () => {
 	const event = props.searchTarget[0];
 	if (event == null){
@@ -1226,11 +1228,21 @@ watch(() => props.searchTarget, () => {
 			targetEnd = MAX_DATE;
 		}
 		// Jump to range
-		startDate.value = targetStart;
-		endDate.value = targetEnd;
-		scaleIdx.value = SCALES.findIndex((s: number) => s == tempScale);
+		if (startDate.value.equals(targetStart) && endDate.value.equals(targetEnd) && scale.value == tempScale){
+			updateIdToEvent();
+		} else {
+			startDate.value = targetStart;
+			endDate.value = targetEnd;
+			scaleIdx.value = SCALES.findIndex((s: number) => s == tempScale);
+		}
+		pendingSearch = true;
 	}
 	searchEvent.value = event;
+});
+watch(idToEvent, () => { // Remove highlighting of search results that have become out of range
+	if (searchEvent.value != null && !idToEvent.value.has(searchEvent.value.id) && !pendingSearch){
+		searchEvent.value = null;
+	}
 });
 
 // For keyboard shortcuts
@@ -1335,7 +1347,7 @@ function eventImgStyles(eventId: number){
 		backgroundSize: 'cover',
 		borderColor: color,
 		borderWidth: '1px',
-		boxShadow: isSearchResult ? '0 0 4px 2px ' + color : 'none',
+		boxShadow: isSearchResult ? '0 0 6px 4px ' + color : 'none',
 	};
 }
 function eventLineStyles(eventId: number){
