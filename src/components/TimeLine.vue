@@ -55,7 +55,7 @@
 		</div>
 	</div>
 	<!-- Timeline position label -->
-	<div class="absolute top-2 left-2 z-20 text-lg" :class="[current ? 'text-yellow-300' : 'text-stone-50']"
+	<div class="absolute top-1 left-2 z-20 text-lg" :class="[current ? 'text-yellow-300' : 'text-stone-50']"
 		style="text-shadow: 0px 0px 5px black">
 		{{timelinePosStr}}
 	</div>
@@ -505,30 +505,34 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 	let afterMainlineIdx: number | null = null; // Index of first column after the mainline, if there is one
 	if (!sideMainline.value){
 		// Get columns before mainline area
-		let columnOffset = availBreadth.value / 2 - store.mainlineBreadth / 2 - store.spacing - eventMinorSz.value;
-		while (columnOffset >= store.spacing){
+		let colArea = availBreadth.value / 2 - store.mainlineBreadth / 2 - store.spacing * 2;
+		let numCols = Math.floor(colArea / eventMinorSz.value);
+		let colSep = Math.floor((colArea % eventMinorSz.value) / (numCols + 1));
+		let colOffset = store.spacing + colSep;
+		for (let i = 0; i < numCols; i++){
 			cols.push([]);
-			colOffsets.push(columnOffset);
-			columnOffset -= eventMinorSz.value + store.spacing;
+			colOffsets.push(colOffset);
+			colOffset += eventMinorSz.value + colSep;
 		}
-		colOffsets.reverse();
 		afterMainlineIdx = cols.length;
 		// Get columns after mainline area
-		columnOffset = availBreadth.value / 2 + store.mainlineBreadth / 2 + store.spacing;
-		while (columnOffset + eventMinorSz.value + store.spacing < availBreadth.value){
+		colOffset = availBreadth.value / 2 + store.mainlineBreadth / 2 + store.spacing;
+		for (let i = 0; i < numCols; i++){
 			cols.push([]);
-			colOffsets.push(columnOffset);
-			columnOffset += eventMinorSz.value + store.spacing;
+			colOffsets.push(colOffset);
+			colOffset += eventMinorSz.value + colSep;
 		}
 	} else {
 		// Get columns before mainline area
-		let columnOffset = mainlineOffset.value - store.spacing - eventMinorSz.value - store.spacing;
-		while (columnOffset >= store.spacing){
+		let colArea = availBreadth.value - store.mainlineBreadth - store.spacing * 2;
+		let numCols = Math.floor(colArea / eventMinorSz.value);
+		let colSep = Math.floor((colArea % eventMinorSz.value) / (numCols + 1));
+		let colOffset = store.spacing + colSep;
+		for (let i = 0; i < numCols; i++){
 			cols.push([]);
-			colOffsets.push(columnOffset);
-			columnOffset -= eventMinorSz.value + store.spacing;
+			colOffsets.push(colOffset);
+			colOffset += eventMinorSz.value + colSep;
 		}
-		colOffsets.reverse();
 	}
 	if (cols.length == 0){
 		console.log('WARNING: No space for events');

@@ -97,7 +97,7 @@ function getDefaultState(): StoreState {
 		defaultEndTickOffset: 0.5,
 		showMinorTicks: true,
 		// Mainline and event display
-		mainlineBreadth: 80,
+		mainlineBreadth: 70,
 		eventImgSz: 100,
 		eventLabelHeight: 20,
 		spacing: 10,
