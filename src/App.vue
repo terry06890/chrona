@@ -11,7 +11,8 @@
 		<icon-button :size="45" :style="buttonStyles" @click="settingsOpen = true" title="Show settings">
 			<settings-icon/>
 		</icon-button>
-		<icon-button :size="45" :style="buttonStyles" @click="onTimelineAdd" title="Add a timeline">
+		<icon-button :size="45" :disabled="maxTimelines" :style="buttonStyles"
+			@click="onTimelineAdd" title="Add a timeline">
 			<plus-icon/>
 		</icon-button>
 		<icon-button :size="45" :style="buttonStyles" @click="searchOpen = true" title="Search">
@@ -110,10 +111,13 @@ function onTimelineChg(state: TimelineState, idx: number){
 
 // For timeline addition/removal
 const MIN_TIMELINE_BREADTH = store.mainlineBreadth + store.spacing * 2 + store.eventImgSz + store.eventLabelHeight;
+const maxTimelines = computed(() => {
+	return vert.value && contentWidth.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH
+		|| !vert.value && contentHeight.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH
+});
 function onTimelineAdd(){
-	if (vert.value && contentWidth.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH ||
-		!vert.value && contentHeight.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH){
-		console.log('Reached timeline minimum breadth');
+	if (maxTimelines.value){
+		console.log('Ignored addition of timeline upon reaching max');
 		return;
 	}
 	addTimeline();
