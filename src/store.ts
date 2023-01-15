@@ -24,6 +24,7 @@ export type StoreState = {
 	eventImgSz: number, // Width/height of event images
 	eventLabelHeight: number,
 	spacing: number, // Spacing between display edge, events, and mainline area
+	showEventLines: boolean,
 	// User input
 	scrollRatio: number, // Fraction of timeline length to move by upon scroll
 	zoomRatio: number, // Ratio of timeline expansion upon zooming out (eg: 1.5)
@@ -32,6 +33,7 @@ export type StoreState = {
 	// Other feature-specific
 	reqImgs: boolean, // Only show events with images
 	showEventCounts: boolean,
+	showBaseLine: boolean,
 	searchSuggLimit: number,
 	ctgs: { // Specifies event categories, and which ones should be visible
 		event: boolean,
@@ -101,6 +103,7 @@ function getDefaultState(): StoreState {
 		eventImgSz: 100,
 		eventLabelHeight: 20,
 		spacing: 10,
+		showEventLines: true,
 		// User input
 		scrollRatio: 0.2,
 		zoomRatio: 1.5,
@@ -109,6 +112,7 @@ function getDefaultState(): StoreState {
 		// Other feature-specific
 		reqImgs: true,
 		showEventCounts: true,
+		showBaseLine: true,
 		searchSuggLimit: 10,
 		ctgs: {
 			event: true,

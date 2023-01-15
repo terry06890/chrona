@@ -26,17 +26,27 @@
 		</div>
 		<div class="pb-2" :class="borderBClasses">
 			<h2 class="font-bold md:text-xl text-center pt-1 md:pt-2 md:pb-1">Display</h2>
-			<div class="px-2">
-				<label> <input type="checkbox" v-model="store.reqImgs"
-					@change="onSettingChg('reqImgs')"/> Only show events with images </label>
-			</div>
-			<div class="px-2">
-				<label> <input type="checkbox" v-model="store.showEventCounts"
-					@change="onSettingChg('showEventCounts')"/> Show event count indicators </label>
-			</div>
-			<div class="px-2">
-				<label> <input type="checkbox" v-model="store.showMinorTicks"
-					@change="onSettingChg('showMinorTicks')"/> Show minor tick labels </label>
+			<div class="grid grid-cols-2">
+				<div class="px-2 col-span-2">
+					<label> <input type="checkbox" v-model="store.reqImgs"
+						@change="onSettingChg('reqImgs')"/> Only events with images </label>
+				</div>
+				<div class="px-2">
+					<label> <input type="checkbox" v-model="store.showMinorTicks"
+						@change="onSettingChg('showMinorTicks')"/> Minor tick text </label>
+				</div>
+				<div class="px-2">
+					<label> <input type="checkbox" v-model="store.showEventLines"
+						@change="onSettingChg('showEventLines')"/> Event lines </label>
+				</div>
+				<div class="px-2">
+					<label> <input type="checkbox" v-model="store.showEventCounts"
+						@change="onSettingChg('showEventCounts')"/> Event density </label>
+				</div>
+				<div class="px-2">
+					<label> <input type="checkbox" v-model="store.showBaseLine"
+						@change="onSettingChg('showBaseLine')"/> Baseline </label>
+				</div>
 			</div>
 		</div>
 		<div v-if="store.touchDevice == false" class="pb-2" :class="borderBClasses">
