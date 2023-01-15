@@ -47,6 +47,7 @@ export type StoreState = {
 	color: {
 		text: string, // CSS color
 		textDark: string,
+		textDark2: string,
 		bg: string,
 		bgLight: string,
 		bgDark: string,
@@ -68,6 +69,7 @@ function getDefaultState(): StoreState {
 	const color = {
 		text: '#fafaf9',      // stone-50
 		textDark: '#a8a29e',  // stone-400
+		textDark2: '#68625d', // darker version of stone-500
 		bg: '#292524',        // stone-800
 		bgLight: '#44403c',   // stone-700
 		bgDark: '#1c1917',    // stone-900

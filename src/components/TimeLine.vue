@@ -31,12 +31,12 @@
 			:style="tickStyles(tick)" class="animate-fadein"
 			:class="{'max-tick': tick.bound == 'max', 'min-tick': tick.bound == 'min'}"/>
 		<!-- Tick labels -->
-		<template v-for="tick in ticks" :key="tick.date.toInt()">
+		<template v-for="tick, idx in ticks" :key="tick.date.toInt()">
 			<text v-if="tick.major || store.showMinorTicks"
 				x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
-				:fill="store.color.textDark" :style="tickLabelStyles(tick)"
-				class="text-sm animate-fadein cursor-default select-none">
-				{{tick.date.toTickString()}}
+				:fill="tick.major ? store.color.textDark : store.color.textDark2"
+				class="text-sm animate-fadein cursor-default select-none" :style="tickLabelStyles[idx]">
+				{{tickLabelTexts[idx]}}
 			</text>
 		</template>
 	</svg>
@@ -77,7 +77,8 @@ import CloseIcon from './icon/CloseIcon.vue';
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MONTH_NAMES, MIN_CAL_DATE,
 	getDaysInMonth, HistDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
 	getEventPrecision, dateToUnit, dateToScaleDate,
-	moduloPositive, TimelineState, HistEvent, getImagePath, animateWithClass} from '../lib';
+	moduloPositive, TimelineState, HistEvent, getImagePath,
+	animateWithClass, getTextWidth} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 
@@ -1313,21 +1314,63 @@ function tickStyles(tick: Tick){
 		opacity: (pxOffset >= 0 && pxOffset <= availLen.value) ? 1 : 0,
 	}
 }
-function tickLabelStyles(tick: Tick){
+const REF_LABEL = '9999 BC'; // Used as a reference for preventing tick label overlap
+const refTickLabelWidth = getTextWidth(REF_LABEL, '14px Ubuntu') + 10;
+const tickLabelTexts = computed(() => ticks.value.map((tick: Tick) => tick.date.toTickString()));
+const tickLabelStyles = computed((): Record<string,string>[] => {
 	let numMajorUnits = getNumDisplayUnits();
-	let pxOffset = tick.offset / numMajorUnits * availLen.value;
-	let pxOffset2 = tick.major ? 20 : 0;
 	let labelSz = props.vert ? store.tickLabelHeight : tickLabelWidth.value;
-	return {
-		transform: props.vert ?
-			`translate(${mainlineOffset.value + tickLabelMargin.value + pxOffset2}px, ${pxOffset}px)` :
-			`translate(${pxOffset}px, ${mainlineOffset.value + tickLabelMargin.value + pxOffset2}px)`,
-		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
-		transitionDuration: store.transitionDuration + 'ms',
-		transitionTimingFunction: 'linear',
-		display: (pxOffset >= labelSz && pxOffset <= availLen.value - labelSz) ? 'block' : 'none',
+	// Get offsets, and check for label overlap
+	let pxOffsets: number[] = [];
+	let hasLongLabel = false; // True if a label has text longer than REF_LABEL (labels will be rotated)
+	for (let i = 0; i < ticks.value.length; i++){
+		if (tickLabelTexts.value[i].length > REF_LABEL.length){
+			hasLongLabel = true;
+		}
+		pxOffsets.push(ticks.value[i].offset / numMajorUnits * availLen.value);
 	}
-}
+	let visibilities: boolean[] = pxOffsets.map(() => true); // Elements set to false for overlapping ticks
+	if (!hasLongLabel && !props.vert){
+		// Iterate through ticks, checking for subsequent overlapping ticks, prioritising major ticks over minor ones
+		for (let i = 0; i < ticks.value.length; i++){
+			if (pxOffsets[i] < labelSz || pxOffsets[i] > availLen.value - labelSz){ // Hidden ticks
+				visibilities[i] = false;
+				continue;
+			}
+			if (visibilities[i] == false){ // Hidden by previous iteration
+				continue;
+			}
+			let tick = ticks.value[i];
+			for (let j = i + 1; j < ticks.value.length; j++){ // Look at following ticks
+				if (pxOffsets[j] - pxOffsets[i] < refTickLabelWidth){ // Found overlap
+					if (!tick.major && ticks.value[j].major){
+						visibilities[i] = false;
+						break;
+					}
+					visibilities[j] = false;
+				} else {
+					break;
+				}
+			}
+		}
+	}
+	// Determine styles
+	let styles: Record<string,string>[] = [];
+	for (let i = 0; i < ticks.value.length; i++){
+		let pxOffset = pxOffsets[i];
+		styles.push({
+			transform: props.vert ?
+				`translate(${mainlineOffset.value + tickLabelMargin.value}px, ${pxOffset}px)` :
+				`translate(${pxOffset}px, ${mainlineOffset.value + tickLabelMargin.value}px)`
+					+ (hasLongLabel ? 'rotate(30deg)' : ''),
+			transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
+			transitionDuration: store.transitionDuration + 'ms',
+			transitionTimingFunction: 'linear',
+			display: visibilities[i] ? 'block' : 'none',
+		});
+	}
+	return styles;
+});
 function eventStyles(eventId: number){
 	const [x, y, w, h] = idToPos.value.get(eventId)!;
 	return {

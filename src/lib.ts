@@ -59,10 +59,19 @@ export function getNumTrailingZeros(n: number): number {
 	}
 	throw new Error('Exceeded floating point precision');
 }
+// Removes a class from an element, triggers reflow, then adds the class
 export function animateWithClass(el: HTMLElement, className: string){
 	el.classList.remove(className);
 	el.offsetWidth; // Triggers reflow
 	el.classList.add(className);
+}
+// For estimating text width (via https://stackoverflow.com/questions/118241/calculate-text-width-with-javascript)
+const _getTextWidthCanvas = document.createElement('canvas');
+export function getTextWidth(text: string, font: string): number {
+	const context = _getTextWidthCanvas.getContext('2d')!;
+	context.font = font;
+	const metrics = context.measureText(text);
+	return metrics.width;
 }
 
 // For calendar conversion (mostly copied from backend/hist_data/cal.py)
