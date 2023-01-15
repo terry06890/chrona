@@ -55,7 +55,8 @@
 		</div>
 	</div>
 	<!-- Timeline position label -->
-	<div class="absolute top-2 left-2 z-20 text-lg" :class="[current ? 'text-yellow-300' : 'text-stone-50']">
+	<div class="absolute top-2 left-2 z-20 text-lg" :class="[current ? 'text-yellow-300' : 'text-stone-50']"
+		style="text-shadow: 0px 0px 5px black">
 		{{timelinePosStr}}
 	</div>
 	<!-- Buttons -->
