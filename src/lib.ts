@@ -25,7 +25,10 @@ export function onTouchDevice(){
 	// Used with ResizeObserver callbacks, to determine which resized dimensions are width and height
 export let WRITING_MODE_HORZ = true;
 if ('writing-mode' in window.getComputedStyle(document.body)){ // Can be null when testing
-	WRITING_MODE_HORZ = window.getComputedStyle(document.body)['writing-mode' as any].startsWith('horizontal');
+	const bodyStyles = window.getComputedStyle(document.body);
+	if ('writing-mode' in bodyStyles){
+		WRITING_MODE_HORZ = (bodyStyles['writing-mode'] as string).startsWith('horizontal');
+	}
 }
 
 // Similar to %, but for negative LHS, return a positive offset from a lower RHS multiple
@@ -72,6 +75,43 @@ export function getTextWidth(text: string, font: string): number {
 	context.font = font;
 	const metrics = context.measureText(text);
 	return metrics.width;
+}
+
+// For creating throttled version of handler function
+export function makeThrottled(hdlr: (...args: any[]) => void, delay: number){
+	let timeout = 0;
+	return (...args: any[]) => {
+		clearTimeout(timeout);
+		timeout = window.setTimeout(async () => hdlr(...args), delay);
+	};
+}
+// Like makeThrottled(), but accepts an async function
+export function makeThrottledAsync(hdlr: (...args: any[]) => Promise<void>, delay: number){
+	let timeout = 0;
+	return async (...args: any[]) => {
+		clearTimeout(timeout);
+		timeout = window.setTimeout(async () => await hdlr(...args), delay);
+	};
+}
+// Like makeThrottled(), but, for runs of fast handler calls, calls it at spaced intervals, and at the start/end
+export function makeThrottledSpaced(hdlr: (...args: any[]) => void, delay: number){
+	let lastHdlrTime = 0; // Used for throttling
+	let endHdlr = 0; // Used to call handler after ending a run of calls
+	return (...args: any[]) => {
+		clearTimeout(endHdlr);
+		const currentTime = new Date().getTime();
+		if (currentTime - lastHdlrTime > delay){
+			lastHdlrTime = currentTime;
+			hdlr(...args);
+			lastHdlrTime = new Date().getTime();
+		} else {
+			endHdlr = window.setTimeout(async () => {
+				endHdlr = 0;
+				hdlr(...args);
+				lastHdlrTime = new Date().getTime();
+			}, delay);
+		}
+	};
 }
 
 // For calendar conversion (mostly copied from backend/hist_data/cal.py)

@@ -72,7 +72,8 @@ import SearchIcon from './components/icon/SearchIcon.vue';
 // Other
 import {HistDate, HistEvent, queryServer,
 	EventResponseJson, jsonToHistEvent, EventInfo, EventInfoJson, jsonToEventInfo,
-	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree} from './lib';
+	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree,
+	makeThrottled, makeThrottledSpaced} from './lib';
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
 
@@ -195,129 +196,121 @@ const EVENT_REQ_LIMIT = 300;
 const MAX_EVENTS_PER_UNIT = 4; // Should equal MAX_DISPLAYED_PER_UNIT in backend gen_disp_data.py
 let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
 	// For each scale, holds date ranges for which data has already been queried fromm the server
-const SERVER_QUERY_TIMEOUT = 200 // Used to throttle server queries
-let eventDisplayHdlr = 0;
 let lastQueriedRange: [HistDate, HistDate] | null = null;
-async function onEventDisplay(
+async function handleOnEventDisplay(
 		timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
-	async function handleEvent(
-			timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
-		let timelineIdx = timelines.value.findIndex((s : TimelineState) => s.id == timelineId);
-		let targetEvent = searchTargets.value[timelineIdx][0];
-		// Skip if range has been queried, and enough of its events have been obtained
-		if (queriedRanges[scaleIdx].contains([firstDate, lastDate])
-				&& (targetEvent == null || idToEvent.has(targetEvent.id))){
-			// Get number of events in range, server-side
-			let fullCount = 0;
-			let date = firstDate.clone();
-			let eventCounts: Map<number, number> = new Map(); // For calculating number of events, client-side
-			while (date.isEarlier(lastDate)){
-				let unit = dateToUnit(date, SCALES[scaleIdx]);
-				if (unitCountMaps.value[scaleIdx].has(unit)){
-					fullCount += Math.min(MAX_EVENTS_PER_UNIT, unitCountMaps.value[scaleIdx].get(unit)!);
-				}
-				eventCounts.set(unit, 0);
-				stepDate(date, SCALES[scaleIdx], {inplace: true});
+	let timelineIdx = timelines.value.findIndex((s : TimelineState) => s.id == timelineId);
+	let targetEvent = searchTargets.value[timelineIdx][0];
+	// Skip if range has been queried, and enough of its events have been obtained
+	if (queriedRanges[scaleIdx].contains([firstDate, lastDate])
+			&& (targetEvent == null || idToEvent.has(targetEvent.id))){
+		// Get number of events in range, server-side
+		let fullCount = 0;
+		let date = firstDate.clone();
+		let eventCounts: Map<number, number> = new Map(); // For calculating number of events, client-side
+		while (date.isEarlier(lastDate)){
+			let unit = dateToUnit(date, SCALES[scaleIdx]);
+			if (unitCountMaps.value[scaleIdx].has(unit)){
+				fullCount += Math.min(MAX_EVENTS_PER_UNIT, unitCountMaps.value[scaleIdx].get(unit)!);
 			}
-			if (fullCount > 0){
-				// Get number of events, client-side
-				let eventCount = 0;
-				let itr = eventTree.value.lowerBound(new HistEvent(0, '', firstDate))
-				while (itr.data() != null){
-					let event = itr.data()!;
-					itr.next();
-					if (!event.start.isEarlier(lastDate)){
-						break;
-					}
-					let unit = dateToUnit(event.start, SCALES[scaleIdx]);
-					if (eventCounts.has(unit)){
-						eventCounts.set(unit, eventCounts.get(unit)! + 1);
-					}
-				}
-				for (let [, count] of eventCounts.entries()){
-					eventCount += Math.min(MAX_EVENTS_PER_UNIT, count);
-				}
-				// If we have enough events
-				if (eventCount >= fullCount || eventCount >= EVENT_REQ_LIMIT){
-					return;
-				}
-			}
+			eventCounts.set(unit, 0);
+			stepDate(date, SCALES[scaleIdx], {inplace: true});
 		}
-		// Get events from server
-		if (lastQueriedRange != null && lastQueriedRange[0].equals(firstDate) && lastQueriedRange[1].equals(lastDate)
-				&& (targetEvent == null || idToEvent.has(targetEvent.id))){
-			console.log(`INFO: Skipping redundant server request from ${firstDate} to ${lastDate}`);
-			return;
-		}
-		lastQueriedRange = [firstDate, lastDate];
-		let urlParams = new URLSearchParams({
-			// Note: Intentionally not filtering by event categories (would need category-sensitive
-			// unit count data to determine when enough events have been obtained)
-			type: 'events',
-			range: `${firstDate}.${lastDate}`,
-			scale: String(SCALES[scaleIdx]),
-			limit: String(EVENT_REQ_LIMIT),
-		});
-		if (targetEvent != null){
-			urlParams.append('incl', String(targetEvent.id));
-		}
-		if (store.reqImgs){
-			urlParams.append('imgonly', 'true');
-		}
-		let responseObj: EventResponseJson | null = await loadFromServer(urlParams, 2000);
-		if (responseObj == null){
-			console.log('WARNING: Server gave null response to event query');
-			return;
-		}
-		queriedRanges[scaleIdx].add([firstDate, lastDate]);
-		// Collect events
-		let eventAdded = false;
-		for (let eventObj of responseObj.events){
-			let event = jsonToHistEvent(eventObj);
-			let success = eventTree.value.insert(event);
-			if (success){
-				eventAdded = true;
-				idToEvent.set(event.id, event);
-				titleToEvent.set(event.title, event);
-			}
-		}
-		if (targetEvent != null){
-			if (!idToEvent.has(targetEvent.id)){
-				console.log(`WARNING: Server response did not include event matching 'incl=${targetEvent.id}'`);
-			}
-			searchTargets.value[timelineIdx][0] = null;
-		}
-		// Collect unit counts
-		const unitCounts = responseObj.unitCounts;
-		if (unitCounts == null){
-			console.log('WARNING: Exceeded unit-count limit for server query');
-		} else {
-			for (let [unitStr, count] of Object.entries(unitCounts)){
-				let unit = parseInt(unitStr)
-				if (isNaN(unit)){
-					console.log('WARNING: Invalid non-integer unit value in server response');
+		if (fullCount > 0){
+			// Get number of events, client-side
+			let eventCount = 0;
+			let itr = eventTree.value.lowerBound(new HistEvent(0, '', firstDate))
+			while (itr.data() != null){
+				let event = itr.data()!;
+				itr.next();
+				if (!event.start.isEarlier(lastDate)){
 					break;
 				}
-				unitCountMaps.value[scaleIdx].set(unit, count)
+				let unit = dateToUnit(event.start, SCALES[scaleIdx]);
+				if (eventCounts.has(unit)){
+					eventCounts.set(unit, eventCounts.get(unit)! + 1);
+				}
+			}
+			for (let [, count] of eventCounts.entries()){
+				eventCount += Math.min(MAX_EVENTS_PER_UNIT, count);
+			}
+			// If we have enough events
+			if (eventCount >= fullCount || eventCount >= EVENT_REQ_LIMIT){
+				return;
 			}
 		}
-		// Notify components if new events were added
-		if (eventAdded){
-			eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
-		}
-		// Check memory limit
-		displayedEvents.set(timelineId, eventIds);
-		if (eventTree.value.size > EXCESS_EVENTS_THRESHOLD){
-			console.log(`INFO: Calling reduceEvents() upon reaching ${eventTree.value.size} events`);
-			reduceEvents();
-			queriedRanges.forEach((t: DateRangeTree) => t.clear());
+	}
+	// Get events from server
+	if (lastQueriedRange != null && lastQueriedRange[0].equals(firstDate) && lastQueriedRange[1].equals(lastDate)
+			&& (targetEvent == null || idToEvent.has(targetEvent.id))){
+		console.log(`INFO: Skipping redundant server request from ${firstDate} to ${lastDate}`);
+		return;
+	}
+	lastQueriedRange = [firstDate, lastDate];
+	let urlParams = new URLSearchParams({
+		// Note: Intentionally not filtering by event categories (would need category-sensitive
+		// unit count data to determine when enough events have been obtained)
+		type: 'events',
+		range: `${firstDate}.${lastDate}`,
+		scale: String(SCALES[scaleIdx]),
+		limit: String(EVENT_REQ_LIMIT),
+	});
+	if (targetEvent != null){
+		urlParams.append('incl', String(targetEvent.id));
+	}
+	if (store.reqImgs){
+		urlParams.append('imgonly', 'true');
+	}
+	let responseObj: EventResponseJson | null = await loadFromServer(urlParams, 2000);
+	if (responseObj == null){
+		console.log('WARNING: Server gave null response to event query');
+		return;
+	}
+	queriedRanges[scaleIdx].add([firstDate, lastDate]);
+	// Collect events
+	let eventAdded = false;
+	for (let eventObj of responseObj.events){
+		let event = jsonToHistEvent(eventObj);
+		let success = eventTree.value.insert(event);
+		if (success){
+			eventAdded = true;
+			idToEvent.set(event.id, event);
+			titleToEvent.set(event.title, event);
 		}
 	}
-	clearTimeout(eventDisplayHdlr);
-	eventDisplayHdlr = window.setTimeout(async () => {
-		await handleEvent(timelineId, eventIds, firstDate, lastDate, scaleIdx);
-	}, SERVER_QUERY_TIMEOUT);
+	if (targetEvent != null){
+		if (!idToEvent.has(targetEvent.id)){
+			console.log(`WARNING: Server response did not include event matching 'incl=${targetEvent.id}'`);
+		}
+		searchTargets.value[timelineIdx][0] = null;
+	}
+	// Collect unit counts
+	const unitCounts = responseObj.unitCounts;
+	if (unitCounts == null){
+		console.log('WARNING: Exceeded unit-count limit for server query');
+	} else {
+		for (let [unitStr, count] of Object.entries(unitCounts)){
+			let unit = parseInt(unitStr)
+			if (isNaN(unit)){
+				console.log('WARNING: Invalid non-integer unit value in server response');
+				break;
+			}
+			unitCountMaps.value[scaleIdx].set(unit, count)
+		}
+	}
+	// Notify components if new events were added
+	if (eventAdded){
+		eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
+	}
+	// Check memory limit
+	displayedEvents.set(timelineId, eventIds);
+	if (eventTree.value.size > EXCESS_EVENTS_THRESHOLD){
+		console.log(`INFO: Calling reduceEvents() upon reaching ${eventTree.value.size} events`);
+		reduceEvents();
+		queriedRanges.forEach((t: DateRangeTree) => t.clear());
+	}
 }
+const onEventDisplay = makeThrottled(handleOnEventDisplay, 200);
 
 // For info modal
 const infoModalData = ref(null as EventInfo | null);
@@ -395,28 +388,8 @@ const modalOpen = computed(() =>
 	(infoModalData.value != null || searchOpen.value || settingsOpen.value || helpOpen.value));
 
 // For resize handling
-let lastResizeHdlrTime = 0; // Used to throttle resize handling
-let afterResizeHdlr = 0; // Used to trigger handler after ending a run of resize events
-async function onResize(){
-	// Handle event if not recently done
-	async function handleResize(){
-		updateAreaDims();
-	}
-	clearTimeout(afterResizeHdlr);
-	let currentTime = new Date().getTime();
-	if (currentTime - lastResizeHdlrTime > 200){
-		lastResizeHdlrTime = currentTime;
-		await handleResize();
-		lastResizeHdlrTime = new Date().getTime();
-	} else {
-		// Set up handler to execute after ending a run of resize events
-		afterResizeHdlr = window.setTimeout(async () => {
-			afterResizeHdlr = 0;
-			await handleResize();
-			lastResizeHdlrTime = new Date().getTime();
-		}, 200); // If too small, touch-device detection when swapping to/from mobile-mode gets unreliable
-	}
-}
+const onResize = makeThrottledSpaced(updateAreaDims, 200);
+	// Note: If delay is too small, touch-device detection when swapping to/from mobile-mode gets unreliable
 onMounted(() => window.addEventListener('resize', onResize));
 onUnmounted(() => window.removeEventListener('resize', onResize));
 
