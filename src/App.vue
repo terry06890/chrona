@@ -84,8 +84,8 @@ const contentAreaRef = ref(null as HTMLElement | null);
 const store = useStore();
 
 // For content sizing (used to decide between horizontal and vertical mode)
-const contentWidth = ref(0);
-const contentHeight = ref(0);
+const contentWidth = ref(1);
+const contentHeight = ref(1);
 const vert = computed(() => contentHeight.value > contentWidth.value);
 function updateAreaDims(){
 	let contentAreaEl = contentAreaRef.value!;
@@ -192,7 +192,10 @@ function reduceEvents(){
 	}
 }
 // For getting events from server
-const EVENT_REQ_LIMIT = 300;
+const eventReqLimit = computed(() => {
+	const eventSz = store.eventImgSz * (store.eventImgSz + store.eventLabelHeight);
+	return Math.max(20, Math.ceil(contentWidth.value * contentHeight.value / eventSz));
+});
 const MAX_EVENTS_PER_UNIT = 4; // Should equal MAX_DISPLAYED_PER_UNIT in backend gen_disp_data.py
 let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
 	// For each scale, holds date ranges for which data has already been queried fromm the server
@@ -235,7 +238,7 @@ async function handleOnEventDisplay(
 				eventCount += Math.min(MAX_EVENTS_PER_UNIT, count);
 			}
 			// If we have enough events
-			if (eventCount >= fullCount || eventCount >= EVENT_REQ_LIMIT){
+			if (eventCount >= fullCount || eventCount >= eventReqLimit.value){
 				return;
 			}
 		}
@@ -253,7 +256,7 @@ async function handleOnEventDisplay(
 		type: 'events',
 		range: `${firstDate}.${lastDate}`,
 		scale: String(SCALES[scaleIdx]),
-		limit: String(EVENT_REQ_LIMIT),
+		limit: String(eventReqLimit.value),
 	});
 	if (targetEvent != null){
 		urlParams.append('incl', String(targetEvent.id));
