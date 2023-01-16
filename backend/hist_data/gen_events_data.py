@@ -66,6 +66,7 @@ import os, sys
 parentDir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(parentDir)
 # Standard imports
+from typing import cast
 import argparse
 import math, re
 import io, bz2, json, sqlite3
@@ -75,7 +76,6 @@ from cal import gregorianToJdn, julianToJdn, MIN_CAL_YEAR
 
 # Constants
 WIKIDATA_FILE = os.path.join('wikidata', 'latest-all.json.bz2')
-DUMP_YEAR = 2022 # Used for converting 'age' values into dates
 OFFSETS_FILE = os.path.join('wikidata', 'offsets.dat')
 DB_FILE = 'data.db'
 N_PROCS = 6 # Number of processes to use
@@ -123,8 +123,12 @@ EVENT_CTG: dict[str, dict[str, str]] = {
 	},
 }
 ID_TO_CTG = {id: ctg for ctg, nmToId in EVENT_CTG.items() for name, id in nmToId.items()}
-EVENT_PROP: dict[str, str] = {
-	# Maps event-start/end-indicative property names to their IDs
+EXCL_PROPS: dict[str, str] = {
+	# Holds IDs and names of props that entities should not include
+	'P1441': 'present in work', # Present for fictional characters/etc
+}
+BASIC_TIME_PROPS: dict[str, str] = {
+	# Maps some time-indicative property names to their IDs
 	'start time': 'P580',
 	'end time': 'P582',
 	'point in time': 'P585',
@@ -134,24 +138,36 @@ EVENT_PROP: dict[str, str] = {
 	'temporal range end': 'P524',
 	'earliest date': 'P1319',
 	'latest date': 'P1326',
-	'date of birth': 'P569',
-	'date of death': 'P570',
-	'time of discovery or invention': 'P575',
-	'publication date': 'P577',
 }
-PROP_RULES: list[tuple[str] | tuple[str, str] | tuple[str, str, bool]] = [
-	# Indicates how event start/end data should be obtained from EVENT_PROP props
+CTG_TO_TIME_PROPS: dict[str, dict[str, str]] = {
+	# Maps event-categories to dicts, which hold usable time-indicative property names and IDs
+	'event': BASIC_TIME_PROPS,
+	'place': BASIC_TIME_PROPS,
+	'organism': BASIC_TIME_PROPS,
+	'person': {
+		'date of birth': 'P569',
+		'date of death': 'P570',
+	},
+	'work': {
+		'publication date': 'P577',
+	},
+	'discovery': {
+		'time of discovery or invention': 'P575',
+	},
+}
+PROP_RULES: list[tuple[str, str | None, bool | None]] = [
+	# Indicates how event start/end data should be obtained from props in CTG_TO_TIME_PROPS
 		# Each tuple starts with a start-time prop to check for, followed by an optional
 		# end-time prop, and an optional 'both props must be present' boolean indicator
-	('start time', 'end time'),
-	('point in time',),
-	('inception',),
-	('age estimated by a dating method',),
-	('temporal range start', 'temporal range end'),
+	('start time', 'end time', None),
+	('point in time', None, None),
+	('inception', None, None),
+	('age estimated by a dating method', None, None),
+	('temporal range start', 'temporal range end', None),
 	('earliest date', 'latest date', True),
-	('date of birth', 'date of death'),
-	('time of discovery or invention',),
-	('publication date',),
+	('date of birth', 'date of death', None),
+	('time of discovery or invention', None, None),
+	('publication date', None, None),
 ]
 UNIT_TO_SCALE: dict[str, int] = {
 	# Maps 'unit' values (found in 'datavalue' objects with type=quantity) to numbers of years
@@ -257,15 +273,22 @@ def readDumpLine(lineBytes: bytes) -> tuple[int, str, int, int | None, int | Non
 				eventCtg = ID_TO_CTG[prop]
 		if not eventCtg:
 			return None
+	# Check for excluded props
+	for prop in claims:
+		if prop in EXCL_PROPS:
+			return None
 	# Check for event-start/end props
 	startVal: str
 	endVal: str | None
 	timeType: str
 	found = False
-	for props in PROP_RULES:
-		startProp: str = EVENT_PROP[props[0]]
-		endProp = None if len(props) < 2 else EVENT_PROP[props[1]]
-		needBoth = False if len(props) < 3 else props[2]
+	usableProps = CTG_TO_TIME_PROPS[eventCtg]
+	for rule in PROP_RULES:
+		if rule[0] not in usableProps or rule[1] and rule[1] not in usableProps:
+			continue
+		startProp: str = usableProps[rule[0]]
+		endProp = None if not rule[1] else usableProps[rule[1]]
+		needBoth = False if not rule[2] else rule[2]
 		if startProp not in claims:
 			continue
 		try:
@@ -277,7 +300,7 @@ def readDumpLine(lineBytes: bytes) -> tuple[int, str, int, int | None, int | Non
 				continue
 		except (KeyError, ValueError):
 			continue
-		timeType = props[0]
+		timeType = rule[0]
 		found = True
 		break
 	if not found:
@@ -302,6 +325,8 @@ def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int |
 		if 'type' not in startVal or startVal['type'] != 'quantity':
 			return None
 		# Get quantity data
+			# Note: Ages are interpreted relative to 1 AD. Using a year like 2020 results in
+			# 'datedness' and undesirable small offsets to values like '1 billion years old'.
 		try:
 			value = startVal['value']
 			amount = math.ceil(float(value['amount']))
@@ -320,15 +345,10 @@ def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int |
 		scale = UNIT_TO_SCALE[unit]
 		# Get start+startUpper
 		if lowerBound is None:
-			start = DUMP_YEAR - amount * scale
+			start = -amount * scale
 		else:
-			start = DUMP_YEAR - upperBound * scale
-			startUpper = DUMP_YEAR - lowerBound * scale
-		# Account for non-existence of 0 AD
-		if start <= 0:
-			start -= 1
-		if startUpper is not None and startUpper <= 0:
-			startUpper -= 1
+			start = -cast(int, upperBound) * scale
+			startUpper = -lowerBound * scale
 		# Adjust precision
 		start = start // scale * scale
 		if startUpper is not None:

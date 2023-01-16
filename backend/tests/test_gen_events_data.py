@@ -68,6 +68,25 @@ class TestGenData(unittest.TestCase):
 				},
 				'sitelinks': {'enwiki': {'title': 'Human One'}},
 			},
+			{ # Like Q2 but fictional
+				'id': 'Q20',
+				'claims': {
+					'P31': [{'mainsnak': {'datavalue': {'value': {'id': 'Q5'}}}}], # 'instance of' 'human'
+					'P569': [{'mainsnak': {'datavalue': {'type': 'time', 'value': { # 'date of birth'
+						'time':'+2002-11-02T00:00:00Z',
+						'precision':11, # day precision
+						'calendarmodel':'http://www.wikidata.org/entity/Q1985786' # 'proleptic julian calendar'
+					}}}}],
+					'P570': [{'mainsnak': {'datavalue': {'type': 'time', 'value': { # 'date of death'
+						'time':'+2010-06-21T00:00:01Z',
+						'timezone':1,
+						'precision':11,
+						'calendarmodel':'http://www.wikidata.org/entity/Q1985727' # 'proleptic gregorian calendar'
+					}}}}],
+					'P1441': [{'mainsnak': {'datavalue': {'value': {'id': 'Q8337'}}}}] # 'present in work'
+				},
+				'sitelinks': {'enwiki': {'title': 'Human Two'}},
+			},
 			{
 				'id': 'Q3',
 				'claims': {
@@ -159,9 +178,8 @@ class TestGenData(unittest.TestCase):
 			(1, 'event one', 2433617, 2433647, None, None, 1, 'event'),
 			(2, 'Human One', 2452594, None, 2455369, None, 3, 'person'),
 			(3, 'country one', -1001, None, -99, None, 0, 'place'),
-			(4, 'country two', -9000, -7000, None, None, 0, 'place'),
+			(4, 'country two', -11000, -9000, None, None, 0, 'place'),
 			(5, 'discovery one', 1, 1000, None, None, 0, 'discovery'),
-			(6, 'media one', 1714331, None, 1714362, None, 2, 'work'),
 			(7, 'media two', -2199, -2100, None, None, 0, 'work'),
 			(8, 'organism one', -400000000, -300000001, None, None, 0, 'organism'),
 		}
