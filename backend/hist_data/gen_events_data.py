@@ -123,10 +123,6 @@ EVENT_CTG: dict[str, dict[str, str]] = {
 	},
 }
 ID_TO_CTG = {id: ctg for ctg, nmToId in EVENT_CTG.items() for name, id in nmToId.items()}
-EXCL_PROPS: dict[str, str] = {
-	# Holds IDs and names of props that entities should not include
-	'P1441': 'present in work', # Present for fictional characters/etc
-}
 BASIC_TIME_PROPS: dict[str, str] = {
 	# Maps some time-indicative property names to their IDs
 	'start time': 'P580',
@@ -272,10 +268,6 @@ def readDumpLine(lineBytes: bytes) -> tuple[int, str, int, int | None, int | Non
 			if prop in ID_TO_CTG:
 				eventCtg = ID_TO_CTG[prop]
 		if not eventCtg:
-			return None
-	# Check for excluded props
-	for prop in claims:
-		if prop in EXCL_PROPS:
 			return None
 	# Check for event-start/end props
 	startVal: str
