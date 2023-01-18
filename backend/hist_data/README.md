@@ -69,7 +69,9 @@ Some of the scripts use third-party packages:
     script variable to identify yourself to the online API (this is expected
     [best practice](https://www.mediawiki.org/wiki/API:Etiquette)).
 1.  In enwiki/, run `download_imgs.py`, which downloads images into enwiki/imgs/. Setting the
-    USER_AGENT variable applies here as well.
+    USER_AGENT variable applies here as well. <br>
+    In some rare cases, the download won't produce an image file, but a text file containing
+    'File not found: ...'. These can simply be deleted.
 1.  Run `gen_imgs.py`, which creates resized/cropped images in img/, from images in enwiki/imgs/.
     Adds the `imgs` and `event_imgs` tables. <br>
     The output images might need additional manual changes:
