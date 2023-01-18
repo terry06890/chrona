@@ -193,8 +193,10 @@ function reduceEvents(){
 }
 // For getting events from server
 const eventReqLimit = computed(() => {
-	const eventSz = store.eventImgSz * (store.eventImgSz + store.eventLabelHeight);
-	return Math.max(20, Math.ceil(contentWidth.value * contentHeight.value / eventSz));
+	return Math.ceil(Math.max(contentWidth.value, contentHeight.value) / store.eventImgSz * 32);
+		// As a rough heuristic, the number of events that could fit along the major axis,
+		// multiplied by a rough number of time points per event-occupied region,
+		// multiplied by the max number of events per time point (four).
 });
 const MAX_EVENTS_PER_UNIT = 4; // Should equal MAX_DISPLAYED_PER_UNIT in backend gen_disp_data.py
 let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
