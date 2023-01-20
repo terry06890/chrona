@@ -19,11 +19,11 @@ class TestGenImgs(unittest.TestCase):
 			createTestFile(pickedEvtFile, '''
 				[{
 					"title": "COVID-19 Pandemic",
-					"start": 2458919,
+					"start": 2019,
 					"start_upper": null,
 					"end": null,
 					"end_upper": null,
-					"fmt": 2,
+					"fmt": 0,
 					"ctg": "event",
 					"image": {
 						"file": "covid.jpg",
@@ -62,9 +62,9 @@ class TestGenImgs(unittest.TestCase):
 					'start INT, start_upper INT, end INT, end_upper INT, fmt INT, ctg TEXT)',
 				'INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
 				{
-					(1, 'event one', 100, 1000, None, None, 0, 'event'),
-					(2, 'event two', 200, 2000, None, None, 0, 'event'),
-					(3, 'event three', 300, 3000, None, None, 0, 'event'),
+					(1, 'event one', 1, 1000, None, None, 0, 'event'),
+					(2, 'event two', 2, 2000, None, None, 0, 'event'),
+					(3, 'event three', 3, 3000, None, None, 0, 'event'),
 				}
 			)
 			createTestDbTable(
@@ -103,12 +103,35 @@ class TestGenImgs(unittest.TestCase):
 					(3, 1),
 				}
 			)
+			createTestDbTable(
+				dbFile,
+				'CREATE TABLE dist (scale INT, unit INT, count INT, PRIMARY KEY (scale, unit))',
+				'INSERT INTO dist VALUES (?, ?, ?)',
+				{
+					(10, 0, 3),
+					(1, 1, 1),
+					(1, 2, 1),
+					(1, 3, 1),
+				}
+			)
+			createTestDbTable(
+				dbFile,
+				'CREATE TABLE event_disp (id INT, scale INT, unit INT, PRIMARY KEY (id, scale))',
+				'INSERT INTO event_disp VALUES (?, ?, ?)',
+				{
+					(1, 10, 0),
+					(2, 10, 0),
+					(1, 1, 1),
+					(2, 1, 2),
+					(3, 1, 3),
+				}
+			)
 			# Create existing event images
 			imgOutDir = os.path.join(tempDir, 'imgs')
 			os.mkdir(imgOutDir)
 			shutil.copy(TEST_IMG, os.path.join(imgOutDir, '10.jpg'))
 			# Run
-			genData(pickedDir, pickedEvtFile, dbFile, imgOutDir)
+			genData(pickedDir, pickedEvtFile, dbFile, imgOutDir, [10, 1])
 			# Check
 			self.assertEqual(set(os.listdir(imgOutDir)), {
 				'10.jpg',
@@ -118,9 +141,9 @@ class TestGenImgs(unittest.TestCase):
 			self.assertEqual(
 				readTestDbTable(dbFile, 'SELECT id, title, start, start_upper, end, end_upper, fmt, ctg FROM events'),
 				{
-					(1, 'event one', 100, 1000, None, None, 0, 'event'),
+					(1, 'event one', 1, 1000, None, None, 0, 'event'),
 					(2, 'foo', -100, None, None, None, 0, 'discovery'),
-					(-1, 'COVID-19 Pandemic', 2458919, None, None, None, 2, 'event'),
+					(-1, 'COVID-19 Pandemic', 2019, None, None, None, 0, 'event'),
 				}
 			)
 			self.assertEqual(
@@ -153,5 +176,27 @@ class TestGenImgs(unittest.TestCase):
 					(1, 99),
 					(2, 35),
 					(-1, 100),
+				}
+			)
+			self.assertEqual(
+				readTestDbTable(dbFile, 'SELECT scale, unit, count from dist'),
+				{
+					(10, 0, 1),
+					(10, 201, 1),
+					(10, -10, 1),
+					(1, 1, 1),
+					(1, -100, 1),
+					(1, 2019, 1),
+				}
+			)
+			self.assertEqual(
+				readTestDbTable(dbFile, 'SELECT id, scale, unit from event_disp'),
+				{
+					(1, 10, 0),
+					(2, 10, -10),
+					(-1, 10, 201),
+					(1, 1, 1),
+					(2, 1, -100),
+					(-1, 1, 2019),
 				}
 			)
