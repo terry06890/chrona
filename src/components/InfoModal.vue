@@ -46,10 +46,13 @@
 							</li>
 							<li>
 								<span :style="{color: store.color.altDark}">License: </span>
-								<a :href="licenseToUrl(eventInfo.imgInfo.license)" target="_blank">
-									{{eventInfo.imgInfo.license}}
-								</a>
-								<external-link-icon class="inline-block w-3 h-3 ml-1"/>
+								<template v-if="licenseToUrl(eventInfo.imgInfo.license) != null">
+									<a :href="licenseToUrl(eventInfo.imgInfo.license)" target="_blank">
+										{{eventInfo.imgInfo.license}}
+									</a>
+									<external-link-icon class="inline-block w-3 h-3 ml-1"/>
+								</template>
+								<span v-else>{{eventInfo.imgInfo.license}}</span>
 							</li>
 							<li>
 								<span :style="{color: store.color.altDark}">Obtained via: </span>
@@ -66,7 +69,7 @@
 			</div>
 			<div v-if="eventInfo.desc != null">{{eventInfo.desc}}</div>
 			<div v-else class="text-center text-stone-500 text-sm">(No description found)</div>
-			<div class="text-sm text-right">
+			<div v-if="event.id > 0" class="text-sm text-right">
 				<a :href="'https://en.wikipedia.org/?curid=' + eventInfo.wikiId" target="_blank">From Wikipedia</a>
 				(via <a :href="'https://www.wikidata.org/wiki/Q' + event.id" target="_blank">Wikidata</a>)
 				<external-link-icon class="inline-block w-3 h-3 ml-1"/>
@@ -132,7 +135,7 @@ function licenseToUrl(license: string){
 			}
 			return url;
 		}
-		return "[INVALID LICENSE]";
+		return null;
 	}
 }
 
