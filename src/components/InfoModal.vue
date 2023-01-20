@@ -47,7 +47,7 @@
 							<li>
 								<span :style="{color: store.color.altDark}">License: </span>
 								<template v-if="licenseToUrl(eventInfo.imgInfo.license) != null">
-									<a :href="licenseToUrl(eventInfo.imgInfo.license)" target="_blank">
+									<a :href="licenseToUrl(eventInfo.imgInfo.license)!" target="_blank">
 										{{eventInfo.imgInfo.license}}
 									</a>
 									<external-link-icon class="inline-block w-3 h-3 ml-1"/>

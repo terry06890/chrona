@@ -110,9 +110,14 @@ const lastCtg = computed(() => { // When all but one category is disabled, names
 		return null;
 	}
 });
+let changedCtg: string | null = null; // Used to defer signalling of a category change until modal closes
 function onSettingChg(option: string){ 
 	store.save(option);
-	emit('change', option);
+	if (option.startsWith('ctgs.')){
+		changedCtg = option;
+	} else {
+		emit('change', option);
+	}
 	// Make 'Saved' indicator appear/animate
 	if (!saved.value){
 		saved.value = true;
@@ -137,6 +142,9 @@ function onReset(){
 function onClose(evt: Event){
 	if (evt.target == rootRef.value || closeRef.value!.$el.contains(evt.target)){
 		emit('close');
+		if (changedCtg != null){
+			emit('change', changedCtg);
+		}
 	}
 }
 

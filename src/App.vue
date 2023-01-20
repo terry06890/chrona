@@ -344,7 +344,7 @@ function onSearch(event: HistEvent){
 // For settings modal
 const settingsOpen = ref(false);
 function onSettingChg(option: string){
-	if (option == 'reqImgs'){
+	if (option == 'reqImgs' || option.startsWith('ctgs.')){
 		// Reset event data
 		eventTree.value = new RBTree(cmpHistEvent); // Will trigger event re-query
 		unitCountMaps.value = SCALES.map(() => new Map());
