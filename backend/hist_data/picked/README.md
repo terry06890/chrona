@@ -1,12 +1,13 @@
-This directory holds data for additional manually-picked events.
+This directory holds data for manually-picked events.
 
 Files
 =====
 -   events.json <br>
-    Encodes an array of objects, each describing an event to add.
+    Encodes an array of objects, each describing an event to modify, add, or delete.
     For example:
 
         [{
+            "id": 81068910,
             "title": "COVID-19 Pandemic",
             "start": 2458919,
             "start_upper": null,
@@ -25,5 +26,7 @@ Files
             "pop": 100
         }]
 
-    The `image.file` field should name an image file in this directory.
-    Other fields correspond to those in the `events`, `images`, `descs`, and `pop` tables (see `../README.md`).
+    -   For event modification, specify `id` and one or more other fields to change.
+        If `image` is present, all its fields should be present.
+    -   For event deletion, specify only `id` or `title`.
+    -   For event addition, specify all fields except `id`, and possibly `image` and `desc`.

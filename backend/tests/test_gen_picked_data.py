@@ -35,12 +35,10 @@ class TestGenImgs(unittest.TestCase):
 					"desc": "Global pandemic caused by the virus SARS-CoV-2",
 					"pop": 100
 				},{
+					"id": 2,
 					"title": "foo",
 					"start": -100,
-					"start_upper": 2000,
-					"end": null,
-					"end_upper": null,
-					"fmt": 0,
+					"start_upper": null,
 					"ctg": "discovery",
 					"image": {
 						"file": "foo.jpg",
@@ -48,26 +46,9 @@ class TestGenImgs(unittest.TestCase):
 						"license": "cc-by",
 						"artist": "Fibble Wesky",
 						"credit": "Plosta Grimble and Hoska Ferlento"
-					},
-					"desc": "Rhubarb, broccoli, and the fifth box under Tuesday",
-					"pop": 0
+					}
 				},{
-					"title": "event one",
-					"start": 100,
-					"start_upper": null,
-					"end": null,
-					"end_upper": null,
-					"fmt": 0,
-					"ctg": "event",
-					"image": {
-						"file": "x.jpg",
-						"url": "?",
-						"license": "cc0",
-						"artist": "?",
-						"credit": "???"
-					},
-					"desc": "?",
-					"pop": 0
+					"title": "event three"
 				}]
 			''')
 			# Create picked images
@@ -82,6 +63,8 @@ class TestGenImgs(unittest.TestCase):
 				'INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
 				{
 					(1, 'event one', 100, 1000, None, None, 0, 'event'),
+					(2, 'event two', 200, 2000, None, None, 0, 'event'),
+					(3, 'event three', 300, 3000, None, None, 0, 'event'),
 				}
 			)
 			createTestDbTable(
@@ -98,6 +81,7 @@ class TestGenImgs(unittest.TestCase):
 				'INSERT INTO event_imgs VALUES (?, ?)',
 				{
 					(1, 10),
+					(2, 10),
 				}
 			)
 			createTestDbTable(
@@ -106,6 +90,7 @@ class TestGenImgs(unittest.TestCase):
 				'INSERT INTO descs VALUES (?, ?, ?)',
 				{
 					(1, 100, 'desc one'),
+					(3, 200, 'desc three'),
 				}
 			)
 			createTestDbTable(
@@ -114,6 +99,8 @@ class TestGenImgs(unittest.TestCase):
 				'INSERT INTO pop VALUES (?, ?)',
 				{
 					(1, 99),
+					(2, 35),
+					(3, 1),
 				}
 			)
 			# Create existing event images
@@ -132,8 +119,8 @@ class TestGenImgs(unittest.TestCase):
 				readTestDbTable(dbFile, 'SELECT id, title, start, start_upper, end, end_upper, fmt, ctg FROM events'),
 				{
 					(1, 'event one', 100, 1000, None, None, 0, 'event'),
+					(2, 'foo', -100, None, None, None, 0, 'discovery'),
 					(-1, 'COVID-19 Pandemic', 2458919, None, None, None, 2, 'event'),
-					(-2, 'foo', -100, 2000, None, None, 0, 'discovery'),
 				}
 			)
 			self.assertEqual(
@@ -149,8 +136,8 @@ class TestGenImgs(unittest.TestCase):
 				readTestDbTable(dbFile, 'SELECT id, img_id FROM event_imgs'),
 				{
 					(1, 10),
+					(2, -2),
 					(-1, -1),
-					(-2, -2),
 				}
 			)
 			self.assertEqual(
@@ -158,14 +145,13 @@ class TestGenImgs(unittest.TestCase):
 				{
 					(1, 100, 'desc one'),
 					(-1, -1, 'Global pandemic caused by the virus SARS-CoV-2'),
-					(-2, -2, 'Rhubarb, broccoli, and the fifth box under Tuesday'),
 				}
 			)
 			self.assertEqual(
 				readTestDbTable(dbFile, 'SELECT id, pop from pop'),
 				{
 					(1, 99),
+					(2, 35),
 					(-1, 100),
-					(-2, 0),
 				}
 			)
