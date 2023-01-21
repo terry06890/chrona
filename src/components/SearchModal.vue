@@ -199,6 +199,8 @@ async function resolveSearch(eventTitle: string){
 	emit('net-wait'); // Allows the parent component to show a loading-indicator
 	let responseObj: EventInfoJson | null = await queryServer(urlParams);
 	emit('net-get');
+
+	// Notify parent
 	if (responseObj != null){
 		let eventInfo = jsonToEventInfo(responseObj);
 		if (store.reqImgs && eventInfo.event.imgId == null){

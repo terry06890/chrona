@@ -497,40 +497,14 @@ const endIsLastVisible = computed(() => {
 	}
 });
 
-// ========== For displayed events ==========
+// ========== For event display ==========
 
-function dateToUnitOffset(date: HistDate){ // Assumes 'date' is >=firstDate and <=lastDate
-	// Find containing major tick
-	let tickIdx = firstIdx.value;
-	for (let i = tickIdx + 1; i < lastIdx.value; i++){
-		if (ticks.value[i].major){
-			if (!date.isEarlier(ticks.value[i].date)){
-				tickIdx = i;
-			} else {
-				break;
-			}
-		}
-	}
-
-	// Get offset within unit
-	const tick = ticks.value[tickIdx];
-	if (!hasMinorScale.value){
-		if (scale.value == DAY_SCALE){
-			return tick.offset;
-		} else {
-			const nextScale = SCALES[scaleIdx.value + 1];
-			return tick.offset + getUnitDiff(tick.date, date, nextScale) / getNumSubUnits(tick.date, scaleIdx.value);
-		}
-	} else {
-		return tick.offset + getUnitDiff(tick.date, date, minorScale.value) / getNumSubUnits(tick.date, scaleIdx.value);
-	}
-}
-
-const idToEvent: Ref<Map<number, HistEvent>> = ref(new Map()); // Maps visible event IDs to HistEvents
+// Represents candidate events for display, as a map from event IDs to HistEvents
+const idToEvent: Ref<Map<number, HistEvent>> = ref(new Map());
 
 function updateIdToEvent(){
 	let map: Map<number, HistEvent> = new Map();
-	// Find events to display
+	// Find events in date range
 	let itr = props.eventTree.lowerBound(new HistEvent(0, '', firstDate.value));
 	while (itr.data() != null){
 		let event = itr.data()!;
@@ -538,12 +512,16 @@ function updateIdToEvent(){
 		if (dateToUnit(event.start, scale.value) > dateToUnit(lastDate.value, scale.value)){
 			break;
 		}
+
+		// Check for disabled categories and events
 		if ((store.ctgs as {[ctg: string]: boolean})[event.ctg] == false){
 			continue;
 		}
 		if (store.reqImgs && event.imgId == null){
 			continue;
 		}
+
+		// Add to map
 		map.set(event.id, event);
 	}
 	idToEvent.value = map;
@@ -551,13 +529,20 @@ function updateIdToEvent(){
 
 watch(() => props.eventTree, updateIdToEvent);
 watch(ticks, updateIdToEvent);
+// Note: updateIdToEvent() is also called when jumping to a search result
 
-const idToPos: Ref<Map<number, [number, number, number, number]>> = ref(new Map()); // Maps event IDs to x/y/w/h
-const idsToSkipTransition: Ref<Set<number>> = ref(new Set()); // Used to prevent events moving across mainline
+// Represents a layout of events in idToEvent, as a map from event IDs to x/y/w/h
+const idToPos: Ref<Map<number, [number, number, number, number]>> = ref(new Map());
+
+// Holds IDs of events for which movement transitions should be skipped (for preventing movement across mainline)
+const idsToSkipTransition: Ref<Set<number>> = ref(new Set());
 
 type LineCoords = [number, number, number, number]; // x, y, length, angle
-const eventLines: Ref<Map<number, LineCoords>> = ref(new Map()); // Maps event ID to event line data
 
+// Represents lines from events to mainline, as a map from event IDs to LineCoords
+const eventLines: Ref<Map<number, LineCoords>> = ref(new Map());
+
+// Computes a layout for events in idToEvent
 function getEventLayout(): Map<number, [number, number, number, number]> {
 	let map: Map<number, [number, number, number, number]> = new Map();
 	if (!mounted.value){
@@ -743,7 +728,8 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 	return map;
 }
 
-// Updates idToPos and eventLines
+// Calls getEventLayout() and updates idToPos and eventLines
+	// Also notifies parent, which might get more events from server, adjust eventTree, and trigger relayout
 function updateLayout(){
 	let map = getEventLayout();
 
@@ -825,6 +811,33 @@ function updateLayout(){
 watch(idToEvent, updateLayout);
 watch(width, updateLayout);
 watch(height, updateLayout);
+
+function dateToUnitOffset(date: HistDate){ // Assumes 'date' is >=firstDate and <=lastDate
+	// Find containing major tick
+	let tickIdx = firstIdx.value;
+	for (let i = tickIdx + 1; i < lastIdx.value; i++){
+		if (ticks.value[i].major){
+			if (!date.isEarlier(ticks.value[i].date)){
+				tickIdx = i;
+			} else {
+				break;
+			}
+		}
+	}
+
+	// Get offset within unit
+	const tick = ticks.value[tickIdx];
+	if (!hasMinorScale.value){
+		if (scale.value == DAY_SCALE){
+			return tick.offset;
+		} else {
+			const nextScale = SCALES[scaleIdx.value + 1];
+			return tick.offset + getUnitDiff(tick.date, date, nextScale) / getNumSubUnits(tick.date, scaleIdx.value);
+		}
+	} else {
+		return tick.offset + getUnitDiff(tick.date, date, minorScale.value) / getNumSubUnits(tick.date, scaleIdx.value);
+	}
+}
 
 // ========== For event density indicators ==========
 
@@ -1311,7 +1324,7 @@ watch(endDate, onStateChg);
 // ========== For jumping to search result ==========
 
 const searchEvent = ref(null as null | HistEvent); // Holds most recent search result
-let pendingSearch = false;
+let pendingSearch = false; // Used to prevent removal of search highlighting until after a search jump has completed
 
 watch(() => props.searchTarget, () => {
 	const event = props.searchTarget[0];
@@ -1352,7 +1365,7 @@ watch(() => props.searchTarget, () => {
 		// Jump to range
 		if (startDate.value.equals(targetStart) && endDate.value.equals(targetEnd) && scale.value == tempScale){
 			updateIdToEvent();
-		} else {
+		} else { // Trigger bound change and relayout
 			startDate.value = targetStart;
 			endDate.value = targetEnd;
 			scaleIdx.value = SCALES.findIndex((s: number) => s == tempScale);
