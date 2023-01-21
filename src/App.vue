@@ -72,10 +72,12 @@ import SettingsIcon from './components/icon/SettingsIcon.vue';
 import PlusIcon from './components/icon/PlusIcon.vue';
 import SearchIcon from './components/icon/SearchIcon.vue';
 
-import {HistDate, HistEvent, queryServer,
-	EventResponseJson, jsonToHistEvent, EventInfo, EventInfoJson, jsonToEventInfo,
-	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree,
-	makeThrottled, makeThrottledSpaced} from './lib';
+import {makeThrottled, makeThrottledSpaced} from './util';
+import {
+	HistDate, HistEvent, EventInfo, cmpHistEvent,
+	queryServer, EventResponseJson, jsonToHistEvent, EventInfoJson, jsonToEventInfo,
+	SCALES, stepDate, dateToUnit, TimelineState, DateRangeTree,
+} from './lib';
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
 

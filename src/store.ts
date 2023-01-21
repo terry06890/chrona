@@ -3,8 +3,8 @@
  */
 
 import {defineStore} from 'pinia';
+import {Breakpoint, getBreakpoint, onTouchDevice} from './util';
 import {HistDate, CalDate} from './lib';
-import {getBreakpoint, Breakpoint, onTouchDevice} from './lib';
 
 // ========== For store state ==========
 

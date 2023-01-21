@@ -16,7 +16,8 @@
 
 <script setup lang="ts">
 import {ref, computed, onMounted, PropType, Ref} from 'vue';
-import {MIN_DATE, MAX_DATE, SCALES, MONTH_SCALE, DAY_SCALE, WRITING_MODE_HORZ, TimelineState, stepDate} from '../lib';
+import {WRITING_MODE_HORZ} from '../util';
+import {MIN_DATE, MAX_DATE, SCALES, MONTH_SCALE, DAY_SCALE, stepDate, TimelineState} from '../lib';
 import {useStore} from '../store';
 
 const rootRef = ref(null as HTMLElement | null);

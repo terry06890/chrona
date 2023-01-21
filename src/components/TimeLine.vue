@@ -88,11 +88,13 @@ import {ref, onMounted, onUnmounted, computed, watch, PropType, Ref} from 'vue';
 import IconButton from './IconButton.vue';
 import CloseIcon from './icon/CloseIcon.vue';
 
-import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MONTH_NAMES, MIN_CAL_DATE,
-	getDaysInMonth, HistDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
-	getEventPrecision, dateToUnit, dateToScaleDate,
-	moduloPositive, TimelineState, HistEvent, getImagePath,
-	animateWithClass, getTextWidth} from '../lib';
+import {WRITING_MODE_HORZ, moduloPositive, animateWithClass, getTextWidth} from '../util';
+import {
+	getDaysInMonth, MIN_CAL_DATE, MONTH_NAMES, HistDate, HistEvent, getImagePath,
+	MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES,
+	stepDate, getScaleRatio, getNumSubUnits, getUnitDiff, getEventPrecision, dateToUnit, dateToScaleDate,
+	TimelineState,
+} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 

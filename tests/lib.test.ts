@@ -1,12 +1,14 @@
+import {moduloPositive, intToOrdinal, getNumTrailingZeros} from '/src/util.ts';
 import {
-	moduloPositive, intToOrdinal, getNumTrailingZeros,
-	gregorianToJdn, julianToJdn, jdnToGregorian, jdnToJulian, gregorianToJulian, julianToGregorian, getDaysInMonth,
-	YearDate, CalDate, dateToDisplayStr, boundedDateToStr, HistEvent,
+	gregorianToJdn, julianToJdn, jdnToGregorian, jdnToJulian, julianToGregorian, gregorianToJulian, getDaysInMonth,
+	YearDate, CalDate,
+	HistEvent,
+	dateToDisplayStr, boundedDateToStr,
 	queryServer, jsonToHistDate, jsonToHistEvent,
 	DAY_SCALE, MONTH_SCALE, stepDate, inDateScale, getScaleRatio, getUnitDiff,
-	getEventPrecision, dateToUnit, dateToScaleDate,
+		getEventPrecision, dateToUnit, dateToScaleDate,
 	DateRangeTree,
-} from '/src/lib.ts'
+} from '/src/lib.ts';
 
 // ========== General utility functions ==========
 

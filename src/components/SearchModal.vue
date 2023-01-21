@@ -36,7 +36,8 @@
 import {ref, computed, onMounted, PropType} from 'vue';
 import SearchIcon from './icon/SearchIcon.vue';
 import InfoIcon from './icon/InfoIcon.vue';
-import {HistEvent, queryServer, EventInfoJson, jsonToEventInfo, SuggResponseJson, animateWithClass} from '../lib';
+import {animateWithClass} from '../util';
+import {HistEvent, queryServer, EventInfoJson, jsonToEventInfo, SuggResponseJson} from '../lib';
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 
