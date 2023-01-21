@@ -153,25 +153,6 @@ const resizeObserver = new ResizeObserver((entries) => {
 
 onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 
-// ========== Computed values used for layout ==========
-
-const eventWidth = computed(() => store.eventImgSz);
-const eventHeight = computed(() => store.eventImgSz + store.eventLabelHeight);
-const eventMajorSz = computed(() => props.vert ? eventHeight.value : eventWidth.value);
-const eventMinorSz = computed(() => props.vert ? eventWidth.value : eventHeight.value)
-
-const sideMainline = computed( // True if unable to fit mainline in middle with events on both sides
-	() => availBreadth.value < store.mainlineBreadth + (eventMinorSz.value + store.spacing * 2) * 2);
-
-const mainlineOffset = computed(() => { // Distance from mainline-area line to left/top of display area
-	if (!sideMainline.value){
-		return availBreadth.value / 2 - store.mainlineBreadth /2 + store.largeTickLen / 2;
-	} else {
-		return availBreadth.value - store.spacing - tickLabelMargin.value
-			- (props.vert ? tickLabelWidth.value : store.tickLabelHeight);
-	}
-});
-
 // ========== Timeline data ==========
 
 // Note: The visible timeline is divided into 'units', representing time periods on a scale (eg: months, decades).
@@ -273,7 +254,8 @@ function initScale(){
 // ========== Tick data ==========
 
 const tickLabelMargin = computed(() => props.vert ? 20 : 30); // Distance from label to mainline
-const tickLabelWidth = computed(() => store.mainlineBreadth - store.largeTickLen / 2 - tickLabelMargin.value);
+const tickLabelSpan = computed( // Leftover breadth in half-mainline-area for tick label
+	() => store.mainlineBreadth - store.largeTickLen / 2 - tickLabelMargin.value);
 
 class Tick {
 	date: HistDate;
@@ -499,6 +481,23 @@ const endIsLastVisible = computed(() => {
 
 // ========== For event display ==========
 
+const eventWidth = computed(() => store.eventImgSz);
+const eventHeight = computed(() => store.eventImgSz + store.eventLabelHeight);
+const eventMajorSz = computed(() => props.vert ? eventHeight.value : eventWidth.value);
+const eventMinorSz = computed(() => props.vert ? eventWidth.value : eventHeight.value)
+
+const mainlineToSide = computed( // True if unable to fit mainline in middle with events on both sides
+	() => availBreadth.value < store.mainlineBreadth + (eventMinorSz.value + store.spacing * 2) * 2);
+
+const mainlineOffset = computed(() => { // Distance from mainline-area line to left/top of display area
+	if (!mainlineToSide.value){
+		return availBreadth.value / 2 - store.mainlineBreadth /2 + store.largeTickLen / 2;
+	} else {
+		return availBreadth.value - store.spacing - tickLabelMargin.value
+			- (props.vert ? tickLabelSpan.value : store.tickLabelHeight);
+	}
+});
+
 // Represents candidate events for display, as a map from event IDs to HistEvents
 const idToEvent: Ref<Map<number, HistEvent>> = ref(new Map());
 
@@ -553,7 +552,7 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 	let cols: [number, number][][] = []; // For each column, for each laid out event, stores an ID and pixel offset
 	let colOffsets: number[] = []; // Stores the pixel offset of each column
 	let afterMainlineIdx: number | null = null; // Index of first column after the mainline, if there is one
-	if (!sideMainline.value){
+	if (!mainlineToSide.value){
 		// Get columns before mainline area
 		let colArea = availBreadth.value / 2 - store.mainlineBreadth / 2 - store.spacing * 2;
 		let numCols = Math.floor(colArea / eventMinorSz.value);
@@ -1467,7 +1466,7 @@ const tickLabelTexts = computed(() => ticks.value.map((tick: Tick) => dateToTick
 
 const tickLabelStyles = computed((): Record<string,string>[] => {
 	let numMajorUnits = getNumDisplayUnits();
-	let labelSz = props.vert ? store.tickLabelHeight : tickLabelWidth.value;
+	let labelSz = props.vert ? store.tickLabelHeight : tickLabelSpan.value;
 
 	// Get offsets, and check for label overlap
 	let pxOffsets: number[] = [];
