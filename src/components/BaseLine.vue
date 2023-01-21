@@ -5,8 +5,7 @@
 	<div v-for="p in periods" :key="p.label" class="relative" :style="periodStyles(p)">
 		<div :style="labelStyles">{{p.label}}</div>
 		<!-- Fade-out div for overflowing text -->
-		<div v-if="props.vert" class="absolute bottom-0 w-full h-6"
-			style="background-image: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,1))"></div>
+		<div :style="fadeDivStyles"></div>
 	</div>
 	<!-- Timeline 'spans' -->
 	<TransitionGroup name="fade" v-if="mounted">
@@ -147,4 +146,15 @@ function spanStyles(stateIdx: number){
 		borderColor: store.color.bgDark2,
 	};
 }
+
+const fadeDivStyles = computed((): Record<string, string> => ({
+	position: 'absolute',
+	bottom: '0',
+	right: '0',
+	width: props.vert ? '100%' : '24px',
+	height: props.vert ? '24px' : '100%',
+	backgroundImage: props.vert
+		? 'linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,1))'
+		: 'linear-gradient(to right, rgba(0,0,0,0), rgba(0,0,0,1))',
+}));
 </script>
