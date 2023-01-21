@@ -7,15 +7,15 @@
 	<!-- Event density indicators -->
 	<template v-if="store.showEventCounts">
 		<div v-for="[tickIdx, count] in tickToCount.entries()" :key="ticks[tickIdx].date.toInt()"
-			:style="countDivStyles(tickIdx, count)" class="absolute animate-fadein"></div>
+			:style="densityIndStyles(tickIdx, count)" class="absolute animate-fadein"></div>
 	</template>
 
 	<!-- SVG area -->
 	<svg :viewBox="`0 0 ${width} ${height}`" class="relative z-10" ref="svgRef">
 		<defs>
 			<linearGradient id="eventLineGradient">
-				<stop offset="5%" stop-color="#a3691e"/>
-				<stop offset="95%" stop-color="gold"/>
+				<stop offset="5%" :stop-color="store.color.altDark3"/>
+				<stop offset="95%" :stop-color="store.color.altDark"/>
 			</linearGradient>
 		</defs>
 
@@ -68,8 +68,8 @@
 	</div>
 
 	<!-- Timeline position label -->
-	<div class="absolute top-1 left-2 z-20 text-lg" :class="[current ? 'text-yellow-300' : 'text-stone-50']"
-		style="text-shadow: 0px 0px 5px black">
+	<div class="absolute top-1 left-2 z-20 text-lg"
+		style="text-shadow: 0px 0px 5px black" :style="{color: current ? store.color.alt : store.color.text}">
 		{{timelinePosStr}}
 	</div>
 
@@ -1442,9 +1442,6 @@ const mainlineStyles = computed(() => {
 		transform: props.vert ?
 			`translate(${mainlineOffset.value}px, 0) rotate(90deg) scale(${availLen.value},1)` :
 			`translate(0, ${mainlineOffset.value}px) rotate(0deg) scale(${availLen.value},1)`,
-		transitionProperty: skipTransition.value ? 'none' : 'transform',
-		transitionDuration: store.transitionDuration + 'ms',
-		transitionTimingFunction: 'ease-out',
 	};
 });
 
@@ -1534,7 +1531,7 @@ function eventStyles(eventId: number){
 		height: h + 'px',
 		transitionProperty: (skipTransition.value || idsToSkipTransition.value.has(eventId)) ? 'none' : 'all',
 		transitionDuration: store.transitionDuration + 'ms',
-		transitionTimingFunction: 'ease-out',
+		transitionTimingFunction: 'linear',
 	};
 }
 
@@ -1560,11 +1557,11 @@ function eventLineStyles(eventId: number){
 		transform: `translate(${x}px, ${y}px) rotate(${a}deg)`,
 		transitionProperty: (skipTransition.value || idsToSkipTransition.value.has(eventId)) ? 'none' : 'transform',
 		transitionDuration: store.transitionDuration + 'ms',
-		transitionTimingFunction: 'ease-out',
+		transitionTimingFunction: 'linear',
 	};
 }
 
-function countDivStyles(tickIdx: number, count: number): Record<string,string> {
+function densityIndStyles(tickIdx: number, count: number): Record<string,string> {
 	let tick = ticks.value[tickIdx];
 	let numMajorUnits = getNumDisplayUnits();
 	let pxOffset = tick.offset / numMajorUnits * availLen.value;

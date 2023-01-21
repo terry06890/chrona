@@ -2,8 +2,8 @@
 <div class="absolute left-0 top-0 w-screen h-screen overflow-hidden flex flex-col">
 	<!-- Title bar -->
 	<div class="flex gap-2 p-2" :style="{backgroundColor: store.color.bgDark2}">
-		<h1 class="my-auto sm:ml-2 text-3xl sm:text-4xl hover:cursor-pointer" :style="{color: store.color.altDark}"
-			@click="onReset" title="Reset Timeline">Histplorer</h1>
+		<h1 class="my-auto ml-2 sm:ml-2 text-4xl hover:cursor-pointer" :style="{color: store.color.altDark}"
+			@click="onReset" title="Reset Timeline">Chrona</h1>
 		<div class="mx-auto"/> <!-- Spacer -->
 		<!-- Icons -->
 		<icon-button :size="45" :style="buttonStyles" @click="helpOpen = true" title="Show help info">
@@ -25,13 +25,13 @@
 	<div class="grow min-h-0 flex" :class="{'flex-col': !vert}"
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
-			:vert="vert" :initialState="state" :closeable="timelines.length > 1"
-			:eventTree="eventTree" :unitCountMaps="unitCountMaps" :current="idx == currentTimelineIdx && !modalOpen"
+			:vert="vert" :closeable="timelines.length > 1" :current="idx == currentTimelineIdx && !modalOpen"
+			:initialState="state" :eventTree="eventTree" :unitCountMaps="unitCountMaps"
 			:searchTarget="searchTargets[idx]" :reset="resetFlags[idx]"
 			class="grow basis-full min-h-0 outline outline-1"
 			@close="onTimelineClose(idx)" @state-chg="onTimelineChg($event, idx)" @event-display="onEventDisplay"
 			@info-click="onInfoClick" @pointerenter="currentTimelineIdx = idx"/>
-		<base-line v-if="store.showBaseLine" :vert="vert" :timelines="timelines" class='m-1 sm:m-2'/>
+		<base-line v-if="store.showBaseLine" :vert="vert" :timelines="timelines" class='m-2'/>
 	</div>
 
 	<!-- Modals -->

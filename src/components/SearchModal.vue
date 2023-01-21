@@ -20,7 +20,9 @@
 				@click="resolveSearch(sugg)">
 				<div class="grow overflow-hidden whitespace-nowrap text-ellipsis">
 					<span>{{suggDisplayStrings[idx][0]}}</span>
-					<span class="font-bold text-yellow-600">{{suggDisplayStrings[idx][1]}}</span>
+					<span class="font-bold" :style="{color: store.color.altDark2}">
+						{{suggDisplayStrings[idx][1]}}
+					</span>
 					<span>{{suggDisplayStrings[idx][2]}}</span>
 				</div>
 				<info-icon class="hover:cursor-pointer my-auto w-5 h-5"

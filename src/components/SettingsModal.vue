@@ -1,15 +1,15 @@
 <template>
 <div class="fixed left-0 top-0 w-full h-full bg-black/40" @click="onClose" ref="rootRef">
 	<div class="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2
-		min-w-[8cm] max-w-[80%] max-h-[80%] overflow-auto" :style="styles">
+		min-w-[8cm] sm:min-w-[9cm] max-w-[80%] max-h-[80%] overflow-auto" :style="styles">
 		<close-icon @click.stop="onClose" ref="closeRef"
 			class="absolute top-1 right-1 md:top-2 md:right-2 w-8 h-8 hover:cursor-pointer" />
 		<h1 class="text-xl md:text-2xl font-bold text-center py-2" :class="borderBClasses">Settings</h1>
 
 		<!-- Categories -->
-		<div class="pb-2" :class="borderBClasses">
+		<div class="pb-2 sm:pb-3" :class="borderBClasses">
 			<h2 class="font-bold md:text-xl text-center pt-1 md:pt-2 md:pb-1">Categories</h2>
-			<ul class="px-2 grid grid-cols-3">
+			<ul class="px-2 grid grid-cols-3 sm:px-4">
 				<!-- Row 1 -->
 				<li> <label> <input type="checkbox" v-model="store.ctgs.event" :disabled="lastCtg == 'event'"
 					@change="onSettingChg('ctgs.event')"/> Event </label> </li>
@@ -28,26 +28,26 @@
 		</div>
 
 		<!-- Display settings -->
-		<div class="pb-2" :class="borderBClasses">
+		<div class="pb-2 sm:pb-3" :class="borderBClasses">
 			<h2 class="font-bold md:text-xl text-center pt-1 md:pt-2 md:pb-1">Display</h2>
-			<div class="grid grid-cols-2">
-				<div class="px-2 col-span-2">
+			<div class="grid grid-cols-2 px-2 sm:px-4">
+				<div class="col-span-2">
 					<label> <input type="checkbox" v-model="store.reqImgs"
 						@change="onSettingChg('reqImgs')"/> Only events with images </label>
 				</div>
-				<div class="px-2">
+				<div>
 					<label> <input type="checkbox" v-model="store.showMinorTicks"
 						@change="onSettingChg('showMinorTicks')"/> Minor tick text </label>
 				</div>
-				<div class="px-2">
+				<div>
 					<label> <input type="checkbox" v-model="store.showEventLines"
 						@change="onSettingChg('showEventLines')"/> Event lines </label>
 				</div>
-				<div class="px-2">
+				<div>
 					<label> <input type="checkbox" v-model="store.showEventCounts"
 						@change="onSettingChg('showEventCounts')"/> Event density </label>
 				</div>
-				<div class="px-2">
+				<div>
 					<label> <input type="checkbox" v-model="store.showBaseLine"
 						@change="onSettingChg('showBaseLine')"/> Baseline </label>
 				</div>
@@ -57,11 +57,11 @@
 		<!-- Input settings -->
 		<div v-if="store.touchDevice == false" class="pb-2" :class="borderBClasses">
 			<h2 class="font-bold md:text-xl text-center pt-1 md:pt-2 md:pb-1">Input</h2>
-			<div class="px-2">
+			<div class="px-2 sm:px-4 pb-1">
 				<label> <input type="checkbox" v-model="store.disableShortcuts"
 					@change="onSettingChg('disableShortcuts')"/> Disable keyboard shortcuts </label>
 			</div>
-			<div class="grid grid-cols-[100px_minmax(0,1fr)_65px] gap-1 w-fit mx-auto px-2 md:px-3">
+			<div class="grid grid-cols-[100px_minmax(0,1fr)_30px] gap-1 w-fit mx-auto px-2 sm:px-4">
 				<!-- Row 1 -->
 				<label for="scrollRatio" @click="onResetOne('scrollRatio')" :class="rLabelClasses">
 					Scroll ratio

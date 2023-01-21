@@ -4,7 +4,7 @@
 		w-[90%] max-w-[16cm] max-h-[80%] overflow-auto" :style="styles">
 		<close-icon @click.stop="onClose" ref="closeRef"
 			class="absolute top-1 right-1 md:top-2 md:right-2 w-8 h-8 hover:cursor-pointer"/>
-		<h1 class="text-center text-xl font-bold pt-2 pb-1">Help</h1>
+		<h1 class="text-center text-xl sm:text-2xl font-bold pt-2 pb-1">Help</h1>
 		<p class="px-4">
 			Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore.
 		</p>
@@ -121,7 +121,7 @@ function onClose(evt: Event){
 // ========== For styles ==========
 
 const scClasses = 'border border-stone-400 rounded';
-const scSummaryClasses = 'relative text-center p-1 bg-stone-300 hover:brightness-90 hover:bg-yellow-200 md:p-2';
+const scSummaryClasses = 'relative text-center p-1 bg-stone-300 hover:brightness-90 hover:bg-amber-200 md:p-2';
 const downIconClasses = 'absolute w-6 h-6 my-auto mx-1 transition-transform duration-300';
 const downIconExpandedClasses = computed(() => downIconClasses + ' -rotate-90');
 const contentClasses = 'py-2 px-2 text-sm md:text-base';
@@ -132,6 +132,6 @@ const styles = computed(() => ({
 }));
 
 const aStyles = computed(() => ({
-	color: store.color.altDark,
+	color: store.color.altDark2,
 }));
 </script>

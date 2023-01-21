@@ -4,6 +4,7 @@
 	<!-- Time periods -->
 	<div v-for="p in periods" :key="p.label" class="relative" :style="periodStyles(p)">
 		<div :style="labelStyles">{{p.label}}</div>
+		<!-- Fade-out div for overflowing text -->
 		<div v-if="props.vert" class="absolute bottom-0 w-full h-6"
 			style="background-image: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,1))"></div>
 	</div>
@@ -86,7 +87,7 @@ function periodStyles(period: Period){
 const labelStyles = computed((): Record<string, string> => ({
 	transform: props.vert ? 'rotate(90deg) translate(50%, 0)' : 'none',
 	whiteSpace: 'nowrap',
-	width: props.vert ? '40px' : 'auto',
+	width: props.vert ? '40px' : 'auto', // Chose vertical value to roughly match height in horizontal mode
 	padding: props.vert ? '0' : '4px',
 }));
 
@@ -140,11 +141,10 @@ function spanStyles(stateIdx: number){
 	return {
 		...styles,
 		transition: skipTransition.value ? 'none' : 'all 300ms ease-out',
-		color: 'black',
 		backgroundColor: store.color.alt,
 		opacity: 0.6,
 		borderWidth: '1px',
-		borderColor: store.color.bg,
+		borderColor: store.color.bgDark2,
 	};
 }
 </script>

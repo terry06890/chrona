@@ -2,18 +2,23 @@
 <div class="fixed left-0 top-0 w-full h-full bg-black/40" @click="onClose" ref="rootRef">
 	<div class="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2
 		max-w-[80%] w-2/3 min-w-[8cm] md:w-[14cm] lg:w-[16cm] max-h-[80%]" :style="styles">
+		<!-- Close button -->
 		<close-icon @click.stop="onClose" ref="closeRef"
 			class="absolute top-1 right-1 md:top-2 md:right-2 w-8 h-8 hover:cursor-pointer"/>
-		<h1 class="text-center text-xl font-bold pt-2 pb-1 md:text-2xl md:pt-3 md:pb-1">
+
+		<!-- Title -->
+		<h1 class="text-center text-xl font-bold pt-2 pb-1 md:text-2xl md:pt-3">
 			{{event.title}}
 		</h1>
 
 		<!-- Time Display -->
-		<div class="text-center text-sm md:text-base">
-			Start: {{datesDisplayStrs[0]}}
-		</div>
-		<div v-if="datesDisplayStrs[1] != null" class="text-center text-sm md:text-base">
-			End: {{datesDisplayStrs[1]}}
+		<div class="flex justify-evenly pb-1 md:pb-2">
+			<div class="text-center text-sm md:text-base">
+				<span class="font-bold">Start:</span> {{datesDisplayStrs[0]}}
+			</div>
+			<div v-if="datesDisplayStrs[1] != null" class="text-center text-sm md:text-base">
+				<span class="font-bold">End:</span> {{datesDisplayStrs[1]}}
+			</div>
 		</div>
 
 		<!-- Main content -->
@@ -35,20 +40,20 @@
 						<ul class="rounded overflow-x-auto p-1"
 							:style="{backgroundColor: store.color.bg, color: store.color.text}">
 							<li>
-								<span :style="{color: store.color.altDark}">Source: </span>
+								<span :style="sourceLabelStyles">Source: </span>
 								<a :href="eventInfo.imgInfo.url" target="_blank">Link</a>
 								<external-link-icon class="inline-block w-3 h-3 ml-1"/>
 							</li>
 							<li class="whitespace-nowrap">
-								<span :style="{color: store.color.altDark}">Artist: </span>
+								<span :style="sourceLabelStyles">Artist: </span>
 								{{eventInfo.imgInfo.artist}}
 							</li>
 							<li v-if="eventInfo.imgInfo.credit != ''" class="whitespace-nowrap">
-								<span :style="{color: store.color.altDark}">Credits: </span>
+								<span :style="sourceLabelStyles">Credits: </span>
 								{{eventInfo.imgInfo.credit}}
 							</li>
 							<li>
-								<span :style="{color: store.color.altDark}">License: </span>
+								<span :style="sourceLabelStyles">License: </span>
 								<template v-if="licenseToUrl(eventInfo.imgInfo.license) != null">
 									<a :href="licenseToUrl(eventInfo.imgInfo.license)!" target="_blank">
 										{{eventInfo.imgInfo.license}}
@@ -58,12 +63,12 @@
 								<span v-else>{{eventInfo.imgInfo.license}}</span>
 							</li>
 							<li>
-								<span :style="{color: store.color.altDark}">Obtained via: </span>
+								<span :style="sourceLabelStyles">Obtained via: </span>
 								<a href="https://www.wikipedia.org/">Wikipedia</a>
 								<external-link-icon class="inline-block w-3 h-3 ml-1"/>
 							</li>
 							<li>
-								<span :style="{color: store.color.altDark}">Changes: </span>
+								<span :style="sourceLabelStyles">Changes: </span>
 								Cropped and resized
 							</li>
 						</ul>
@@ -169,6 +174,12 @@ const imgStyles = computed(() => {
 		backgroundColor: store.color.bgDark,
 		backgroundSize: 'cover',
 		borderRadius: store.borderRadius + 'px',
+	};
+});
+
+const sourceLabelStyles = computed(() => {
+	return {
+		color: store.color.altDark,
 	};
 });
 </script>
