@@ -4,7 +4,7 @@
 
 import {defineStore} from 'pinia';
 import {Breakpoint, getBreakpoint, onTouchDevice} from './util';
-import {HistDate, CalDate} from './lib';
+import {HistDate, CalDate, MAX_DATE} from './lib';
 
 // ========== For store state ==========
 
@@ -51,8 +51,9 @@ export type StoreState = {
 	},
 
 	// Other
-	initialStartDate: HistDate,
-	initialEndDate: HistDate, // Must be later than initialStartDate
+	initialStartDate: HistDate, // Must be after MIN_DATE (from lib.ts)
+	initialEndDate: HistDate, // Must be before MAX_DATE (from lib.ts), and later than initialStartDate
+		// Currently, both dates also need to be 'at ticks on the largest scale that distinguishes them'.
 	color: {
 		text: string, // CSS color
 		textDark: string,
@@ -103,7 +104,7 @@ function getDefaultState(): StoreState {
 		tickLabelHeight: 10,
 		minTickSep: 30,
 		minLastTicks: 3,
-		defaultEndTickOffset: 0.5,
+		defaultEndTickOffset: breakpoint == 'sm' ? 0.2 : 0.5,
 		showMinorTicks: true,
 
 		// Mainline and event display
@@ -134,8 +135,8 @@ function getDefaultState(): StoreState {
 		},
 
 		// Other
-		initialStartDate: new CalDate(1900, 1, 1),
-		initialEndDate: new CalDate(2030, 1, 1),
+		initialStartDate: new CalDate(1, 1, 1),
+		initialEndDate: new CalDate(2000, 1, 1),
 		color,
 		borderRadius: 5,
 		transitionDuration: 300,
