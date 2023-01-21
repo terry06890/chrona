@@ -79,6 +79,19 @@ MIN_CAL_YEAR = -4713 # Year before which JDNs are not usable
 MONTH_SCALE = -1;
 DAY_SCALE = -2;
 SCALES: list[int] = [int(s) for s in [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE]];
+	# The timeline is divided into units of SCALES[0], then SCALES[1], etc
+	# Positive ints represent numbers of years, -1 represents 1 month, -2 represents 1 day
+
+if __debug__: # Validate SCALES
+	if SCALES[-1] != DAY_SCALE or SCALES[-2] != MONTH_SCALE or SCALES[-3] != 1:
+		raise Exception('SCALES must end with [1, MONTH_SCALE, DAY_SCALE]');
+	for i in range(1, len(SCALES) - 2):
+		if SCALES[i] <= 0:
+			raise Exception('SCALES must only have positive ints before MONTH_SCALE')
+		if SCALES[i-1] <= SCALES[i]:
+			raise Exception('SCALES must hold decreasing values')
+		if SCALES[i-1] % SCALES[i] > 0:
+			raise Exception('Each positive int in SCALES must divide the previous int')
 
 class HistDate:
 	"""
@@ -90,6 +103,7 @@ class HistDate:
 		- False: Indicates a Julian calendar date
 		- None: 'month' and 'day' are 1 (required for dates before MIN_CAL_YEAR)
 	"""
+	# Note: Intentionally not enforcing, for gcal=None, that year < MIN_CAL_YEAR
 	def __init__(self, gcal: bool | None, year: int, month=1, day=1):
 		self.gcal = gcal
 		self.year = year

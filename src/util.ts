@@ -43,6 +43,7 @@ export function makeThrottled(hdlr: (...args: any[]) => void, delay: number){
 		timeout = window.setTimeout(async () => hdlr(...args), delay);
 	};
 }
+
 // Like makeThrottled(), but accepts an async function
 export function makeThrottledAsync(hdlr: (...args: any[]) => Promise<void>, delay: number){
 	let timeout = 0;
@@ -51,6 +52,7 @@ export function makeThrottledAsync(hdlr: (...args: any[]) => Promise<void>, dela
 		timeout = window.setTimeout(async () => await hdlr(...args), delay);
 	};
 }
+
 // Like makeThrottled(), but, for runs of fast handler calls, calls it at spaced intervals, and at the start/end
 export function makeThrottledSpaced(hdlr: (...args: any[]) => void, delay: number){
 	let lastHdlrTime = 0; // Used for throttling

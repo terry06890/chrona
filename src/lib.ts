@@ -5,8 +5,6 @@
 import {moduloPositive, intToOrdinal, getNumTrailingZeros} from './util';
 import {RBTree} from './rbtree';
 
-export const DEBUG = true;
-
 // ========== For calendar conversion (mostly copied from backend/hist_data/cal.py) ==========
 
 export function gregorianToJdn(year: number, month: number, day: number): number {
@@ -77,6 +75,7 @@ export function getDaysInMonth(year: number, month: number){
 export const MIN_CAL_YEAR = -4713; // Earliest year where months/day scales are usable
 export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+// (Same as in backend/hist_data/cal.py)
 export class HistDate {
 	gcal: boolean | null;
 	year: number;
@@ -168,50 +167,6 @@ export class HistDate {
 		}
 	}
 
-	toYearString(){
-		if (this.year >= 1000){
-			return String(this.year);
-		} else if (this.year > 0){
-			return String(this.year) + ' AD';
-		} else if (this.year > -1e3){
-			return String(-this.year) + ' BC';
-		} else if (this.year > -1e6){
-			if (this.year % 1e3 == 0){
-				return String(Math.floor(-this.year / 1e3)) + 'k BC';
-			} else if (this.year % 100 == 0){
-				return String(Math.floor(-this.year / 100) / 10) + 'k BC';
-			} else {
-				return String(-this.year) + ' BC';
-			}
-		} else if (this.year > -1e9){
-			if (this.year % 1e6 == 0){
-				return String(Math.floor(-this.year / 1e6)) + ' mya';
-			} else if (this.year % 1e3 == 0){
-				return String(Math.floor(-this.year / 1e3) / 1e3) + ' mya';
-			} else {
-				return String(this.year.toLocaleString());
-			}
-		} else {
-			if (this.year % 1e9 == 0){
-				return String(Math.floor(-this.year / 1e9)) + ' bya';
-			} else if (this.year % 1e6 == 0){
-				return String(Math.floor(-this.year / 1e6) / 1e3) + ' bya';
-			} else {
-				return String(this.year.toLocaleString());
-			}
-		}
-	}
-
-	toTickString(){
-		if (this.month == 1 && this.day == 1){
-			return this.toYearString();
-		} else if (this.day == 1){
-			return MONTH_NAMES[this.month - 1];
-		} else {
-			return intToOrdinal(this.day);
-		}
-	}
-
 	toInt(){ // Used for v-for keys
 		return this.day + this.month * 50 + this.year * 1000;
 	}
@@ -224,9 +179,6 @@ export class YearDate extends HistDate {
 	declare day: 1;
 
 	constructor(year: number){
-		// Note: Intentionally not enforcing year < MIN_CAL_YEAR here.  This does mean a YearDate can be
-			// interpreted as the same day as a CalDate, but it also avoids having HistEvents that
-			// span across MIN_CAL_YEAR that have a mix of YearDates and CalDates.
 		super(null, year, 1, 1);
 	}
 }
@@ -249,6 +201,7 @@ export const MIN_CAL_DATE = new CalDate(MIN_CAL_YEAR, 1, 1);
 
 // ========== For event representation ==========
 
+// (Same as in backend/hist_data/cal.py)
 export class HistEvent {
 	id: number;
 	title: string;
@@ -275,6 +228,7 @@ export class HistEvent {
 	}
 }
 
+// (Same as in backend/hist_data/cal.py)
 export class ImgInfo {
 	url: string;
 	license: string;
@@ -289,6 +243,7 @@ export class ImgInfo {
 	}
 }
 
+// (Same as in backend/hist_data/cal.py)
 export class EventInfo {
 	event: HistEvent;
 	desc: string | null;
@@ -309,6 +264,51 @@ export function cmpHistEvent(event: HistEvent, event2: HistEvent){
 }
 
 // ========== For [event] date display ==========
+
+export function dateToYearStr(date: HistDate){
+	const year = date.year;
+	if (year >= 1000){
+		return String(year);
+	} else if (year > 0){
+		return String(year) + ' AD';
+	} else if (year > -1e3){
+		return String(-year) + ' BC';
+	} else if (year > -1e6){
+		if (year % 1e3 == 0){
+			return String(Math.floor(-year / 1e3)) + 'k BC';
+		} else if (year % 100 == 0){
+			return String(Math.floor(-year / 100) / 10) + 'k BC';
+		} else {
+			return String(-year) + ' BC';
+		}
+	} else if (year > -1e9){
+		if (year % 1e6 == 0){
+			return String(Math.floor(-year / 1e6)) + ' mya';
+		} else if (year % 1e3 == 0){
+			return String(Math.floor(-year / 1e3) / 1e3) + ' mya';
+		} else {
+			return String(year.toLocaleString());
+		}
+	} else {
+		if (year % 1e9 == 0){
+			return String(Math.floor(-year / 1e9)) + ' bya';
+		} else if (year % 1e6 == 0){
+			return String(Math.floor(-year / 1e6) / 1e3) + ' bya';
+		} else {
+			return String(year.toLocaleString());
+		}
+	}
+}
+
+export function dateToTickStr(date: HistDate){
+	if (date.month == 1 && date.day == 1){
+		return dateToYearStr(date);
+	} else if (date.day == 1){
+		return MONTH_NAMES[date.month - 1];
+	} else {
+		return intToOrdinal(date.day);
+	}
+}
 
 export function dateToDisplayStr(date: HistDate){
 	if (date.year <= -1e4){ // N.NNN billion/million/thousand years ago
@@ -334,7 +334,7 @@ export function dateToDisplayStr(date: HistDate){
 	}
 }
 
-// Converts a date with uncertain end bound to string for display
+// Converts a date with imprecise bounds into a string for display
 export function boundedDateToStr(start: HistDate, end: HistDate | null) : string {
 	if (end == null){
 		return dateToDisplayStr(start);
@@ -344,6 +344,7 @@ export function boundedDateToStr(start: HistDate, end: HistDate | null) : string
 	if (startStr == endStr){
 		return startStr;
 	}
+
 	if (start.gcal == null && end.gcal == null){
 		if (startStr.endsWith(' years ago') && endStr.endsWith(' years ago')){
 			const dateRegex = /^(.*) (.*) years ago$/;
@@ -409,7 +410,7 @@ export async function queryServer(params: URLSearchParams, serverDataUrl=SERVER_
 		const response = await fetch(url.toString());
 		responseObj = await response.json();
 	} catch (error){
-		console.log(`Error with querying ${url.toString()}: ${error}`);
+		console.log(`ERROR: Error with querying ${url.toString()}: ${error}`);
 		return null;
 	}
 	return responseObj;
@@ -494,35 +495,16 @@ export function jsonToImgInfo(json: ImgInfoJson | null): ImgInfo | null {
 
 export const MIN_DATE = new YearDate(-13.8e9);
 export const MAX_DATE = new CalDate(2030, 1, 1);
+
+// (Same as in /backend/hist_data/cal.py)
 export const MONTH_SCALE = -1;
 export const DAY_SCALE = -2;
 export const SCALES = [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE];
-	// The timeline will be divided into units of SCALES[0], then SCALES[1], etc
-	// Positive ints represent numbers of years, -1 represents 1 month, -2 represents 1 day
 
-if (DEBUG){ // Validate SCALES
-	if (SCALES[SCALES.length - 1] != DAY_SCALE
-			|| SCALES[SCALES.length - 2] != MONTH_SCALE
-			|| SCALES[SCALES.length - 3] != 1){
-		throw new Error('SCALES must end with [1, MONTH_SCALE, DAY_SCALE]');
-	}
-	for (let i = 1; i < SCALES.length - 2; i++){
-		if (SCALES[i] <= 0){
-			throw new Error('SCALES must only have positive ints before MONTH_SCALE');
-		}
-		if (SCALES[i-1] <= SCALES[i]){
-			throw new Error('SCALES must hold decreasing values');
-		}
-		if (SCALES[i-1] % SCALES[i] > 0){
-			throw new Error('Each positive int in SCALES must divide the previous int');
-		}
-	}
-}
-
-export function stepDate( // Steps a date N units along a scale
-	date: HistDate, scale: number, {forward=true, count=1, inplace=false} = {}): HistDate {
-	// If stepping by month or years, leaves day value unchanged
-	// Does not account for stepping a CalDate into before MIN_CAL_YEAR
+// Steps a date N units along a scale
+export function stepDate(date: HistDate, scale: number, {forward=true, count=1, inplace=false} = {}): HistDate {
+	// If stepping by month or years, leaves day value unchanged.
+	// Does not account for stepping a CalDate into before MIN_CAL_YEAR.
 	const newDate = inplace ? date : date.clone();
 	if (count < 0){
 		count = -count;
@@ -667,8 +649,8 @@ export function getEventPrecision(event: HistEvent): number {
 	return Number.POSITIVE_INFINITY;
 }
 
-// For a YearDate and sub-yearly scale, uses the first day of the YearDate's year
 export function dateToUnit(date: HistDate, scale: number): number {
+	// For a YearDate and sub-yearly scale, uses the first day of the YearDate's year
 	if (scale >= 1){
 		return Math.floor(date.year / scale);
 	} else if (scale == MONTH_SCALE){

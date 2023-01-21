@@ -84,7 +84,7 @@ const focusedSuggIdx = ref(null as null | number); // Index of a suggestion sele
 
 const lastReqTime = ref(0);
 const pendingReqParams = ref(null as null | URLSearchParams); // Holds data for latest request to make
-const pendingReqInput = ref(''); // Holds the user input associated with pendingReqData
+const pendingReqInput = ref(''); // Holds the user input associated with pendingReqParams
 const pendingDelayedSuggReq = ref(0); // Set via setTimeout() for making a request despite a previous one still waiting
 
 async function onInput(){
@@ -213,6 +213,9 @@ async function resolveSearch(eventTitle: string){
 
 // ========== More event handling ==========
 
+// Focus input on mount
+onMounted(() => inputRef.value!.focus())
+
 function onClose(evt: Event){
 	if (evt.target == rootRef.value){
 		emit('close');
@@ -235,9 +238,6 @@ function onUpKey(){
 function onInfoIconClick(eventTitle: string){
 	emit('info-click', eventTitle);
 }
-
-// Focus input on mount
-onMounted(() => inputRef.value!.focus())
 
 // ========== For styles ==========
 

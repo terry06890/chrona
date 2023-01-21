@@ -124,11 +124,13 @@ let changedCtg: string | null = null; // Used to defer signalling of a category 
 
 function onSettingChg(option: string){ 
 	store.save(option);
+
 	if (option.startsWith('ctgs.')){
 		changedCtg = option;
 	} else {
 		emit('change', option);
 	}
+
 	// Make 'Saved' indicator appear/animate
 	if (!saved.value){
 		saved.value = true;

@@ -41,7 +41,7 @@ DEFAULT_REQ_SUGGS = 5
 
 # ========== Classes for values sent as responses ==========
 
-class Event:
+class HistEvent:
 	""" Represents an historical event """
 	def __init__(
 			self,
@@ -65,7 +65,7 @@ class Event:
 		self.pop = pop
 
 	def __eq__(self, other): # Used in unit testing
-		return isinstance(other, Event) and \
+		return isinstance(other, HistEvent) and \
 			(self.id, self.title, self.start, self.startUpper, self.end, self.endUpper, \
 				self.ctg, self.pop, self.imgId) == \
 			(other.id, other.title, other.start, other.startUpper, other.end, other.endUpper, \
@@ -76,7 +76,7 @@ class Event:
 
 class EventResponse:
 	""" Used when responding to type=events requests """
-	def __init__(self, events: list[Event], unitCounts: dict[int, int] | None):
+	def __init__(self, events: list[HistEvent], unitCounts: dict[int, int] | None):
 		self.events = events
 		self.unitCounts = unitCounts # None indicates exceeding MAX_REQ_UNIT_COUNTS
 
@@ -105,7 +105,7 @@ class ImgInfo:
 
 class EventInfo:
 	""" Used when responding to type=info requests """
-	def __init__(self, event: Event, desc: str | None, wikiId: int, imgInfo: ImgInfo | None):
+	def __init__(self, event: HistEvent, desc: str | None, wikiId: int, imgInfo: ImgInfo | None):
 		self.event = event
 		self.desc = desc
 		self.wikiId = wikiId
@@ -235,7 +235,7 @@ def reqParamToHistDate(s: str):
 
 def lookupEvents(
 		start: HistDate | None, end: HistDate | None, scale: int, incl: int | None, resultLimit: int,
-		ctgs: list[str] | None, imgonly: bool, dbCur: sqlite3.Cursor) -> list[Event]:
+		ctgs: list[str] | None, imgonly: bool, dbCur: sqlite3.Cursor) -> list[HistEvent]:
 	""" Looks for events within a date range, in given scale,
 		restricted by event category, an optional particular inclusion, and a result limit """
 	dispTable = 'event_disp' if not imgonly else 'img_disp'
@@ -275,7 +275,7 @@ def lookupEvents(
 	query2 += f' LIMIT {resultLimit}'
 
 	# Run query
-	results: list[Event] = []
+	results: list[HistEvent] = []
 	for row in dbCur.execute(query2, params):
 		results.append(eventEntryToResults(row))
 		if incl is not None and incl == row[0]:
@@ -292,9 +292,9 @@ def lookupEvents(
 	return results
 
 def eventEntryToResults(
-		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int | None, int]) -> Event:
+		row: tuple[int, str, int, int | None, int | None, int | None, int, str, int | None, int]) -> HistEvent:
 	eventId, title, start, startUpper, end, endUpper, fmt, ctg, imageId, pop = row
-	""" Helper for converting an 'events' db entry into an Event object """
+	""" Helper for converting an 'events' db entry into an HistEvent object """
 	# Convert dates
 	dateVals: list[int | None] = [start, startUpper, end, endUpper]
 	newDates: list[HistDate | None] = [None for n in dateVals]
@@ -302,7 +302,8 @@ def eventEntryToResults(
 		if n is not None:
 			newDates[i] = dbDateToHistDate(n, fmt, i < 2)
 
-	return Event(eventId, title, cast(HistDate, newDates[0]), newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
+	return HistEvent(
+		eventId, title, cast(HistDate, newDates[0]), newDates[1], newDates[2], newDates[3], ctg, imageId, pop)
 
 def lookupUnitCounts(
 		start: HistDate | None, end: HistDate | None, scale: int,

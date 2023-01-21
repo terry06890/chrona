@@ -7,7 +7,7 @@
 		<div v-if="props.vert" class="absolute bottom-0 w-full h-6"
 			style="background-image: linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,1))"></div>
 	</div>
-	<!-- Timeline spans -->
+	<!-- Timeline 'spans' -->
 	<TransitionGroup name="fade" v-if="mounted">
 		<div v-for="(state, idx) in timelines" :key="state.id" class="absolute" :style="spanStyles(idx)"></div>
 	</TransitionGroup>
@@ -44,6 +44,7 @@ const periods: Ref<Period[]> = ref([
 // ========== For skipping transitions on startup ==========
 
 const skipTransition = ref(true);
+
 onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
 
 // ========== For size and mount-status tracking ==========
@@ -68,6 +69,7 @@ const resizeObserver = new ResizeObserver((entries) => {
 		}
 	}
 });
+
 onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 
 // ========== For styles ==========

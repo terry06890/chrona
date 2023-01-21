@@ -13,7 +13,7 @@
 			<settings-icon/>
 		</icon-button>
 		<icon-button :size="45" :disabled="maxTimelines" :style="buttonStyles"
-			@click="onTimelineAdd" title="Add a timeline">
+			@click="addTimeline" title="Add a timeline">
 			<plus-icon/>
 		</icon-button>
 		<icon-button :size="45" :style="buttonStyles" @click="searchOpen = true" title="Search">
@@ -96,6 +96,7 @@ function updateAreaDims(){
 	contentWidth.value = contentAreaEl.offsetWidth;
 	contentHeight.value = contentAreaEl.offsetHeight;
 }
+
 onMounted(updateAreaDims);
 
 // ========== Timeline data ==========
@@ -104,9 +105,18 @@ const timelines: Ref<TimelineState[]> = ref([]);
 const currentTimelineIdx = ref(0);
 let nextTimelineId = 1;
 
+const MIN_TIMELINE_BREADTH = store.mainlineBreadth + store.spacing * 2 + store.eventImgSz + store.eventLabelHeight;
+const maxTimelines = computed(() => {
+	return vert.value && contentWidth.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH
+		|| !vert.value && contentHeight.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH
+});
+
 function addTimeline(){
 	if (timelines.value.length == 0){
 		timelines.value.push(new TimelineState(nextTimelineId, store.initialStartDate, store.initialEndDate));
+	} else if (maxTimelines.value){
+		console.log('INFO: Ignored addition of timeline upon reaching max');
+		return;
 	} else {
 		let state = timelines.value[currentTimelineIdx.value];
 		timelines.value.splice(currentTimelineIdx.value, 0, new TimelineState(
@@ -117,35 +127,12 @@ function addTimeline(){
 	currentTimelineIdx.value += 1;
 	nextTimelineId += 1;
 }
-onMounted(addTimeline);
-
-function onTimelineChg(state: TimelineState, idx: number){
-	timelines.value[idx] = state;
-	currentTimelineIdx.value = idx;
-}
-
-// ========== For timeline add/remove ==========
-
-const MIN_TIMELINE_BREADTH = store.mainlineBreadth + store.spacing * 2 + store.eventImgSz + store.eventLabelHeight;
-const maxTimelines = computed(() => {
-	return vert.value && contentWidth.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH
-		|| !vert.value && contentHeight.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH
-});
-
-function onTimelineAdd(){
-	if (maxTimelines.value){
-		console.log('Ignored addition of timeline upon reaching max');
-		return;
-	}
-	addTimeline();
-}
 
 function onTimelineClose(idx: number){
 	if (timelines.value.length == 1){
-		console.log('Ignored removal of last timeline')
+		console.log('INFO: Ignored removal of last timeline')
 		return;
 	}
-
 	timelines.value.splice(idx, 1);
 	searchTargets.value.splice(idx, 1);
 	resetFlags.value.splice(idx, 1);
@@ -153,6 +140,13 @@ function onTimelineClose(idx: number){
 		currentTimelineIdx.value = Math.max(0, idx - 1);
 	}
 }
+
+function onTimelineChg(state: TimelineState, idx: number){
+	timelines.value[idx] = state;
+	currentTimelineIdx.value = idx;
+}
+
+onMounted(addTimeline);
 
 // ========== For event data ==========
 
@@ -211,15 +205,16 @@ function reduceEvents(){
 
 // ========== For getting events from server ==========
 
+const MAX_EVENTS_PER_UNIT = 4; // (Should equal MAX_DISPLAYED_PER_UNIT in backend/hist_data/gen_disp_data.py)
 const eventReqLimit = computed(() => {
-	// As a rough heuristic, is the number of events that could fit along the major axis,
+	// As a rough heuristic, computes the number of events that could fit along the major axis,
 		// multiplied by a rough number of time points per event-occupied region,
 		// multiplied by the max number of events per time point (four).
-	return Math.ceil(Math.max(contentWidth.value, contentHeight.value) / store.eventImgSz * 32);
+	return Math.ceil(Math.max(contentWidth.value, contentHeight.value) / store.eventImgSz * 8 * MAX_EVENTS_PER_UNIT);
 });
-const MAX_EVENTS_PER_UNIT = 4; // Should equal MAX_DISPLAYED_PER_UNIT in backend gen_disp_data.py
-let queriedRanges: DateRangeTree[] = // For each scale, holds date ranges for which data has already been queried
-	SCALES.map(() => new DateRangeTree());
+
+let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
+	// For each scale, holds date ranges for which data has already been queried
 let lastQueriedRange: [HistDate, HistDate] | null = null;
 
 async function handleOnEventDisplay(
@@ -341,6 +336,7 @@ async function handleOnEventDisplay(
 		queriedRanges.forEach((t: DateRangeTree) => t.clear());
 	}
 }
+
 const onEventDisplay = makeThrottled(handleOnEventDisplay, 200);
 
 // ========== For info modal ==========
@@ -377,7 +373,8 @@ function onSearch(event: HistEvent){
 const settingsOpen = ref(false);
 
 function onSettingChg(option: string){
-	if (option == 'reqImgs' || option.startsWith('ctgs.')){ // Reset event data
+	if (option == 'reqImgs' || option.startsWith('ctgs.')){
+		// Reset event data
 		eventTree.value = new RBTree(cmpHistEvent); // Will trigger event re-query
 		unitCountMaps.value = SCALES.map(() => new Map());
 		idToEvent.clear();
@@ -421,7 +418,7 @@ async function loadFromServer(urlParams: URLSearchParams, delay?: number){
 	return responseObj;
 }
 
-// For timeline reset
+// For resetting timeline bounds
 const resetFlags: Ref<boolean[]> = ref([]);
 function onReset(){
 	let oldFlag = resetFlags.value[currentTimelineIdx.value];
@@ -437,6 +434,7 @@ const modalOpen = computed(() =>
 
 const onResize = makeThrottledSpaced(updateAreaDims, 200);
 	// Note: If delay is too small, touch-device detection when swapping to/from mobile-mode gets unreliable
+
 onMounted(() => window.addEventListener('resize', onResize));
 onUnmounted(() => window.removeEventListener('resize', onResize));
 
@@ -488,7 +486,7 @@ function onKeyDown(evt: KeyboardEvent){
 			}
 		}
 	} else if (evt.key == '+' && !modalOpen.value){
-		onTimelineAdd();
+		addTimeline();
 	} else if (evt.key == 'Delete' && !modalOpen.value){
 		onTimelineClose(currentTimelineIdx.value);
 	}
