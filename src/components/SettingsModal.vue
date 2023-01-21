@@ -64,7 +64,7 @@
 			<div class="grid grid-cols-[100px_minmax(0,1fr)_30px] gap-1 w-fit mx-auto px-2 sm:px-4">
 				<!-- Row 1 -->
 				<label for="scrollRatio" @click="onResetOne('scrollRatio')" :class="rLabelClasses">
-					Scroll ratio
+					Pan ratio
 				</label>
 				<input type="range" min="0.1" max="0.8" step="0.1" v-model.number="store.scrollRatio"
 					@change="onSettingChg('scrollRatio')" name="scrollRatio"/>

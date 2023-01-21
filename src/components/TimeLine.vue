@@ -866,19 +866,20 @@ const tickToCount = computed((): Map<number, number> => {
 // ========== For timeline position label ==========
 
 const timelinePosStr = computed((): string => {
+	const moreSym = ' \u27A4';
 	const date1 = startIsFirstVisible.value ? startDate.value : firstDate.value;
 	const date2 = endIsLastVisible.value ? endDate.value : lastDate.value;
 	if (minorScale.value == DAY_SCALE){
 		const multiMonth = date1.month != date2.month;
-		return `${dateToYearStr(date1)} ${MONTH_NAMES[date1.month - 1]}${multiMonth ? ' >' : ''}`;
+		return `${dateToYearStr(date1)} ${MONTH_NAMES[date1.month - 1]}${multiMonth ? moreSym : ''}`;
 	} else if (minorScale.value == MONTH_SCALE){
 		const multiYear = date1.year != date2.year;
-		return `${dateToYearStr(date1)}${multiYear ? ' >' : ''}`;
+		return `${dateToYearStr(date1)}${multiYear ? moreSym : ''}`;
 	} else {
 		if (date1.year > 0){
 			return `${dateToYearStr(date1)} - ${dateToYearStr(date2)}`;
 		} else {
-			return `${dateToYearStr(date1)} >`;
+			return dateToYearStr(date1) + moreSym;
 		}
 	}
 });

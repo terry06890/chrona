@@ -1,5 +1,6 @@
 <template>
-<div class="absolute left-0 top-0 w-screen h-screen overflow-hidden flex flex-col">
+<div class="absolute left-0 top-0 w-screen h-screen overflow-hidden flex flex-col"
+	:style="{scrollbarColor: store.color.altDark2 + ' ' + store.color.bgDark}">
 	<!-- Title bar -->
 	<div class="flex gap-2 p-2" :style="{backgroundColor: store.color.bgDark2}">
 		<h1 class="my-auto ml-2 sm:ml-2 text-4xl hover:cursor-pointer" :style="{color: store.color.altDark}"
@@ -47,7 +48,7 @@
 		<settings-modal v-if="settingsOpen" @close="settingsOpen = false" @change="onSettingChg"/>
 	</transition>
 	<transition name="fade">
-		<help-modal v-if="helpOpen" @close="helpOpen = false"/>
+		<help-modal v-if="helpOpen" :vert="vert" @close="helpOpen = false"/>
 	</transition>
 	<transition name="fade">
 		<loading-modal v-if="loadingMsg != null" :msg="loadingMsg"/>

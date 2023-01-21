@@ -77,3 +77,13 @@ body {
 a {
 	@apply hover:underline hover:cursor-pointer;
 }
+::-webkit-scrollbar {
+	background-color: #1c1917;
+	width: 12px;
+	height: 12px;
+}
+::-webkit-scrollbar-thumb {
+	background: #ca8a04;
+	border-radius: 5px;
+	border: 3px solid #1c1917;
+}
