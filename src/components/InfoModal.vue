@@ -12,12 +12,14 @@
 		</h1>
 
 		<!-- Time Display -->
-		<div class="flex justify-evenly pb-1 md:pb-2">
+		<div class="flex justify-evenly pb-1">
 			<div class="text-center text-sm md:text-base">
-				<span class="font-bold">Start:</span> {{datesDisplayStrs[0]}}
+				<span class="font-bold">{{CTG_TO_START_END_STR.get(eventInfo.event.ctg)![0]}}:</span>
+				{{datesDisplayStrs[0]}}
 			</div>
 			<div v-if="datesDisplayStrs[1] != null" class="text-center text-sm md:text-base">
-				<span class="font-bold">End:</span> {{datesDisplayStrs[1]}}
+				<span class="font-bold">{{CTG_TO_START_END_STR.get(eventInfo.event.ctg)![1]}}:</span>
+				{{datesDisplayStrs[1]}}
 			</div>
 		</div>
 
@@ -149,6 +151,15 @@ function licenseToUrl(license: string){
 		return null;
 	}
 }
+
+// Map holding event-category-specific start/end labels
+const CTG_TO_START_END_STR = new Map();
+CTG_TO_START_END_STR.set('event', ['Began', 'Ended']);
+CTG_TO_START_END_STR.set('place', ['Formed', 'Ended']);
+CTG_TO_START_END_STR.set('organism', ['Evolved', 'Extinct']);
+CTG_TO_START_END_STR.set('person', ['Born', 'Died']);
+CTG_TO_START_END_STR.set('work', ['Published', 'Ended']);
+CTG_TO_START_END_STR.set('discovery', ['Discovered', 'Ended']);
 
 // ========== Close handling ==========
 
