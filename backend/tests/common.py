@@ -3,7 +3,9 @@ Utilities for testing
 """
 
 from typing import Any
-import bz2, gzip, sqlite3
+import bz2
+import gzip
+import sqlite3
 
 def createTestFile(filename: str, content: str) -> None:
 	""" Creates a file with the given name and contents """

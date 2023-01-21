@@ -1,5 +1,6 @@
 import unittest
-import tempfile, os
+import tempfile
+import os
 
 from tests.common import createTestBz2, createTestDbTable, readTestDbTable
 from hist_data.enwiki.gen_pageview_data import genData
@@ -18,6 +19,7 @@ class TestGenData(unittest.TestCase):
 				'fr.wikipedia Four null desktop 12 T6U6\n'
 				'en.wikipedia Three null desktop 10 E4G5Z61\n'
 			))
+
 			# Create temp dump-index db
 			dumpIndexDb = os.path.join(tempDir, 'dump_index.db')
 			createTestDbTable(
@@ -31,9 +33,11 @@ class TestGenData(unittest.TestCase):
 					('Four', 4, 0, -1),
 				}
 			)
+
 			# Run
 			dbFile = os.path.join(tempDir, 'data.db')
 			genData(pageviewFiles, dumpIndexDb, dbFile)
+
 			# Check
 			self.assertEqual(
 				readTestDbTable(dbFile, 'SELECT title, id, views from views'),

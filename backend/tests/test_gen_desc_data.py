@@ -1,5 +1,6 @@
 import unittest
-import tempfile, os
+import tempfile
+import os
 
 from tests.common import createTestDbTable, readTestDbTable
 from hist_data.gen_desc_data import genData
@@ -39,6 +40,7 @@ class TestGenData(unittest.TestCase):
 					(5, 'Five'),
 				}
 			)
+
 			# Create temp history db
 			dbFile = os.path.join(tempDir, 'data.db')
 			createTestDbTable(
@@ -53,6 +55,7 @@ class TestGenData(unittest.TestCase):
 					(50, 'V', 5, 10, None, None, 2, 'human'),
 				}
 			)
+
 			# Run
 			genData(enwikiDb, dbFile)
 			# Check

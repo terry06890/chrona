@@ -1,6 +1,11 @@
 import unittest
-import tempfile, os, json, bz2, pickle, indexed_bzip2
-# Local imports
+import tempfile
+import os
+import json
+import bz2
+import pickle
+import indexed_bzip2
+
 from tests.common import readTestDbTable
 from hist_data.gen_events_data import genData
 
@@ -18,15 +23,18 @@ def runGenData(wikiItemArray: str, preGenOffsets: bool, nProcs: int):
 					file.write(b',')
 				file.write(b'\n')
 			file.write(b']\n')
+
 		# Create temp offsets file if requested
 		offsetsFile = os.path.join(tempDir, 'offsets.dat')
 		if preGenOffsets:
 			with indexed_bzip2.open(wikidataFile) as file:
 				with open(offsetsFile, 'wb') as file2:
 					pickle.dump(file.block_offsets(), file2)
+
 		# Run genData()
 		dbFile = os.path.join(tempDir, 'events.db')
 		genData(wikidataFile, offsetsFile, dbFile, nProcs)
+
 		# Read db
 		return readTestDbTable(dbFile, 'SELECT * FROM events')
 
@@ -164,15 +172,19 @@ class TestGenData(unittest.TestCase):
 			(7, 'media two', -2199, -2100, None, None, 0, 'work'),
 			(8, 'organism one', -400000000, -300000001, None, None, 0, 'organism'),
 		}
+
 	def test_wikiItems(self):
 		rows = runGenData(self.testWikiItems, False, 1)
 		self.assertEqual(rows, self.expectedRows)
+
 	def test_empty_dump(self):
 		rows = runGenData([{}], False, 1)
 		self.assertEqual(rows, set())
+
 	def test_multiprocessing(self):
 		rows = runGenData(self.testWikiItems, False, 4)
 		self.assertEqual(rows, self.expectedRows)
+
 	def test_existing_offsets(self):
 		rows = runGenData(self.testWikiItems, True, 3)
 		self.assertEqual(rows, self.expectedRows)

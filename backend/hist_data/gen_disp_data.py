@@ -5,14 +5,15 @@ Adds data about event distribution to the database,
 and removes events not eligible for display
 """
 
-# Code used in unit testing (for resolving imports of modules within this directory)
-import os, sys
+# For unit testing, resolve imports of modules within this directory
+import os
+import sys
 parentDir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(parentDir)
-# Standard imports
+
 import argparse
 import sqlite3
-# Local imports
+
 from cal import SCALES, dbDateToHistDate, dateToUnit
 
 MAX_DISPLAYED_PER_UNIT = 4
@@ -21,7 +22,7 @@ DB_FILE = 'data.db'
 def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int, forImageTables: bool) -> None:
 	dbCon = sqlite3.connect(dbFile)
 	dbCur = dbCon.cursor()
-	#
+
 	print('Reading through events')
 	scaleUnitToCounts: dict[tuple[int, int], list[int]] = {}
 		# Maps scale and unit to two counts (num events in that unit, num events displayable for that unit)
@@ -35,7 +36,7 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int, forImageTa
 		iterNum += 1
 		if iterNum % 1e5 == 0:
 			print(f'At iteration {iterNum}')
-		# For each scale
+
 		for scale in scales:
 			unit = dateToUnit(dbDateToHistDate(eventStart, fmt), scale)
 			# Update maps
@@ -52,7 +53,7 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int, forImageTa
 				idScales[eventId].append((scale, unit))
 			scaleUnitToCounts[(scale, unit)] = counts
 	print(f'Results: {len(idScales)} displayable events')
-	#
+
 	print('Looking for non-displayable events')
 	eventsToDel: list[int] = []
 	for eventId, eventStart, fmt in dbCur.execute(query):
@@ -71,7 +72,7 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int, forImageTa
 		'SELECT events.id FROM events LEFT JOIN pop ON events.id = pop.id WHERE pop.id IS NULL'):
 		eventsToDel.append(eventId)
 	print(f'Found {len(eventsToDel)}')
-	#
+
 	if not forImageTables:
 		print(f'Deleting {len(eventsToDel)} events')
 		iterNum = 0
@@ -82,7 +83,7 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int, forImageTa
 			#
 			dbCur.execute('DELETE FROM events WHERE id = ?', (eventId,))
 			dbCur.execute('DELETE FROM pop WHERE id = ?', (eventId,))
-	#
+
 	print('Writing to db')
 	distTable = 'dist' if not forImageTables else 'img_dist'
 	dispTable = 'event_disp' if not forImageTables else 'img_disp'
@@ -94,7 +95,7 @@ def genData(dbFile: str, scales: list[int], maxDisplayedPerUnit: int, forImageTa
 	for eventId, scaleUnits in idScales.items():
 		for [scale, unit] in scaleUnits:
 			dbCur.execute(f'INSERT INTO {dispTable} VALUES (?, ?, ?)', (eventId, scale, unit))
-	#
+
 	print('Closing db')
 	dbCon.commit()
 	dbCon.close()
@@ -104,5 +105,5 @@ if __name__ == '__main__':
 	parser.add_argument(
 		'type', nargs='?', choices=['event', 'img'], default='event', help='The type of tables to generate')
 	args = parser.parse_args()
-	#
+
 	genData(DB_FILE, SCALES, MAX_DISPLAYED_PER_UNIT, args.type == 'img')

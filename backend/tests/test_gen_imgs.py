@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import patch
-import tempfile, os, shutil
+import tempfile
+import os
+import shutil
 
 from tests.common import createTestDbTable, readTestDbTable
 from hist_data.gen_imgs import genImgs
@@ -12,12 +14,14 @@ class TestGenImgs(unittest.TestCase):
 	def test_gen(self, convertImageMock):
 		with tempfile.TemporaryDirectory() as tempDir:
 			convertImageMock.side_effect = lambda imgPath, outPath: shutil.copy(imgPath, outPath)
+
 			# Create temp images
 			imgDir = os.path.join(tempDir, 'enwiki_imgs')
 			os.mkdir(imgDir)
 			shutil.copy(TEST_IMG, os.path.join(imgDir, '100.jpg'))
 			shutil.copy(TEST_IMG, os.path.join(imgDir, '200.jpeg'))
 			shutil.copy(TEST_IMG, os.path.join(imgDir, '400.png'))
+
 			# Create temp image db
 			imgDb = os.path.join(tempDir, 'img_data.db')
 			createTestDbTable(
@@ -40,6 +44,7 @@ class TestGenImgs(unittest.TestCase):
 					(200, 'two.jpeg', 'cc-by', 'author2', 'credits2', '', 'https://upload.wikimedia.org/two.jpeg'),
 				}
 			)
+
 			# Create temp history db
 			dbFile = os.path.join(tempDir, 'data.db')
 			createTestDbTable(
@@ -53,9 +58,11 @@ class TestGenImgs(unittest.TestCase):
 					(30, 'third', 1, 20, 30, 40, 1, 'event'),
 				}
 			)
+
 			# Run
 			outDir = os.path.join(tempDir, 'imgs')
 			genImgs(imgDir, imgDb, outDir, dbFile)
+
 			# Check
 			self.assertEqual(set(os.listdir(outDir)), {
 				'100.jpg',

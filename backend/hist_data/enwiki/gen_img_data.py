@@ -8,35 +8,42 @@ The program can be re-run with an updated set of page IDs, and
 will skip already-processed page IDs.
 """
 
-import os, re
-import bz2, html, urllib.parse
+import argparse
+import os
+import re
+import bz2
+import html
+import urllib.parse
 import sqlite3
 
 DUMP_FILE = 'enwiki-20220501-pages-articles-multistream.xml.bz2'
 INDEX_DB = 'dump_index.db'
 IMG_DB = 'img_data.db' # The database to create
 DB_FILE = os.path.join('..', 'data.db')
-# Regexps
+
 ID_LINE_REGEX = re.compile(r'<id>(.*)</id>')
 IMG_LINE_REGEX = re.compile(r'.*\| *image *= *([^|]*)')
 BRACKET_IMG_REGEX = re.compile(r'\[\[(File:[^|]*).*]]')
 IMG_NAME_REGEX = re.compile(r'.*\.(jpg|jpeg|png|gif|tiff|tif)', flags=re.IGNORECASE)
 CSS_IMG_CROP_REGEX = re.compile(r'{{css image crop\|image *= *(.*)', flags=re.IGNORECASE)
 
+# ========== For data generation ==========
+
 def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
+	""" Looks up page IDs in dump and creates database """
 	print('Opening databases')
 	indexDbCon = sqlite3.connect(indexDb)
 	indexDbCur = indexDbCon.cursor()
 	imgDbCon = sqlite3.connect(imgDb)
 	imgDbCur = imgDbCon.cursor()
+
 	print('Checking tables')
 	if imgDbCur.execute('SELECT name FROM sqlite_master WHERE type="table" AND name="page_imgs"').fetchone() is None:
 		# Create tables if not present
 		imgDbCur.execute('CREATE TABLE page_imgs (page_id INT PRIMARY KEY, title TEXT UNIQUE, img_name TEXT)')
 			# 'img_name' values are set to NULL to indicate page IDs where no image was found
 		imgDbCur.execute('CREATE INDEX page_imgs_idx ON page_imgs(img_name)')
-	else:
-		# Check for already-processed page IDs
+	else: # Check for already-processed page IDs
 		numSkipped = 0
 		for (pid,) in imgDbCur.execute('SELECT page_id FROM page_imgs'):
 			if pid in pageIds:
@@ -45,7 +52,7 @@ def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
 			else:
 				print(f'Found already-processed page ID {pid} which was not in input set')
 		print(f'Will skip {numSkipped} already-processed page IDs')
-	#
+
 	print('Getting dump-file offsets')
 	offsetToPageId: dict[int, list[int]] = {}
 	offsetToEnd: dict[int, int] = {} # Maps chunk-start offsets to their chunk-end offsets
@@ -55,7 +62,7 @@ def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
 		iterNum += 1
 		if iterNum % 1e4 == 0:
 			print(f'At iteration {iterNum}')
-		#
+
 		query = 'SELECT offset, next_offset, title FROM offsets WHERE id = ?'
 		row = indexDbCur.execute(query, (pageId,)).fetchone()
 		if row is None:
@@ -68,7 +75,7 @@ def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
 		offsetToPageId[chunkOffset].append(pageId)
 		pageIdToTitle[pageId] = title
 	print(f'Found {len(offsetToEnd)} chunks to check')
-	#
+
 	print('Iterating through chunks in dump file')
 	with open(dumpFile, mode='rb') as file:
 		iterNum = 0
@@ -76,7 +83,7 @@ def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
 			iterNum += 1
 			if iterNum % 100 == 0:
 				print(f'At iteration {iterNum}')
-			#
+
 			chunkPageIds = offsetToPageId[pageOffset]
 			# Jump to chunk
 			file.seek(pageOffset)
@@ -122,21 +129,24 @@ def genData(pageIds: set[int], dumpFile: str, indexDb: str, imgDb: str) -> None:
 						content.append(line[:line.rfind('</text>')])
 						# Look for image-filename
 						imageName = getImageName(content)
-						imgDbCur.execute('INSERT into page_imgs VALUES (?, ?, ?)', (pageId, None if imageName is None else pageIdToTitle[pageId], imageName))
+						imgDbCur.execute(
+							'INSERT into page_imgs VALUES (?, ?, ?)',
+							(pageId, None if imageName is None else pageIdToTitle[pageId], imageName))
 						break
 					if not foundTextEnd:
 						print(f'WARNING: Did not find </text> for page id {pageId}')
 					break
 				if not foundText:
 					print(f'WARNING: Did not find <text> for page id {pageId}')
-	#
+
 	print('Closing databases')
 	indexDbCon.close()
 	imgDbCon.commit()
 	imgDbCon.close()
+
 def getImageName(content: list[str]) -> str | None:
 	""" Given an array of text-content lines, tries to return an infoxbox image name, or None """
-	# Doesn't try and find images in outside-infobox [[File:...]] and <imagemap> sections
+	# Note: Doesn't try and find images in outside-infobox [[File:...]] and <imagemap> sections
 	for line in content:
 		match = IMG_LINE_REGEX.match(line)
 		if match is not None:
@@ -177,6 +187,8 @@ def getImageName(content: list[str]) -> str | None:
 			return None
 	return None
 
+# ========== For getting input page IDs ==========
+
 def getInputPageIdsFromDb(dbFile: str, indexDb: str) -> set[int]:
 	print('Getting event data')
 	titles: set[str] = set()
@@ -184,6 +196,7 @@ def getInputPageIdsFromDb(dbFile: str, indexDb: str) -> set[int]:
 	for (title,) in dbCon.execute('SELECT title from events'):
 		titles.add(title)
 	dbCon.close()
+
 	print('Getting page IDs')
 	pageIds: set[int] = set()
 	dbCon = sqlite3.connect(indexDb)
@@ -193,12 +206,15 @@ def getInputPageIdsFromDb(dbFile: str, indexDb: str) -> set[int]:
 		if row:
 			pageIds.add(row[0])
 	dbCon.close()
+
 	print(f'Result: {len(pageIds)} out of {len(titles)}')
 	return pageIds
+
+# ========== Main block ==========
+
 if __name__ == '__main__':
-	import argparse
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	parser.parse_args()
-	#
+
 	pageIds = getInputPageIdsFromDb(DB_FILE, INDEX_DB)
 	genData(pageIds, DUMP_FILE, INDEX_DB, IMG_DB)

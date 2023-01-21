@@ -1,5 +1,6 @@
 import unittest
-import tempfile, os
+import tempfile
+import os
 
 from tests.common import createTestBz2, readTestDbTable
 from hist_data.enwiki.gen_dump_index_db import genData
@@ -10,15 +11,18 @@ def runGenData(indexFileContents: str):
 		# Create temp index file
 		indexFile = os.path.join(tempDir, 'index.txt.bz2')
 		createTestBz2(indexFile, indexFileContents)
+
 		# Run
 		dbFile = os.path.join(tempDir, 'data.db')
 		genData(indexFile, dbFile)
+
 		# Read db
 		return readTestDbTable(dbFile, 'SELECT title, id, offset, next_offset FROM offsets')
 
 class TestGenData(unittest.TestCase):
 	def setUp(self):
 		self.maxDiff = None # Remove output-diff size limit
+
 	def test_index_file(self):
 		indexFileContents = (
 			'100:10:apple\n'
@@ -33,6 +37,7 @@ class TestGenData(unittest.TestCase):
 			('banana ice-cream', 99, 300, 1000),
 			('Custard!', 2030, 1000, -1),
 		})
+
 	def test_emp_index(self):
 		offsetsMap = runGenData('')
 		self.assertEqual(offsetsMap, set())

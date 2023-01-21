@@ -1,5 +1,6 @@
 import unittest
-import tempfile, os
+import tempfile
+import os
 
 from tests.common import createTestDbTable, readTestDbTable
 from hist_data.gen_disp_data import genData
@@ -58,9 +59,11 @@ class TestGenData(unittest.TestCase):
 					(7, 70),
 				}
 			)
+
 			# Run
 			genData(dbFile, [10, 1, MONTH_SCALE, DAY_SCALE], 2, False)
 			genData(dbFile, [10, 1, MONTH_SCALE, DAY_SCALE], 2, True)
+
 			# Check
 			self.assertEqual(
 				readTestDbTable(dbFile, 'SELECT * FROM events'),

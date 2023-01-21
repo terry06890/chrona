@@ -18,10 +18,8 @@ def wrappingApp(environ: dict[str, str], start_response) -> Iterable[bytes]:
 	""" WSGI handler that uses 'application', but also serves image files """
 	urlPath = environ['PATH_INFO']
 	if urlPath.startswith('/data/'):
-		# Run WSGI script
-		return application(environ, start_response)
-	elif urlPath.startswith('/hist_data/img/'):
-		# Serve image file
+		return application(environ, start_response) # Run WSGI script
+	elif urlPath.startswith('/hist_data/img/'): # Serve image file
 		imgPath = os.path.join(os.getcwd(), urlPath[1:])
 		if os.path.exists(imgPath):
 			imgType = mimetypes.guess_type(imgPath)[0]
@@ -33,6 +31,7 @@ def wrappingApp(environ: dict[str, str], start_response) -> Iterable[bytes]:
 	else:
 		start_response('404 Not Found', [('Content-type', 'text/plain')])
 		return [b'Unrecognised path']
+
 # Start server
 with simple_server.make_server('', 8000, wrappingApp) as httpd:
     print('Serving HTTP on port 8000...')

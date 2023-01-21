@@ -9,37 +9,38 @@ This directory holds files used to generate the history database data.db.
     -   `start*` and `end*` specify start and end dates.
         `start_upper`, `end`, and `end_upper`, are optional.
         If `start_upper` is present, it and `start` denote an uncertain range of start times.
-        Similarly for 'end' and 'end_upper'.
+        Similarly for `end` and `end_upper`.
     -   `fmt` indicates format info for `start`, `start_upper`, `end`, and `end_upper`.
         -   If 0, they denote a number of years AD (if positive) or BC (if negative).
         -   If 1, they denote a Julian date number.
             This allows simple comparison of events with day-level precision, but only goes back to 4713 BC.
         -   If 2, same as 1, but with a preference for display using the Julian calendar, not the Gregorian calendar.
             For example, William Shakespeare's birth appears 'preferably Julian', but Samuel Johnson's does not.
-        -   If 3, same as 2, but where 'start' and 'start_upper' are 'preferably Julian'.
+        -   If 3, same as 2, but where only `start` and `start_upper` are 'preferably Julian'.
             For example, Galileo Galilei's birth date appears 'preferably Julian', but his death date does not.
 -   `pop`: <br>
     Format: `id INT PRIMARY KEY, pop INT` <br>
-    Associates each event with a popularity measure (currently an average monthly viewcount)
+    Associates each event with a popularity measure (currently an average monthly viewcount).
 -   `dist`: <br>
     Format: `scale INT, unit INT, count INT, PRIMARY KEY (scale, unit)` <br>
-    Maps scale units to counts of events in them.
+    For each scale, maps its units to event counts.
+    For example, on the monthly scale, the unit for Jan 2010 might have 10 events.
 -   `event_disp`: <br>
     Format: `id INT, scale INT, unit INT, PRIMARY KEY (id, scale)` <br>
     Maps events to scales+units they are 'displayable' on (used to make displayed events more uniform across time).
+-   `images`: <br>
+    Format: `id INT PRIMARY KEY, url TEXT, license TEXT, artist TEXT, credit TEXT` <br>
+    Holds metadata for available images.
+-   `event_imgs`: <br>
+    Format: `id INT PRIMARY KEY, img_id INT` <br>
+    Assocates events with images.
+-   `descs`: <br>
+    Format: `id INT PRIMARY KEY, wiki_id INT, desc TEXT` <br>
+    Associates an event's enwiki title with a short description.
 -   `img_dist`: <br>
     Like `dist`, but only counts events with images.
 -   `img_disp`: <br>
     Like `events_disp`, but only counts events with images.
--   `images`: <br>
-    Format: `id INT PRIMARY KEY, url TEXT, license TEXT, artist TEXT, credit TEXT` <br>
-    Holds metadata for available images
--   `event_imgs`: <br>
-    Format: `id INT PRIMARY KEY, img_id INT` <br>
-    Assocates events with images
--   `descs`: <br>
-    Format: `id INT PRIMARY KEY, wiki_id INT, desc TEXT` <br>
-    Associates an event's enwiki title with a short description.
 
 # Generating the Database
 
@@ -66,12 +67,12 @@ Some of the scripts use third-party packages:
     looks for infobox image names, and stores them in an image database.
 1.  In enwiki/, run `download_img_license_info.py`, which downloads licensing info for found
     images, and adds them to the image database. You should probably first change the USER_AGENT
-    script variable to identify yourself to the online API (this is expected
-    [best practice](https://www.mediawiki.org/wiki/API:Etiquette)).
+    script variable to identify yourself to the online API (this is
+    [expected best practice](https://www.mediawiki.org/wiki/API:Etiquette)).
 1.  In enwiki/, run `download_imgs.py`, which downloads images into enwiki/imgs/. Setting the
     USER_AGENT variable applies here as well. <br>
     In some rare cases, the download won't produce an image file, but a text file containing
-    'File not found: ...'. These can simply be deleted.
+    'File not found: ...'. These can be deleted.
 1.  Run `gen_imgs.py`, which creates resized/cropped images in img/, from images in enwiki/imgs/.
     Adds the `imgs` and `event_imgs` tables. <br>
     The output images might need additional manual changes:

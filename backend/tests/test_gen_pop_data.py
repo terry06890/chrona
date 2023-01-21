@@ -1,5 +1,6 @@
 import unittest
-import tempfile, os
+import tempfile
+import os
 
 from tests.common import createTestDbTable, readTestDbTable
 from hist_data.gen_pop_data import genData
@@ -19,6 +20,7 @@ class TestGenData(unittest.TestCase):
 					('three', 3, 30),
 				}
 			)
+
 			# Create temp history db
 			dbFile = os.path.join(tempDir, 'data.db')
 			createTestDbTable(
@@ -31,8 +33,10 @@ class TestGenData(unittest.TestCase):
 					(33, 'three', 100, None, None, None, 0, 'event'),
 				}
 			)
+
 			# Run
 			genData(pageviewsDb, dbFile)
+
 			# Check
 			self.assertEqual(
 				readTestDbTable(dbFile, 'SELECT id, pop from pop'),

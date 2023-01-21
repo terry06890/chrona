@@ -59,26 +59,37 @@ Info about objects with type 'quantity' can be found at: https://www.wikidata.or
 # - Using pool.map() instead of pool.imap_unordered(), which seems to hang in some cases (was using python 3.8).
 #   Possibly related: https://github.com/python/cpython/issues/72882
 
-# Took about 4.5 hours to run
+# Note: Took about 4.5 hours to run
 
-# Code used in unit testing (for resolving imports of modules within this directory)
-import os, sys
+# For unit testing, resolve imports of modules within this directory
+import os
+import sys
 parentDir = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(parentDir)
-# Standard imports
+
 from typing import cast
 import argparse
-import math, re
-import io, bz2, json, sqlite3
-import indexed_bzip2, pickle, multiprocessing, tempfile
-# Local imports
+import math
+import re
+import io
+import bz2
+import json
+import sqlite3
+
+import indexed_bzip2
+import pickle
+import multiprocessing
+import tempfile
+
 from cal import gregorianToJdn, julianToJdn, MIN_CAL_YEAR
 
-# Constants
+# ========== Constants ==========
+
 WIKIDATA_FILE = os.path.join('wikidata', 'latest-all.json.bz2')
 OFFSETS_FILE = os.path.join('wikidata', 'offsets.dat')
 DB_FILE = 'data.db'
 N_PROCS = 6 # Number of processes to use
+
 # For getting Wikidata entity IDs
 INSTANCE_OF = 'P31'
 EVENT_CTG: dict[str, dict[str, str]] = {
@@ -173,24 +184,28 @@ UNIT_TO_SCALE: dict[str, int] = {
 	'http://www.wikidata.org/entity/Q20764':    10**6, # 'megaannum' (1e6 yrs)
 	'http://www.wikidata.org/entity/Q524410':   10**9, # 'gigaannum' (1e9 yrs)
 }
+
 # For filtering lines before parsing JSON
 TYPE_ID_REGEX = ('"id":(?:"' + '"|"'.join([id for id in ID_TO_CTG if id.startswith('Q')]) + '")').encode()
 PROP_ID_REGEX = ('(?:"' + '"|"'.join([id for id in ID_TO_CTG if id.startswith('P')]) + '"):\[{"mainsnak"').encode()
 
+# ========== Main function ==========
+
 def genData(wikidataFile: str, offsetsFile: str, dbFile: str, nProcs: int) -> None:
 	""" Reads the dump and writes to db """
-	# Check db
 	if os.path.exists(dbFile):
 		print('ERROR: Database already exists')
 		return
-	# Read dump, and write to db
-	print('Writing to db')
+
+	print('Opening db')
 	dbCon = sqlite3.connect(dbFile)
 	dbCur = dbCon.cursor()
+
 	dbCur.execute('CREATE TABLE events (id INT PRIMARY KEY, title TEXT UNIQUE, ' \
 		'start INT, start_upper INT, end INT, end_upper INT, fmt INT, ctg TEXT)')
 	dbCur.execute('CREATE INDEX events_id_start_idx ON events(id, start)')
 	dbCur.execute('CREATE INDEX events_title_nocase_idx ON events(title COLLATE NOCASE)')
+
 	if nProcs == 1:
 		with bz2.open(wikidataFile, mode='rb') as file:
 			for lineNum, line in enumerate(file, 1):
@@ -206,6 +221,7 @@ def genData(wikidataFile: str, offsetsFile: str, dbFile: str, nProcs: int) -> No
 			with indexed_bzip2.open(wikidataFile) as file:
 				with open(offsetsFile, 'wb') as file2:
 					pickle.dump(file.block_offsets(), file2)
+
 		print('Allocating file into chunks')
 		fileSz: int # Was about 1.4 TB
 		with indexed_bzip2.open(wikidataFile) as file:
@@ -216,6 +232,7 @@ def genData(wikidataFile: str, offsetsFile: str, dbFile: str, nProcs: int) -> No
 		chunkIdxs = [-1] + [chunkSz * i for i in range(1, nProcs)] + [fileSz-1]
 			# Each adjacent pair specifies a start+end byte index for readDumpChunk()
 		print(f'- Chunk size: {chunkSz:,}')
+
 		print('Starting processes to read dump')
 		with tempfile.TemporaryDirectory() as tempDirName:
 			with multiprocessing.Pool(processes=nProcs, maxtasksperchild=1) as pool:
@@ -227,15 +244,19 @@ def genData(wikidataFile: str, offsetsFile: str, dbFile: str, nProcs: int) -> No
 					with open(outFile, 'rb') as file:
 						for item in pickle.load(file):
 							dbCur.execute('INSERT OR IGNORE INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)', item)
+
+	print('Closing db')
 	dbCon.commit()
 	dbCon.close()
 
-# For data extraction
+# ========== For data extraction ==========
+
 def readDumpLine(lineBytes: bytes) -> tuple[int, str, int, int | None, int | None, int | None, int, str] | None:
 	""" Parses a Wikidata dump line, returning an entry to add to the db """
 	# Check with regexes
 	if re.search(TYPE_ID_REGEX, lineBytes) is None and re.search(PROP_ID_REGEX, lineBytes) is None:
 		return None
+
 	# Decode
 	try:
 		line = lineBytes.decode('utf-8').rstrip().rstrip(',')
@@ -246,12 +267,14 @@ def readDumpLine(lineBytes: bytes) -> tuple[int, str, int, int | None, int | Non
 	if 'claims' not in jsonItem:
 		return None
 	claims = jsonItem['claims']
+
 	# Get wikidata ID, enwiki title
 	try:
 		itemId = int(jsonItem['id'][1:]) # Skip initial 'Q'
 		itemTitle: str = jsonItem['sitelinks']['enwiki']['title']
 	except (KeyError, ValueError):
 		return None
+
 	# Get event category
 	eventCtg: str | None = None
 	if INSTANCE_OF in claims: # Check types
@@ -269,6 +292,7 @@ def readDumpLine(lineBytes: bytes) -> tuple[int, str, int, int | None, int | Non
 				eventCtg = ID_TO_CTG[prop]
 		if not eventCtg:
 			return None
+
 	# Check for event-start/end props
 	startVal: str
 	endVal: str | None
@@ -297,13 +321,15 @@ def readDumpLine(lineBytes: bytes) -> tuple[int, str, int, int | None, int | Non
 		break
 	if not found:
 		return None
+
 	# Convert time values
 	timeData = getTimeData(startVal, endVal, timeType)
 	if timeData is None:
 		return None
 	start, startUpper, end, endUpper, timeFmt = timeData
-	#
+
 	return (itemId, itemTitle, start, startUpper, end, endUpper, timeFmt, eventCtg)
+
 def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int | None, int | None, int] | None:
 	""" Obtains event start+end data from 'datavalue' objects with type 'time', according to 'timeType' """
 	# Values to return
@@ -312,13 +338,13 @@ def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int |
 	end: int | None = None
 	endUpper: int | None = None
 	timeFmt: int
-	#
+
 	if timeType == 'age estimated by a dating method':
+		# Note: Ages are interpreted relative to 1 AD. Using a year like 2020 results in
+		# 'datedness' and undesirable small offsets to values like '1 billion years old'.
 		if 'type' not in startVal or startVal['type'] != 'quantity':
 			return None
-		# Get quantity data
-			# Note: Ages are interpreted relative to 1 AD. Using a year like 2020 results in
-			# 'datedness' and undesirable small offsets to values like '1 billion years old'.
+
 		try:
 			value = startVal['value']
 			amount = math.ceil(float(value['amount']))
@@ -331,23 +357,26 @@ def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int |
 				upperBound = None
 		except (KeyError, ValueError):
 			return None
-		# Get unit scale
+
+		# Get scale
 		if unit not in UNIT_TO_SCALE:
 			return None
 		scale = UNIT_TO_SCALE[unit]
+
 		# Get start+startUpper
 		if lowerBound is None:
 			start = -amount * scale
 		else:
 			start = -cast(int, upperBound) * scale
 			startUpper = -lowerBound * scale
+
 		# Adjust precision
 		start = start // scale * scale
 		if startUpper is not None:
 			startUpper = startUpper // scale * scale
 		elif scale > 1:
 			startUpper = start + scale - 1
-		#
+
 		timeFmt = 0
 	elif timeType == 'earliest date':
 		# Get start
@@ -355,6 +384,7 @@ def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int |
 		if startTimeVals is None:
 			return None
 		start, _, timeFmt = startTimeVals
+
 		# Get end
 		endTimeVals = getEventTime(endVal)
 		if endTimeVals is None:
@@ -371,6 +401,7 @@ def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int |
 		if startTimeVals is None:
 			return None
 		start, startUpper, timeFmt = startTimeVals
+
 		# Get end+endUpper
 		if endVal is not None:
 			endTimeVals = getEventTime(endVal)
@@ -383,6 +414,7 @@ def getTimeData(startVal, endVal, timeType: str) -> tuple[int, int | None, int |
 				else:
 					return None
 	return start, startUpper, end, endUpper, timeFmt
+
 def getEventTime(dataVal) -> tuple[int, int | None, int] | None:
 	""" Obtains event start (or end) data from a 'datavalue' object with type 'time' """
 	if 'type' not in dataVal or dataVal['type'] != 'time':
@@ -399,6 +431,7 @@ def getEventTime(dataVal) -> tuple[int, int | None, int] | None:
 		calendarmodel = value['calendarmodel']
 	except (KeyError, ValueError):
 		return None
+
 	# Get start+startUpper
 	start: int
 	startUpper: int | None = None
@@ -430,12 +463,15 @@ def getEventTime(dataVal) -> tuple[int, int | None, int] | None:
 		timeFmt = 0
 	else:
 		return None
+
 	return start, startUpper, timeFmt
 
-# For using multiple processes
+# ========== For using multiple processes ==========
+
 def readDumpChunkOneParam(params: tuple[int, str, str, str, int, int]) -> str:
 	""" Forwards to readDumpChunk() (for use with pool.map()) """
 	return readDumpChunk(*params)
+
 def readDumpChunk(
 		procId: int, wikidataFile: str, offsetsFile: str, outFile: str, startByte: int, endByte: int) -> str:
 	""" Reads lines in the dump that begin after a start-byte, and not after an end byte.
@@ -447,12 +483,14 @@ def readDumpChunk(
 		with open(offsetsFile, 'rb') as file2:
 			offsets = pickle.load(file2)
 			file.set_block_offsets(offsets)
+
 		# Seek to chunk
 		if startByte != -1:
 			file.seek(startByte)
 			file.readline()
 		else:
 			startByte = 0 # Used for progress calculation
+
 		# Read lines
 		count = 0
 		while file.tell() <= endByte:
@@ -463,14 +501,17 @@ def readDumpChunk(
 			entry = readDumpLine(file.readline())
 			if entry:
 				entries.append(entry)
+
 		# Output results into file
 		with open(outFile, 'wb') as file:
 			pickle.dump(entries, file)
 		return outFile
 
+# ========== Main block ==========
+
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 	args = parser.parse_args()
-	#
+
 	multiprocessing.set_start_method('spawn')
 	genData(WIKIDATA_FILE, OFFSETS_FILE, DB_FILE, N_PROCS)

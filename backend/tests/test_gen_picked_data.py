@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import patch
-import tempfile, os, shutil
+import tempfile
+import os
+import shutil
 
 from tests.common import createTestFile, createTestDbTable, readTestDbTable
 from hist_data.gen_picked_data import genData
@@ -12,6 +14,7 @@ class TestGenImgs(unittest.TestCase):
 	def test_gen(self, convertImageMock):
 		with tempfile.TemporaryDirectory() as tempDir:
 			convertImageMock.side_effect = lambda imgPath, outPath: shutil.copy(imgPath, outPath)
+
 			# Create picked-event file
 			pickedDir = os.path.join(tempDir, 'picked')
 			os.mkdir(pickedDir)
@@ -51,9 +54,11 @@ class TestGenImgs(unittest.TestCase):
 					"title": "event three"
 				}]
 			''')
+
 			# Create picked images
 			shutil.copy(TEST_IMG, os.path.join(pickedDir, 'covid.jpg'))
 			shutil.copy(TEST_IMG, os.path.join(pickedDir, 'foo.jpg'))
+
 			# Create temp history db
 			dbFile = os.path.join(tempDir, 'data.db')
 			createTestDbTable(
@@ -126,12 +131,15 @@ class TestGenImgs(unittest.TestCase):
 					(3, 1, 3),
 				}
 			)
+
 			# Create existing event images
 			imgOutDir = os.path.join(tempDir, 'imgs')
 			os.mkdir(imgOutDir)
 			shutil.copy(TEST_IMG, os.path.join(imgOutDir, '10.jpg'))
+
 			# Run
 			genData(pickedDir, pickedEvtFile, dbFile, imgOutDir, [10, 1])
+
 			# Check
 			self.assertEqual(set(os.listdir(imgOutDir)), {
 				'10.jpg',

@@ -1,5 +1,6 @@
 import unittest
-import os, tempfile
+import os
+import tempfile
 
 from tests.common import readTestDbTable
 from hist_data.enwiki.gen_desc_data import genData
@@ -12,6 +13,7 @@ class TestGenData(unittest.TestCase):
 			# Run
 			dbFile = os.path.join(tempDir, 'descData.db')
 			genData(TEST_DUMP_FILE, dbFile)
+
 			# Check
 			self.assertEqual(
 				readTestDbTable(dbFile, 'SELECT id, title FROM pages'),

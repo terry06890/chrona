@@ -2,8 +2,11 @@
 Provides date conversion functions, HistDate, and date scales.
 """
 
-# For conversion between calendars and Julian day numbers.  Algorithms were obtained from
+# ========== For conversion between calendars and Julian day numbers. ==========
+
+# Algorithms were obtained from:
 # https://en.wikipedia.org/wiki/Julian_day#Converting_Gregorian_calendar_date_to_Julian_Day_Number.
+
 def gregorianToJdn(year: int, month: int, day: int) -> int:
 	"""
 	Converts a Gregorian calendar date to a Julian day number,
@@ -20,6 +23,7 @@ def gregorianToJdn(year: int, month: int, day: int) -> int:
 	jdn -= int((3 * int((year + 4900 + x) / 100)) / 4)
 	jdn += day - 32075
 	return jdn
+
 def julianToJdn(year: int, month: int, day: int) -> int:
 	"""
 	Like gregorianToJdn(), but converts a Julian calendar date.
@@ -32,6 +36,7 @@ def julianToJdn(year: int, month: int, day: int) -> int:
 	jdn += int(275 * month / 9)
 	jdn += day + 1729777
 	return jdn
+
 def jdnToGregorian(jdn: int) -> tuple[int, int, int]:
 	"""
 	Converts a Julian day number to a Gregorian calendar date, denoting the
@@ -48,6 +53,7 @@ def jdnToGregorian(jdn: int) -> tuple[int, int, int]:
 	if Y <= 0:
 		Y -= 1
 	return Y, M, D
+
 def jdnToJulian(jdn: int) -> tuple[int, int, int]:
 	""" Like jdnToGregorian(), but converts to a Julian calendar date """
 	f = jdn + 1401
@@ -60,16 +66,20 @@ def jdnToJulian(jdn: int) -> tuple[int, int, int]:
 	if Y <= 0:
 		Y -= 1
 	return Y, M, D
+
 def julianToGregorian(year: int, month: int, day: int) -> tuple[int, int, int]:
 	return jdnToGregorian(julianToJdn(year, month, day))
+
 def gregorianToJulian(year: int, month: int, day: int) -> tuple[int, int, int]:
 	return jdnToJulian(gregorianToJdn(year, month, day))
 
-# For date representation
+# ========== For date representation ==========
+
 MIN_CAL_YEAR = -4713 # Year before which JDNs are not usable
 MONTH_SCALE = -1;
 DAY_SCALE = -2;
 SCALES: list[int] = [int(s) for s in [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE]];
+
 class HistDate:
 	"""
 	Represents a historical date
@@ -85,12 +95,14 @@ class HistDate:
 		self.year = year
 		self.month = month
 		self.day = day
-	# Used in unit testing
-	def __eq__(self, other):
+
+	def __eq__(self, other): # Used in unit testing
 		return isinstance(other, HistDate) and \
 			(self.gcal, self.year, self.month, self.day) == (other.gcal, other.year, other.month, other.day)
-	def __repr__(self):
+
+	def __repr__(self): # Used in unit testing
 		return str(self.__dict__)
+
 def dbDateToHistDate(n: int, fmt: int, end=False) -> HistDate:
 	""" Converts a start/start_upper/etc and fmt value in the 'events' db table, into a HistDate """
 	if fmt == 0: # year
@@ -99,6 +111,7 @@ def dbDateToHistDate(n: int, fmt: int, end=False) -> HistDate:
 		return HistDate(True, *jdnToGregorian(n))
 	else: # fmt == 2 or fmt == 3 and not end
 		return HistDate(False, *jdnToJulian(n))
+
 def dateToUnit(date: HistDate, scale: int) -> int:
 	""" Converts a date to an int representing a unit on a scale """
 	if scale >= 1:
