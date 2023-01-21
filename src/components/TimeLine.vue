@@ -3,10 +3,14 @@
 	@pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp"
 	@pointercancel="onPointerUp" @pointerout="onPointerUp" @pointerleave="onPointerUp"
 	@wheel.exact="onWheel" @wheel.shift.exact="onShiftWheel">
+
+	<!-- Event count indicators -->
 	<template v-if="store.showEventCounts">
 		<div v-for="[tickIdx, count] in tickToCount.entries()" :key="ticks[tickIdx].date.toInt()"
 			:style="countDivStyles(tickIdx, count)" class="absolute animate-fadein"></div>
 	</template>
+
+	<!-- SVG area -->
 	<svg :viewBox="`0 0 ${width} ${height}`" class="relative z-10" ref="svgRef">
 		<defs>
 			<linearGradient id="eventLineGradient">
@@ -14,6 +18,7 @@
 				<stop offset="95%" stop-color="gold"/>
 			</linearGradient>
 		</defs>
+
 		<!-- Event lines (dashed line indicates imprecise start date) -->
 		<template v-if="store.showEventLines">
 			<line v-for="id in eventLines.keys()" :key="id"
@@ -24,14 +29,17 @@
 				<!-- Note: With a fully vertical or horizontal line, nothing gets displayed -->
 				<!-- Note: Can't use :x2="1" with scaling in :style="", as it makes dashed-lines non-uniform -->
 		</template>
+
 		<!-- Main line (unit horizontal line that gets transformed, with extra length to avoid gaps when panning) -->
 		<line :stroke="store.color.alt" stroke-width="2px" x1="-1" y1="0" x2="2" y2="0" :style="mainlineStyles"/>
+
 		<!-- Tick markers -->
 		<line v-for="tick in ticks" :key="tick.date.toInt()"
 			:x1="tick.x1" :y1="tick.y1" :x2="tick.x2" :y2="tick.y2"
 			:stroke="store.color.alt" :stroke-width="`${tick.width}px`"
 			:style="tickStyles(tick)" class="animate-fadein"
 			:class="{'max-tick': tick.bound == 'max', 'min-tick': tick.bound == 'min'}"/>
+
 		<!-- Tick labels -->
 		<template v-for="tick, idx in ticks" :key="tick.date.toInt()">
 			<text v-if="tick.major || store.showMinorTicks"
@@ -42,10 +50,12 @@
 			</text>
 		</template>
 	</svg>
+
 	<!-- Movement fail indicators -->
 	<div class="absolute z-20" :style="failDivStyles(true)" ref="minFailRef"></div>
 	<div class="absolute z-20" :style="failDivStyles(false)" ref="maxFailRef"></div>
 	<div class="absolute top-0 left-0 w-full h-full z-20" ref="bgFailRef"></div>
+
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
 		<!-- Image -->
@@ -56,11 +66,13 @@
 			{{idToEvent.get(id)!.title}}
 		</div>
 	</div>
+
 	<!-- Timeline position label -->
 	<div class="absolute top-1 left-2 z-20 text-lg" :class="[current ? 'text-yellow-300' : 'text-stone-50']"
 		style="text-shadow: 0px 0px 5px black">
 		{{timelinePosStr}}
 	</div>
+
 	<!-- Buttons -->
 	<icon-button v-if="closeable" :size="30" class="absolute top-2 right-2 z-20"
 		:style="{color: store.color.text, backgroundColor: store.color.altDark2}"
@@ -72,11 +84,10 @@
 
 <script setup lang="ts">
 import {ref, onMounted, onUnmounted, computed, watch, PropType, Ref} from 'vue';
-// Components
+
 import IconButton from './IconButton.vue';
-// Icons
 import CloseIcon from './icon/CloseIcon.vue';
-// Other
+
 import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, MONTH_NAMES, MIN_CAL_DATE,
 	getDaysInMonth, HistDate, stepDate, getScaleRatio, getNumSubUnits, getUnitDiff,
 	getEventPrecision, dateToUnit, dateToScaleDate,
@@ -85,17 +96,14 @@ import {WRITING_MODE_HORZ, MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES, M
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 
-// Refs
 const rootRef: Ref<HTMLElement | null> = ref(null);
 const svgRef: Ref<HTMLElement | null> = ref(null);
 const minFailRef: Ref<HTMLElement | null> = ref(null);
 const maxFailRef: Ref<HTMLElement | null> = ref(null);
 const bgFailRef: Ref<HTMLElement | null> = ref(null);
 
-// Global store
 const store = useStore();
 
-// Props + events
 const props = defineProps({
 	vert: {type: Boolean, required: true},
 	closeable: {type: Boolean, default: true},
@@ -106,20 +114,24 @@ const props = defineProps({
 	searchTarget: {type: Object as PropType<[null | HistEvent, boolean]>, required: true},
 	reset: {type: Boolean, required: true},
 });
+
 const emit = defineEmits(['close', 'state-chg', 'event-display', 'info-click']);
 
-// For size tracking
+// ========== For size tracking ==========
+
 const width = ref(0);
 const height = ref(0);
 const availLen = computed(() => props.vert ? height.value : width.value);
 const availBreadth = computed(() => props.vert ? width.value : height.value);
 const mounted = ref(false);
+
 onMounted(() => {
 	let rootEl = rootRef.value!;
 	width.value = rootEl.offsetWidth;
 	height.value = rootEl.offsetHeight;
 	mounted.value = true;
 })
+
 const resizeObserver = new ResizeObserver((entries) => {
 	for (const entry of entries){
 		if (entry.contentBoxSize){
@@ -135,13 +147,16 @@ const resizeObserver = new ResizeObserver((entries) => {
 });
 onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
 
-//
+// ========== Computed values used for layout ==========
+
 const eventWidth = computed(() => store.eventImgSz);
 const eventHeight = computed(() => store.eventImgSz + store.eventLabelHeight);
 const eventMajorSz = computed(() => props.vert ? eventHeight.value : eventWidth.value);
 const eventMinorSz = computed(() => props.vert ? eventWidth.value : eventHeight.value)
+
 const sideMainline = computed( // True if unable to fit mainline in middle with events on both sides
 	() => availBreadth.value < store.mainlineBreadth + (eventMinorSz.value + store.spacing * 2) * 2);
+
 const mainlineOffset = computed(() => { // Distance from mainline-area line to left/top of display area
 	if (!sideMainline.value){
 		return availBreadth.value / 2 - store.mainlineBreadth /2 + store.largeTickLen / 2;
@@ -151,16 +166,20 @@ const mainlineOffset = computed(() => { // Distance from mainline-area line to l
 	}
 });
 
-// Timeline data
+// ========== Timeline data ==========
+
 const ID = props.initialState.id as number;
+
 const startDate = ref(props.initialState.startDate); // Earliest date in scale to display
 const endDate = ref(props.initialState.endDate); // Latest date in scale to display (may equal startDate)
 const startOffset = ref(store.defaultEndTickOffset); // Fraction of a scale unit before startDate to show
 	// Note: Without this, the timeline can only move if the distance is over one unit, which makes dragging awkward,
 		// can cause unexpected jumps when zooming, and limits display when a unit has many ticks on the next scale
 const endOffset = ref(store.defaultEndTickOffset);
+
 const scaleIdx = ref(0); // Index of current scale in SCALES
 const scale = computed(() => SCALES[scaleIdx.value])
+
 const hasMinorScale = computed(() => { // If true, display subset of ticks of next lower scale
 	let yearlyScaleOnly = startDate.value.isEarlier(MIN_CAL_DATE);
 	if (scale.value == DAY_SCALE || yearlyScaleOnly && scale.value == 1){
@@ -178,6 +197,8 @@ const hasMinorScale = computed(() => { // If true, display subset of ticks of ne
 });
 const minorScaleIdx = computed(() => scaleIdx.value + (hasMinorScale.value ? 1 : 0));
 const minorScale = computed(() => SCALES[minorScaleIdx.value]);
+
+// Start/end date/offset initialisation
 if (props.initialState.startOffset != null){
 	startOffset.value = props.initialState.startOffset as number;
 }
@@ -189,11 +210,13 @@ if (props.initialState.scaleIdx != null){
 } else {
 	onMounted(initScale);
 }
-//
-function initScale(){ // Initialises to smallest usable scale
+
+// Initialises to smallest usable scale
+function initScale(){
 	let yearlyScaleOnly = startDate.value.isEarlier(MIN_CAL_DATE);
 	let yearDiff = startDate.value.getYearDiff(endDate.value);
 	let monthDiff = startDate.value.getMonthDiff(endDate.value);
+
 	// Get largest scale with units no larger than startDate-to-endDate range
 	let idx = 0;
 	if (yearDiff > 0){
@@ -208,6 +231,7 @@ function initScale(){ // Initialises to smallest usable scale
 	} else {
 		idx = SCALES.findIndex(s => s == DAY_SCALE);
 	}
+
 	// Check for usable smaller scale
 	while (SCALES[idx] > 1){
 		let nextScale = SCALES[idx + 1];
@@ -232,26 +256,28 @@ function initScale(){ // Initialises to smallest usable scale
 			}
 		}
 	}
-	//
+
 	scaleIdx.value = idx;
 	onStateChg();
 }
 
-// Tick data
+// ========== Tick data ==========
+
 const tickLabelMargin = computed(() => props.vert ? 20 : 30); // Distance from label to mainline
 const tickLabelWidth = computed(() => store.mainlineBreadth - store.largeTickLen / 2 - tickLabelMargin.value);
+
 class Tick {
 	date: HistDate;
 	major: boolean; // False if tick is on the minor scale
 	offset: number; // Distance from start of visible timeline, in major units
 	bound: null | 'min' | 'max'; // Indicates MIN_DATE or MAX_DATE tick
-	// SVG attributes
+
 	x1: number;
 	y1: number;
 	x2: number;
 	y2: number;
 	width: number;
-	//
+
 	constructor(date: HistDate, major: boolean, offset: number, bound=null as null | 'min' | 'max'){
 		this.date = date;
 		this.major = major;
@@ -272,7 +298,9 @@ class Tick {
 		}
 	}
 }
-function getNumDisplayUnits({inclOffsets=true} = {}): number { // Get num major units in display range
+
+// Gets num major units in display range
+function getNumDisplayUnits({inclOffsets=true} = {}): number {
 	let unitDiff = Math.ceil(getUnitDiff(startDate.value, endDate.value, scale.value));
 		// Note: Rounding up due to cases like 1 AD to 10 AD with 10-year scale
 	if (inclOffsets){
@@ -280,8 +308,9 @@ function getNumDisplayUnits({inclOffsets=true} = {}): number { // Get num major 
 	}
 	return unitDiff;
 }
+
+// For a major unit, returns an array specifying minor ticks to show
 function getMinorTicks(date: HistDate, scaleIdx: number, majorUnitSz: number, majorOffset: number): Tick[] {
-	// For a major unit, returns an array specifying minor ticks to show
 	if (!hasMinorScale.value){
 		return [];
 	}
@@ -290,6 +319,7 @@ function getMinorTicks(date: HistDate, scaleIdx: number, majorUnitSz: number, ma
 	let minorUnitSz = majorUnitSz / numMinorUnits;
 	let minStep = Math.ceil(store.minTickSep / minorUnitSz);
 	let stepFrac = numMinorUnits / Math.floor(numMinorUnits / minStep);
+
 	// Iterate through fractional indexes, using rounded differences to step dates
 	let idxFrac = stepFrac;
 	let idx = Math.floor(idxFrac);
@@ -303,6 +333,7 @@ function getMinorTicks(date: HistDate, scaleIdx: number, majorUnitSz: number, ma
 	}
 	return minorTicks;
 }
+
 const ticks = computed((): Tick[] => {
 	let ticks: Tick[] = [];
 	if (!mounted.value){
@@ -310,6 +341,7 @@ const ticks = computed((): Tick[] => {
 	}
 	let numUnits = getNumDisplayUnits();
 	let majorUnitSz = availLen.value / numUnits;
+
 	// Get before-startDate ticks (including start-offset ticks and hidden ticks)
 	let panUnits = Math.floor(numUnits * store.scrollRatio); // Potential shift distance upon a pan action
 	let date = startDate.value;
@@ -326,6 +358,7 @@ const ticks = computed((): Tick[] => {
 		ticks.push(new Tick(date, true, startOffset.value - (i + 1)));
 	}
 	ticks.reverse();
+
 	// Get startDate-to-endDate ticks
 	date = startDate.value.clone();
 	let numMajorUnits = getNumDisplayUnits({inclOffsets: false});
@@ -346,6 +379,7 @@ const ticks = computed((): Tick[] => {
 		ticks.push(...minorTicks);
 		date = stepDate(date, scale.value);
 	}
+
 	// Get after-endDate ticks (including end-offset ticks and hidden ticks)
 	let endDateOffset = ticks[ticks.length - 1].offset;
 	for (let i = 0; i < panUnits + Math.ceil(endOffset.value); i++){
@@ -359,6 +393,7 @@ const ticks = computed((): Tick[] => {
 		date = stepDate(date, scale.value);
 		ticks.push(new Tick(date, true, endDateOffset + (i + 1)));
 	}
+
 	// Get hidden ticks that might transition in after zooming
 	let ticksBefore: Tick[] = [];
 	let ticksAfter: Tick[] = [];
@@ -391,12 +426,14 @@ const ticks = computed((): Tick[] => {
 			}
 		}
 	}
-	//
+
 	ticks = [...ticksBefore, ...ticks, ...ticksAfter];
 	return ticks;
 });
-const firstIdx = computed((): number => { // Index of first major tick after which events are visible (-1 if none)
-	// Looks for a first visible major tick, and uses a preceding tick if present
+
+// Index of first major tick after which events are visible (-1 if none)
+const firstIdx = computed((): number => {
+	// Look for a first visible major tick, and uses a preceding tick if present
 	let idx = -1;
 	for (let i = 0; i < ticks.value.length; i++){
 		let tick = ticks.value[i];
@@ -410,9 +447,10 @@ const firstIdx = computed((): number => { // Index of first major tick after whi
 	}
 	return idx;
 });
-const firstDate = computed(() => firstIdx.value < 0 ? startDate.value : ticks.value[firstIdx.value]!.date);
-const lastIdx = computed((): number => { // Index of last major tick before which events are visible (-1 if none)
-	// Looks for a last visible major tick, and uses a following tick if present
+
+// Index of last major tick before which events are visible (-1 if none)
+const lastIdx = computed((): number => {
+	// Look for a last visible major tick, and uses a following tick if present
 	let numUnits = getNumDisplayUnits();
 	let idx = -1;
 	for (let i = ticks.value.length - 1; i >= 0; i--){
@@ -427,7 +465,10 @@ const lastIdx = computed((): number => { // Index of last major tick before whic
 	}
 	return idx;
 });
+
+const firstDate = computed(() => firstIdx.value < 0 ? startDate.value : ticks.value[firstIdx.value]!.date);
 const lastDate = computed(() => lastIdx.value < 0 ? endDate.value : ticks.value[lastIdx.value]!.date);
+
 const startIsFirstVisible = computed(() => {
 	if (ticks.value.length == 0){
 		return true;
@@ -435,6 +476,7 @@ const startIsFirstVisible = computed(() => {
 		return ticks.value.find((tick: Tick) => tick.offset >= 0)!.date.equals(startDate.value);
 	}
 });
+
 const endIsLastVisible = computed(() => {
 	if (ticks.value.length == 0){
 		return true;
@@ -444,7 +486,8 @@ const endIsLastVisible = computed(() => {
 	}
 });
 
-// For displayed events
+// ========== For displayed events ==========
+
 function dateToOffset(date: HistDate){ // Assumes 'date' is >=firstDate and <=lastDate
 	// Find containing major tick
 	let tickIdx = firstIdx.value;
@@ -457,6 +500,7 @@ function dateToOffset(date: HistDate){ // Assumes 'date' is >=firstDate and <=la
 			}
 		}
 	}
+
 	// Get offset within unit
 	const tick = ticks.value[tickIdx];
 	if (!hasMinorScale.value){
@@ -470,7 +514,9 @@ function dateToOffset(date: HistDate){ // Assumes 'date' is >=firstDate and <=la
 		return tick.offset + getUnitDiff(tick.date, date, minorScale.value) / getNumSubUnits(tick.date, scaleIdx.value);
 	}
 }
+
 const idToEvent: Ref<Map<number, HistEvent>> = ref(new Map()); // Maps visible event IDs to HistEvents
+
 function updateIdToEvent(){
 	let map: Map<number, HistEvent> = new Map();
 	// Find events to display
@@ -493,15 +539,18 @@ function updateIdToEvent(){
 }
 watch(() => props.eventTree, updateIdToEvent);
 watch(ticks, updateIdToEvent);
+
 const idToPos: Ref<Map<number, [number, number, number, number]>> = ref(new Map()); // Maps event IDs to x/y/w/h
 const idsToSkipTransition: Ref<Set<number>> = ref(new Set()); // Used to prevent events moving across mainline
 type LineCoords = [number, number, number, number]; // x, y, length, angle
 const eventLines: Ref<Map<number, LineCoords>> = ref(new Map()); // Maps event ID to event line data
+
 function getEventLayout(): Map<number, [number, number, number, number]> {
 	let map: Map<number, [number, number, number, number]> = new Map();
 	if (!mounted.value){
 		return map;
 	}
+
 	// Determine columns to place event elements in (or rows if !props.vert)
 	let cols: [number, number][][] = []; // For each column, for each laid out event, stores an ID and pixel offset
 	let colOffsets: number[] = []; // Stores the pixel offset of each column
@@ -541,6 +590,7 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 		console.log('WARNING: No space for events');
 		return map;
 	}
+
 	// Place events in columns, trying to minimise distance to points on mainline
 		// Note: Placing popular events first so the layout is more stable between event requests
 	let MAX_ANGLE = 30 / 180 * Math.PI; // Max event-line angle difference (radians) from perpendicular-to-mainline
@@ -560,6 +610,7 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 		// Get preferred offset in column
 		let pxOffset = dateToOffset(event.start) / numUnits * availLen.value - eventMajorSz.value / 2;
 		let targetOffset = Math.max(Math.min(pxOffset, maxOffset), minOffset);
+
 		// Find potential positions
 		let positions: [number, number, number][] = [];
 			// For each position, holds a column index, a within-column index to insert at, and an offset value
@@ -570,6 +621,7 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 			let bestOffset: number | null = null; // Best offset found so far
 			let bestIdx: number | null = null; // Index of insertion for bestOffset
 			let colMainlineDist = Math.abs(colOffsets[colIdx] - mainlineOffset.value);
+
 			if (Math.atan2(Math.abs(pxOffset - targetOffset), colMainlineDist) > MAX_ANGLE){
 				// Invalid angle, skip column
 			} else if (cols[colIdx].length == 0){ // Check for empty column
@@ -634,10 +686,12 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 					}
 				}
 			}
+
 			// Add potential position
 			if (bestOffset != null){
 				positions.push([colIdx, bestIdx!, bestOffset]);
 			}
+
 			// Update colIdx
 			if (afterMainlineIdx == null){
 				colIdx -= 1;
@@ -649,6 +703,7 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 				}
 			}
 		}
+
 		// Choose position with minimal distance
 		if (positions.length > 0){
 			let bestPos = positions[0]!;
@@ -660,6 +715,7 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 			cols[bestPos[0]].splice(bestPos[1], 0, [event.id, bestPos[2]]);
 		}
 	}
+
 	// Add events to map
 	for (let colIdx = 0; colIdx < cols.length; colIdx++){
 		let minorOffset = colOffsets[colIdx];
@@ -673,8 +729,11 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 	}
 	return map;
 }
-function updateLayout(){ // Updates idToPos and eventLines
+
+// Updates idToPos and eventLines
+function updateLayout(){
 	let map = getEventLayout();
+
 	// Check for events that cross mainline
 	for (let [eventId, [x, y, , ]] of map.entries()){
 		if (idToPos.value.has(eventId)){
@@ -686,6 +745,7 @@ function updateLayout(){ // Updates idToPos and eventLines
 		}
 	}
 	setTimeout(() => idsToSkipTransition.value.clear(), store.transitionDuration);
+
 	// Update idToPos // Note: For some reason, if the map is assigned directly, events won't consistently transition
 	let toDelete = [];
 	for (let eventId of idToPos.value.keys()){
@@ -702,6 +762,7 @@ function updateLayout(){ // Updates idToPos and eventLines
 	if (pendingSearch && idToPos.value.has(searchEvent.value!.id)){
 		pendingSearch = false;
 	}
+
 	// Update event lines
 	let newEventLines: Map<number, LineCoords> = new Map();
 	let numUnits = getNumDisplayUnits();
@@ -743,6 +804,7 @@ function updateLayout(){ // Updates idToPos and eventLines
 		newEventLines.set(id, [x, y, l, a]);
 	}
 	eventLines.value = newEventLines;
+
 	// Notify parent
 	emit('event-display', ID, [...map.keys()], firstDate.value, lastDate.value, minorScaleIdx.value);
 }
@@ -750,9 +812,11 @@ watch(idToEvent, updateLayout);
 watch(width, updateLayout);
 watch(height, updateLayout);
 
-// For event-count indicators
+// ========== For event-count indicators ==========
+
+// Maps tick index to event count
 const tickToCount = computed((): Map<number, number> => {
-	let tickToCount: Map<number, number> = new Map(); // Maps tick index to event count
+	let tickToCount: Map<number, number> = new Map();
 	if (ticks.value.length == 0){
 		return tickToCount;
 	}
@@ -773,7 +837,8 @@ const tickToCount = computed((): Map<number, number> => {
 	return tickToCount;
 });
 
-// For timeline position label
+// ========== For timeline position label ==========
+
 const timelinePosStr = computed((): string => {
 	const date1 = startIsFirstVisible.value ? startDate.value : firstDate.value;
 	const date2 = endIsLastVisible.value ? endDate.value : lastDate.value;
@@ -792,7 +857,8 @@ const timelinePosStr = computed((): string => {
 	}
 });
 
-// For panning/zooming
+// ========== For panning/zooming ==========
+
 function panTimeline(scrollRatio: number){
 	let numUnits = getNumDisplayUnits();
 	let chgUnits = numUnits * scrollRatio;
@@ -800,6 +866,7 @@ function panTimeline(scrollRatio: number){
 	let newEnd = endDate.value.clone();
 	let [numStartSteps, numEndSteps, newStartOffset, newEndOffset] =
 		getMovedBounds(startOffset.value, endOffset.value, chgUnits, chgUnits);
+
 	if (scrollRatio > 0){
 		while (true){ // Incrementally update newStart and newEnd using getMovedBounds() result
 			if (newEnd.isEarlier(MAX_DATE, scale.value)){
@@ -875,6 +942,7 @@ function panTimeline(scrollRatio: number){
 			}
 		}
 	}
+
 	if (newStart.isEarlier(MIN_CAL_DATE, scale.value) && (scale.value == MONTH_SCALE || scale.value == DAY_SCALE)){
 		console.log('Unable to pan into dates where months/days are invalid');
 		return;
@@ -888,6 +956,7 @@ function panTimeline(scrollRatio: number){
 	startOffset.value = newStartOffset;
 	endOffset.value = newEndOffset;
 }
+
 function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	if (zoomRatio > 1
 			&& startDate.value.equals(MIN_DATE, scale.value)
@@ -898,6 +967,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	}
 	let numUnits = getNumDisplayUnits();
 	let newNumUnits = numUnits * zoomRatio;
+
 	// Get tentative bound changes
 	let startChg: number;
 	let endChg: number;
@@ -918,6 +988,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 		startChg = -(zoomCenter * (zoomRatio - 1));
 		endChg = (numUnits - zoomCenter) * (zoomRatio - 1)
 	}
+
 	// Get new bounds
 	let newStart = startDate.value.clone();
 	let newEnd = endDate.value.clone();
@@ -966,6 +1037,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 			let oldUnitsPerNew = getScaleRatio(scale.value, newScale);
 			newStartOffset /= oldUnitsPerNew;
 			newEndOffset /= oldUnitsPerNew;
+
 			// Shift starting and ending points to align with new scale
 			let newStartSubUnits =
 				(scale.value == DAY_SCALE) ? getDaysInMonth(newStart.year, newStart.month) :
@@ -1016,7 +1088,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 					newEnd.year = 1;
 				}
 			}
-			//
+
 			scaleIdx.value -= 1;
 		}
 	} else { // If trying to zoom in
@@ -1042,6 +1114,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 						&& newStartOffset % 1 > store.defaultEndTickOffset){
 					newStartOffset = store.defaultEndTickOffset;
 				}
+
 				// Update newEnd
 				newEndOffset *= newUnitsPerOld;
 				stepDate(newEnd, newScale, {count: Math.floor(newEndOffset), inplace: true});
@@ -1052,6 +1125,7 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 				if (newEnd.equals(MAX_DATE, newScale) && newEndOffset % 1 > store.defaultEndTickOffset){
 					newEndOffset = store.defaultEndTickOffset;
 				}
+
 				// Account for zooming into sub-year dates before MIN_CAL_DATE
 				if (newStart.isEarlier(MIN_CAL_DATE, newScale) && (newScale == MONTH_SCALE || newScale == DAY_SCALE)){
 					console.log('Unable to zoom into range where month/day scale is invalid');
@@ -1062,15 +1136,16 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 			}
 		}
 	}
-	//
+
 	startDate.value = newStart;
 	endDate.value = newEnd;
 	startOffset.value = newStartOffset;
 	endOffset.value = newEndOffset;
 }
+
+// Returns a number of start and end steps to take, and new start and end offset values
 function getMovedBounds(
 		startOffset: number, endOffset: number, startChg: number, endChg: number): [number, number, number, number] {
-	// Returns a number of start and end steps to take, and new start and end offset values
 	let numStartSteps: number;
 	let numEndSteps: number;
 	let newStartOffset: number;
@@ -1092,7 +1167,8 @@ function getMovedBounds(
 	return [numStartSteps, numEndSteps, newStartOffset, newEndOffset];
 }
 
-// For mouse/etc handling
+// ========== For mouse/etc handling ==========
+
 let pointerX: number | null = null; // Used for pointer-centered zooming
 let pointerY: number | null = null;
 const ptrEvtCache: PointerEvent[] = []; // Holds last captured PointerEvent for each pointerId (used for pinch-zoom)
@@ -1103,11 +1179,14 @@ let dragVelocity: number; // Used to add 'drag momentum'
 let vUpdateTime: number; // Holds timestamp for last update of 'dragVelocity'
 let vPrevPointer: null | number; // Holds pointerX/pointerY used for last update of 'dragVelocity'
 let vUpdater = 0; // Set by a setInterval(), used to update 'dragVelocity'
+
 function onPointerDown(evt: PointerEvent){
 	ptrEvtCache.push(evt);
+
 	// Update pointer position
 	pointerX = evt.clientX;
 	pointerY = evt.clientY;
+
 	// Update data for dragging
 	dragDiff = 0;
 	dragVelocity = 0;
@@ -1123,13 +1202,14 @@ function onPointerDown(evt: PointerEvent){
 		vPrevPointer = (props.vert ? pointerY : pointerX);
 	}, 50);
 }
+
 function onPointerMove(evt: PointerEvent){
 	// Update event cache
 	if (ptrEvtCache.length > 0){
 		const index = ptrEvtCache.findIndex((e) => e.pointerId == evt.pointerId);
 		ptrEvtCache[index] = evt;
 	}
-	//
+
 	if (ptrEvtCache.length == 1){
 		// Handle pointer dragging
 		dragDiff += props.vert ? evt.clientY - pointerY! : evt.clientX - pointerX!;
@@ -1158,20 +1238,24 @@ function onPointerMove(evt: PointerEvent){
 		}
 		lastPinchDiff = pinchDiff;
 	}
+
 	// Update stored cursor position
 	pointerX = evt.clientX;
 	pointerY = evt.clientY;
 }
+
 function onPointerUp(evt: PointerEvent){
 	// Ignore for dragging between child elements
 	if (evt.relatedTarget != null && rootRef.value!.contains(evt.relatedTarget as HTMLElement)){
 		return;
 	}
+
 	// Remove from event cache
 	if (ptrEvtCache.length > 0){
 		const index = ptrEvtCache.findIndex((e) => e.pointerId == evt.pointerId);
 		ptrEvtCache.splice(index, 1);
 	}
+
 	// Possibly trigger 'drag momentum'
 	if (vUpdater != 0){ // Might be zero on pointerleave/etc
 		clearInterval(vUpdater);
@@ -1181,22 +1265,25 @@ function onPointerUp(evt: PointerEvent){
 			panTimeline(-scrollChg / availLen.value);
 		}
 	}
-	//
+
 	if (ptrEvtCache.length < 2){
 		lastPinchDiff = -1;
 	}
 	dragDiff = 0;
 }
+
 function onWheel(evt: WheelEvent){
 	let shiftDir = (evt.deltaY > 0 ? 1 : -1) * (!props.vert ? -1 : 1);
 	panTimeline(shiftDir * store.scrollRatio);
 }
+
 function onShiftWheel(evt: WheelEvent){
 	let zoomRatio = evt.deltaY > 0 ? store.zoomRatio : 1/store.zoomRatio;
 	zoomTimeline(zoomRatio);
 }
 
-// For bound-change signalling
+// ========== For bound-change signalling ==========
+
 function onStateChg(){
 	emit('state-chg', new TimelineState(
 		ID, startDate.value, endDate.value, startOffset.value, endOffset.value, scaleIdx.value
@@ -1204,9 +1291,10 @@ function onStateChg(){
 }
 watch(startDate, onStateChg);
 
-// For jumping to search result
+// ========== For jumping to search result ==========
 const searchEvent = ref(null as null | HistEvent); // Holds most recent search result
 let pendingSearch = false;
+
 watch(() => props.searchTarget, () => {
 	const event = props.searchTarget[0];
 	if (event == null){
@@ -1217,6 +1305,7 @@ watch(() => props.searchTarget, () => {
 		animateFailDiv('max');
 		return;
 	}
+
 	if (!idToPos.value.has(event.id)){ // If not already visible
 		// Determine new time range
 		let tempScale = scale.value;
@@ -1241,6 +1330,7 @@ watch(() => props.searchTarget, () => {
 			}
 			targetEnd = MAX_DATE;
 		}
+
 		// Jump to range
 		if (startDate.value.equals(targetStart) && endDate.value.equals(targetEnd) && scale.value == tempScale){
 			updateIdToEvent();
@@ -1251,15 +1341,19 @@ watch(() => props.searchTarget, () => {
 		}
 		pendingSearch = true;
 	}
+
 	searchEvent.value = event;
 });
-watch(idToEvent, () => { // Remove highlighting of search results that have become out of range
+
+// Remove highlighting of search results that have become out of range
+watch(idToEvent, () => {
 	if (searchEvent.value != null && !idToEvent.value.has(searchEvent.value.id) && !pendingSearch){
 		searchEvent.value = null;
 	}
 });
 
-// For resets
+// ========== For resets ==========
+
 watch(() => props.reset, () => {
 	startDate.value = store.initialStartDate;
 	endDate.value = store.initialEndDate;
@@ -1268,7 +1362,8 @@ watch(() => props.reset, () => {
 	initScale();
 });
 
-// For keyboard shortcuts
+// ========== For keyboard shortcuts ==========
+
 function onKeyDown(evt: KeyboardEvent){
 	if (!props.current || store.disableShortcuts){
 		return;
@@ -1302,11 +1397,13 @@ onUnmounted(() => {
 	window.removeEventListener('keydown', onKeyDown);
 });
 
-// For skipping transitions on startup (and on horz/vert swap)
+// ========== For skipping transitions on startup (and on horz/vert swap) ==========
+
 const skipTransition = ref(true);
 onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
 
-// Styles
+// ========== For styles ==========
+
 const mainlineStyles = computed(() => {
 	return {
 		transform: props.vert ?
@@ -1317,6 +1414,7 @@ const mainlineStyles = computed(() => {
 		transitionTimingFunction: 'ease-out',
 	};
 });
+
 function tickStyles(tick: Tick){
 	let numMajorUnits = getNumDisplayUnits();
 	let pxOffset = tick.offset / numMajorUnits * availLen.value;
@@ -1331,12 +1429,15 @@ function tickStyles(tick: Tick){
 		opacity: (pxOffset >= 0 && pxOffset <= availLen.value) ? 1 : 0,
 	}
 }
+
 const REF_LABEL = '9999 BC'; // Used as a reference for preventing tick label overlap
 const refTickLabelWidth = getTextWidth(REF_LABEL, '14px Ubuntu') + 10;
 const tickLabelTexts = computed(() => ticks.value.map((tick: Tick) => tick.date.toTickString()));
+
 const tickLabelStyles = computed((): Record<string,string>[] => {
 	let numMajorUnits = getNumDisplayUnits();
 	let labelSz = props.vert ? store.tickLabelHeight : tickLabelWidth.value;
+
 	// Get offsets, and check for label overlap
 	let pxOffsets: number[] = [];
 	let hasLongLabel = false; // True if a label has text longer than REF_LABEL (labels will be rotated)
@@ -1371,6 +1472,7 @@ const tickLabelStyles = computed((): Record<string,string>[] => {
 			}
 		}
 	}
+
 	// Determine styles
 	let styles: Record<string,string>[] = [];
 	for (let i = 0; i < ticks.value.length; i++){
@@ -1388,6 +1490,7 @@ const tickLabelStyles = computed((): Record<string,string>[] => {
 	}
 	return styles;
 });
+
 function eventStyles(eventId: number){
 	const [x, y, w, h] = idToPos.value.get(eventId)!;
 	return {
@@ -1400,6 +1503,7 @@ function eventStyles(eventId: number){
 		transitionTimingFunction: 'ease-out',
 	};
 }
+
 function eventImgStyles(eventId: number){
 	const event = idToEvent.value.get(eventId)!;
 	let isSearchResult = searchEvent.value != null && searchEvent.value.id == eventId;
@@ -1415,6 +1519,7 @@ function eventImgStyles(eventId: number){
 		boxShadow: isSearchResult ? '0 0 6px 4px ' + color : 'none',
 	};
 }
+
 function eventLineStyles(eventId: number){
 	const [x, y, , a] = eventLines.value.get(eventId)!;
 	return {
@@ -1424,6 +1529,7 @@ function eventLineStyles(eventId: number){
 		transitionTimingFunction: 'ease-out',
 	};
 }
+
 function countDivStyles(tickIdx: number, count: number): Record<string,string> {
 	let tick = ticks.value[tickIdx];
 	let numMajorUnits = getNumDisplayUnits();
@@ -1443,6 +1549,7 @@ function countDivStyles(tickIdx: number, count: number): Record<string,string> {
 		transitionTimingFunction: 'linear',
 	}
 }
+
 function animateFailDiv(which: 'min' | 'max' | 'both' | 'bg'){
 	if (which == 'min'){
 		animateWithClass(minFailRef.value!, 'animate-show-then-fade');
@@ -1455,6 +1562,7 @@ function animateFailDiv(which: 'min' | 'max' | 'both' | 'bg'){
 		animateWithClass(bgFailRef.value!, 'animate-red-then-fade');
 	}
 }
+
 function failDivStyles(minDiv: boolean){
 	const gradientDir = props.vert ? (minDiv ? 'top' : 'bottom') : (minDiv ? 'left' : 'right');
 	return {

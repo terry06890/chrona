@@ -20,6 +20,7 @@
 			<search-icon/>
 		</icon-button>
 	</div>
+
 	<!-- Content area -->
 	<div class="grow min-h-0 flex" :class="{'flex-col': !vert}"
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
@@ -32,6 +33,7 @@
 			@info-click="onInfoClick" @pointerenter="currentTimelineIdx = idx"/>
 		<base-line v-if="store.showBaseLine" :vert="vert" :timelines="timelines" class='m-1 sm:m-2'/>
 	</div>
+
 	<!-- Modals -->
 	<transition name="fade">
 		<search-modal v-if="searchOpen" :eventTree="eventTree" :titleToEvent="titleToEvent"
@@ -55,7 +57,7 @@
 
 <script setup lang="ts">
 import {ref, computed, onMounted, onUnmounted, Ref, shallowRef, ShallowRef} from 'vue';
-// Components
+
 import TimeLine from './components/TimeLine.vue';
 import BaseLine from './components/BaseLine.vue';
 import InfoModal from './components/InfoModal.vue';
@@ -64,12 +66,12 @@ import SettingsModal from './components/SettingsModal.vue';
 import HelpModal from './components/HelpModal.vue';
 import LoadingModal from './components/LoadingModal.vue';
 import IconButton from './components/IconButton.vue';
-// Icons
+
 import HelpIcon from './components/icon/HelpIcon.vue';
 import SettingsIcon from './components/icon/SettingsIcon.vue';
 import PlusIcon from './components/icon/PlusIcon.vue';
 import SearchIcon from './components/icon/SearchIcon.vue';
-// Other
+
 import {HistDate, HistEvent, queryServer,
 	EventResponseJson, jsonToHistEvent, EventInfo, EventInfoJson, jsonToEventInfo,
 	SCALES, stepDate, TimelineState, cmpHistEvent, dateToUnit, DateRangeTree,
@@ -77,16 +79,16 @@ import {HistDate, HistEvent, queryServer,
 import {useStore} from './store';
 import {RBTree, rbtree_shallow_copy} from './rbtree';
 
-// Refs
 const contentAreaRef = ref(null as HTMLElement | null);
 
-// Global store
 const store = useStore();
 
-// For content sizing (used to decide between horizontal and vertical mode)
+// ========== For content sizing ==========
+
 const contentWidth = ref(1);
 const contentHeight = ref(1);
 const vert = computed(() => contentHeight.value > contentWidth.value);
+
 function updateAreaDims(){
 	let contentAreaEl = contentAreaRef.value!;
 	contentWidth.value = contentAreaEl.offsetWidth;
@@ -94,10 +96,12 @@ function updateAreaDims(){
 }
 onMounted(updateAreaDims);
 
-// Timeline data
+// ========== Timeline data ==========
+
 const timelines: Ref<TimelineState[]> = ref([]);
 const currentTimelineIdx = ref(0);
 let nextTimelineId = 1;
+
 function addTimeline(){
 	if (timelines.value.length == 0){
 		timelines.value.push(new TimelineState(nextTimelineId, store.initialStartDate, store.initialEndDate));
@@ -112,17 +116,20 @@ function addTimeline(){
 	nextTimelineId += 1;
 }
 onMounted(addTimeline);
+
 function onTimelineChg(state: TimelineState, idx: number){
 	timelines.value[idx] = state;
 	currentTimelineIdx.value = idx;
 }
 
-// For timeline addition/removal
+// ========== For timeline add/remove ==========
+
 const MIN_TIMELINE_BREADTH = store.mainlineBreadth + store.spacing * 2 + store.eventImgSz + store.eventLabelHeight;
 const maxTimelines = computed(() => {
 	return vert.value && contentWidth.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH
 		|| !vert.value && contentHeight.value / (timelines.value.length + 1) < MIN_TIMELINE_BREADTH
 });
+
 function onTimelineAdd(){
 	if (maxTimelines.value){
 		console.log('Ignored addition of timeline upon reaching max');
@@ -130,11 +137,13 @@ function onTimelineAdd(){
 	}
 	addTimeline();
 }
+
 function onTimelineClose(idx: number){
 	if (timelines.value.length == 1){
 		console.log('Ignored removal of last timeline')
 		return;
 	}
+
 	timelines.value.splice(idx, 1);
 	searchTargets.value.splice(idx, 1);
 	resetFlags.value.splice(idx, 1);
@@ -143,15 +152,18 @@ function onTimelineClose(idx: number){
 	}
 }
 
-// For storing and looking up events
+// ========== For event data ==========
+
 const eventTree: ShallowRef<RBTree<HistEvent>> = shallowRef(new RBTree(cmpHistEvent));
 let idToEvent: Map<number, HistEvent> = new Map();
 let titleToEvent: Map<string, HistEvent> = new Map();
 const unitCountMaps: Ref<Map<number, number>[]> = ref(SCALES.map(() => new Map()));
 	// For each scale, maps units to event counts
+
 // For keeping event data under a memory limit
 const EXCESS_EVENTS_THRESHOLD = 10000;
 let displayedEvents: Map<number, number[]> = new Map(); // Maps TimeLine IDs to IDs of displayed events
+
 function reduceEvents(){
 	// Get events to keep
 	let eventsToKeep: Map<number, HistEvent> = new Map();
@@ -160,11 +172,13 @@ function reduceEvents(){
 			eventsToKeep.set(id, idToEvent.get(id)!);
 		}
 	}
+
 	// Create new event tree
 	let newTree = new RBTree(cmpHistEvent);
 	for (let [, event] of eventsToKeep){
 		newTree.insert(event);
 	}
+
 	// Create new unit-count maps
 	let newMaps: Map<number, number>[] = SCALES.map(() => new Map());
 	for (let timeline of timelines.value){
@@ -182,6 +196,7 @@ function reduceEvents(){
 			}
 		}
 	}
+
 	// Replace old data
 	eventTree.value = newTree;
 	unitCountMaps.value = newMaps;
@@ -191,21 +206,25 @@ function reduceEvents(){
 		titleToEvent.set(event.title, event);
 	}
 }
-// For getting events from server
+
+// ========== For getting events from server ==========
+
 const eventReqLimit = computed(() => {
-	return Math.ceil(Math.max(contentWidth.value, contentHeight.value) / store.eventImgSz * 32);
-		// As a rough heuristic, the number of events that could fit along the major axis,
+	// As a rough heuristic, is the number of events that could fit along the major axis,
 		// multiplied by a rough number of time points per event-occupied region,
 		// multiplied by the max number of events per time point (four).
+	return Math.ceil(Math.max(contentWidth.value, contentHeight.value) / store.eventImgSz * 32);
 });
 const MAX_EVENTS_PER_UNIT = 4; // Should equal MAX_DISPLAYED_PER_UNIT in backend gen_disp_data.py
-let queriedRanges: DateRangeTree[] = SCALES.map(() => new DateRangeTree());
-	// For each scale, holds date ranges for which data has already been queried fromm the server
+let queriedRanges: DateRangeTree[] = // For each scale, holds date ranges for which data has already been queried
+	SCALES.map(() => new DateRangeTree());
 let lastQueriedRange: [HistDate, HistDate] | null = null;
+
 async function handleOnEventDisplay(
 		timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
 	let timelineIdx = timelines.value.findIndex((s : TimelineState) => s.id == timelineId);
 	let targetEvent = searchTargets.value[timelineIdx][0];
+
 	// Skip if range has been queried, and enough of its events have been obtained
 	if (queriedRanges[scaleIdx].contains([firstDate, lastDate])
 			&& (targetEvent == null || idToEvent.has(targetEvent.id))){
@@ -245,6 +264,7 @@ async function handleOnEventDisplay(
 			}
 		}
 	}
+
 	// Get events from server
 	if (lastQueriedRange != null && lastQueriedRange[0].equals(firstDate) && lastQueriedRange[1].equals(lastDate)
 			&& (targetEvent == null || idToEvent.has(targetEvent.id))){
@@ -254,7 +274,7 @@ async function handleOnEventDisplay(
 	lastQueriedRange = [firstDate, lastDate];
 	let urlParams = new URLSearchParams({
 		// Note: Intentionally not filtering by event categories (would need category-sensitive
-		// unit count data to determine when enough events have been obtained)
+			// unit count data to determine when enough events have been obtained)
 		type: 'events',
 		range: `${firstDate}.${lastDate}`,
 		scale: String(SCALES[scaleIdx]),
@@ -272,6 +292,7 @@ async function handleOnEventDisplay(
 		return;
 	}
 	queriedRanges[scaleIdx].add([firstDate, lastDate]);
+
 	// Collect events
 	let eventAdded = false;
 	for (let eventObj of responseObj.events){
@@ -289,6 +310,7 @@ async function handleOnEventDisplay(
 		}
 		searchTargets.value[timelineIdx][0] = null;
 	}
+
 	// Collect unit counts
 	const unitCounts = responseObj.unitCounts;
 	if (unitCounts == null){
@@ -303,10 +325,12 @@ async function handleOnEventDisplay(
 			unitCountMaps.value[scaleIdx].set(unit, count)
 		}
 	}
+
 	// Notify components if new events were added
 	if (eventAdded){
 		eventTree.value = rbtree_shallow_copy(eventTree.value); // Note: triggerRef(eventTree) does not work here
 	}
+
 	// Check memory limit
 	displayedEvents.set(timelineId, eventIds);
 	if (eventTree.value.size > EXCESS_EVENTS_THRESHOLD){
@@ -317,8 +341,10 @@ async function handleOnEventDisplay(
 }
 const onEventDisplay = makeThrottled(handleOnEventDisplay, 200);
 
-// For info modal
+// ========== For info modal ==========
+
 const infoModalData = ref(null as EventInfo | null);
+
 async function onInfoClick(eventTitle: string){
 	// Query server for event info
 	let urlParams = new URLSearchParams({type: 'info', event: eventTitle});
@@ -330,10 +356,13 @@ async function onInfoClick(eventTitle: string){
 	}
 }
 
-// For search modal
+// ========== For search modal ==========
+
 const searchOpen = ref(false);
-const searchTargets = ref([] as [HistEvent | null, boolean][]); // For communicating search results to timelines
+const searchTargets = ref([] as [HistEvent | null, boolean][]);
+	// For communicating search results to timelines
 	// A boolean flag is used to trigger jumping even when the same event occurs twice
+
 function onSearch(event: HistEvent){
 	searchOpen.value = false;
 	// Trigger jump in current timeline
@@ -341,11 +370,12 @@ function onSearch(event: HistEvent){
 	searchTargets.value.splice(currentTimelineIdx.value, 1, [event, !oldVal[1]]);
 }
 
-// For settings modal
+// ========== For settings modal ==========
+
 const settingsOpen = ref(false);
+
 function onSettingChg(option: string){
-	if (option == 'reqImgs' || option.startsWith('ctgs.')){
-		// Reset event data
+	if (option == 'reqImgs' || option.startsWith('ctgs.')){ // Reset event data
 		eventTree.value = new RBTree(cmpHistEvent); // Will trigger event re-query
 		unitCountMaps.value = SCALES.map(() => new Map());
 		idToEvent.clear();
@@ -354,27 +384,35 @@ function onSettingChg(option: string){
 	}
 }
 
-// For help modal
+// ========== For help modal ==========
+
 const helpOpen = ref(false);
 
-// For loading modal
+// ========== For loading modal ==========
+
 const SERVER_WAIT_MSG = 'Loading data';
 const loadingMsg = ref(null as null | string);
 const pendingLoadingRevealHdlr = ref(0); // Used to delay showing the loading modal
-function primeLoadInd(msg: string, delay?: number){ // Sets up a loading message to display after a timeout
+
+// Sets up a loading message to display after a timeout
+function primeLoadInd(msg: string, delay?: number){
 	clearTimeout(pendingLoadingRevealHdlr.value);
 	pendingLoadingRevealHdlr.value = window.setTimeout(() => {
 		loadingMsg.value = msg;
 	}, delay == null ? 500 : delay);
 }
-function endLoadInd(){ // Cancels or closes a loading message
+
+// Cancels or closes a loading message
+function endLoadInd(){
 	clearTimeout(pendingLoadingRevealHdlr.value);
 	pendingLoadingRevealHdlr.value = 0;
 	if (loadingMsg.value != null){
 		loadingMsg.value = null;
 	}
 }
-async function loadFromServer(urlParams: URLSearchParams, delay?: number){ // Like queryServer() but uses loading modal
+
+// Like queryServer() but uses loading modal
+async function loadFromServer(urlParams: URLSearchParams, delay?: number){
 	primeLoadInd(SERVER_WAIT_MSG, delay);
 	let responseObj = await queryServer(urlParams);
 	endLoadInd();
@@ -388,17 +426,20 @@ function onReset(){
 	resetFlags.value.splice(currentTimelineIdx.value, 1, !oldFlag);
 }
 
-//
+// ========== For modals in general ==========
+
 const modalOpen = computed(() =>
 	(infoModalData.value != null || searchOpen.value || settingsOpen.value || helpOpen.value));
 
-// For resize handling
+// ========== For resize handling ==========
+
 const onResize = makeThrottledSpaced(updateAreaDims, 200);
 	// Note: If delay is too small, touch-device detection when swapping to/from mobile-mode gets unreliable
 onMounted(() => window.addEventListener('resize', onResize));
 onUnmounted(() => window.removeEventListener('resize', onResize));
 
-// For keyboard shortcuts
+// ========== For keyboard shortcuts ==========
+
 function onKeyDown(evt: KeyboardEvent){
 	if (store.disableShortcuts){
 		return;
@@ -415,7 +456,6 @@ function onKeyDown(evt: KeyboardEvent){
 		}
 	} else if (evt.key == 'f' && evt.ctrlKey){
 		evt.preventDefault();
-		// Open/focus search bar
 		if (!searchOpen.value){
 			searchOpen.value = true;
 		}
@@ -451,15 +491,18 @@ function onKeyDown(evt: KeyboardEvent){
 		onTimelineClose(currentTimelineIdx.value);
 	}
 }
+
 onMounted(() => {
 	window.addEventListener('keydown', onKeyDown);
 		// Note: Need 'keydown' instead of 'keyup' to override default CTRL-F
 });
+
 onUnmounted(() => {
 	window.removeEventListener('keydown', onKeyDown);
 });
 
-// Styles
+// ========== For styles ==========
+
 const buttonStyles = computed(() => ({
 	color: store.color.text,
 	backgroundColor: store.color.altDark2,

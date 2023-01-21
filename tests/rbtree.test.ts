@@ -3,6 +3,7 @@ import {RBTree, Iterator, rbtree_shallow_copy} from '/src/rbtree.ts'
 function cmpInt(a: int, b: int){
 	return a - b;
 }
+
 function getIteratorEls<T>(itr: Iterator<T>): T[]{
 	let els: T[] = [];
 	if (itr.data() != null){
@@ -14,6 +15,7 @@ function getIteratorEls<T>(itr: Iterator<T>): T[]{
 	}
 	return els;
 }
+
 function getIteratorElsRev<T>(itr: Iterator<T>): T[]{
 	let els: T[] = [];
 	if (itr.data() != null){
@@ -40,6 +42,7 @@ test('insert and remove', () => {
 	expect(tree.min()).toBe(-1);
 	expect(tree.max()).toBe(20);
 });
+
 test('iteration', () => {
 	let vals = [10, 10, 20, 5, -1];
 	let tree = new RBTree(cmpInt);
@@ -51,6 +54,7 @@ test('iteration', () => {
 	sorted.reverse()
 	expect(getIteratorElsRev(tree.iterator())).toEqual(sorted);
 });
+
 test('find', () => {
 	let tree = new RBTree(cmpInt);
 	tree.insert(1);

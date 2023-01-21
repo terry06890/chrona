@@ -5,6 +5,8 @@
 		<close-icon @click.stop="onClose" ref="closeRef"
 			class="absolute top-1 right-1 md:top-2 md:right-2 w-8 h-8 hover:cursor-pointer" />
 		<h1 class="text-xl md:text-2xl font-bold text-center py-2" :class="borderBClasses">Settings</h1>
+
+		<!-- Categories -->
 		<div class="pb-2" :class="borderBClasses">
 			<h2 class="font-bold md:text-xl text-center pt-1 md:pt-2 md:pb-1">Categories</h2>
 			<ul class="px-2 grid grid-cols-3">
@@ -24,6 +26,8 @@
 					@change="onSettingChg('ctgs.discovery')"/> Discovery </label> </li>
 			</ul>
 		</div>
+
+		<!-- Display settings -->
 		<div class="pb-2" :class="borderBClasses">
 			<h2 class="font-bold md:text-xl text-center pt-1 md:pt-2 md:pb-1">Display</h2>
 			<div class="grid grid-cols-2">
@@ -49,6 +53,8 @@
 				</div>
 			</div>
 		</div>
+
+		<!-- Input settings -->
 		<div v-if="store.touchDevice == false" class="pb-2" :class="borderBClasses">
 			<h2 class="font-bold md:text-xl text-center pt-1 md:pt-2 md:pb-1">Input</h2>
 			<div class="px-2">
@@ -72,10 +78,14 @@
 				<div class="my-auto text-right">{{store.zoomRatio}}</div>
 			</div>
 		</div>
+
+		<!-- Reset button -->
 		<s-button class="mx-auto my-2" :style="{color: store.color.text, backgroundColor: store.color.bg}"
 			@click="onReset">
 			Reset
 		</s-button>
+
+		<!-- Save indicator -->
 		<transition name="fade">
 			<div v-if="saved" class="absolute right-1 bottom-1" ref="saveIndRef"> Saved </div>
 		</transition>
@@ -89,19 +99,18 @@ import SButton from './SButton.vue';
 import CloseIcon from './icon/CloseIcon.vue';
 import {useStore} from '../store';
 
-// Refs
 const rootRef = ref(null as HTMLDivElement | null);
 const closeRef = ref(null as typeof CloseIcon | null);
 const saveIndRef = ref(null as HTMLDivElement | null);
 
-// Global store
 const store = useStore();
 
-// Events
 const emit = defineEmits(['close', 'change']);
 
-// Settings change handling
+// ========== Settings change handling ==========
+
 const saved = ref(false); // Set to true after a setting is saved
+
 const lastCtg = computed(() => { // When all but one category is disabled, names the remaining category
 	let enabledCtgs = Object.entries(store.ctgs).filter(([, enabled]) => enabled).map(([ctg, ]) => ctg);
 	if (enabledCtgs.length == 1){
@@ -110,7 +119,9 @@ const lastCtg = computed(() => { // When all but one category is disabled, names
 		return null;
 	}
 });
+
 let changedCtg: string | null = null; // Used to defer signalling of a category change until modal closes
+
 function onSettingChg(option: string){ 
 	store.save(option);
 	if (option.startsWith('ctgs.')){
@@ -128,17 +139,20 @@ function onSettingChg(option: string){
 		el.classList.add('animate-flash-yellow');
 	}
 }
+
 function onResetOne(option: string){
 	store.resetOne(option);
 	onSettingChg(option);
 }
+
 function onReset(){
 	store.reset();
 	store.clear();
 	saved.value = false;
 }
 
-// Close handling
+// ========== Close handling ==========
+
 function onClose(evt: Event){
 	if (evt.target == rootRef.value || closeRef.value!.$el.contains(evt.target)){
 		emit('close');
@@ -148,11 +162,13 @@ function onClose(evt: Event){
 	}
 }
 
-// Styles and classes
+// ========== For styling ==========
+
+const borderBClasses = 'border-b border-stone-400';
+const rLabelClasses = "w-fit hover:cursor-pointer hover:text-yellow-600"; // For reset-upon-click labels
+
 const styles = computed(() => ({
 	backgroundColor: store.color.bgAlt,
 	borderRadius: store.borderRadius + 'px',
 }));
-const borderBClasses = 'border-b border-stone-400';
-const rLabelClasses = "w-fit hover:cursor-pointer hover:text-yellow-600"; // For reset-upon-click labels
 </script>

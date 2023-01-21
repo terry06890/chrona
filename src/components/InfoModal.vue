@@ -7,6 +7,7 @@
 		<h1 class="text-center text-xl font-bold pt-2 pb-1 md:text-2xl md:pt-3 md:pb-1">
 			{{event.title}}
 		</h1>
+
 		<!-- Time Display -->
 		<div class="text-center text-sm md:text-base">
 			Start: {{datesDisplayStrs[0]}}
@@ -14,11 +15,13 @@
 		<div v-if="datesDisplayStrs[1] != null" class="text-center text-sm md:text-base">
 			End: {{datesDisplayStrs[1]}}
 		</div>
+
 		<!-- Main content -->
 		<div class="border-t border-stone-400 p-2 md:p-3">
 			<div v-if="eventInfo.imgInfo != null" class="mt-1 mr-2 md:mb-2 md:mr-4 md:float-left">
 				<!-- Image -->
 				<a :href="eventInfo.imgInfo.url" target="_blank" class="block w-fit mx-auto" :style="imgStyles"></a>
+
 				<!-- Image Source -->
 				<s-collapsible class="text-sm text-center w-fit max-w-full md:max-w-[200px] mx-auto">
 					<template v-slot:summary="slotProps">
@@ -67,6 +70,8 @@
 					</template>
 				</s-collapsible>
 			</div>
+
+			<!-- Description -->
 			<div v-if="eventInfo.desc != null">{{eventInfo.desc}}</div>
 			<div v-else class="text-center text-stone-500 text-sm">(No description found)</div>
 			<div v-if="event.id > 0" class="text-sm text-right">
@@ -88,26 +93,27 @@ import ExternalLinkIcon from './icon/ExternalLinkIcon.vue';
 import {EventInfo, boundedDateToStr, getImagePath} from '../lib';
 import {useStore} from '../store';
 
-// Refs
 const rootRef = ref(null as HTMLDivElement | null);
 const closeRef = ref(null as typeof CloseIcon | null);
 
-// Global store
 const store = useStore();
 
-// Props + events
 const props = defineProps({
 	eventInfo: {type: Object as PropType<EventInfo>, required: true},
 });
+
 const emit = defineEmits(['close']);
 
-// For data display
+// ========== For data display ==========
+
 const event = computed(() => props.eventInfo.event)
+
 const datesDisplayStrs = computed(() => {
 	let startStr = boundedDateToStr(event.value.start, event.value.startUpper);
 	let endStr = event.value.end == null ? null : boundedDateToStr(event.value.end, event.value.endUpper);
 	return [startStr, endStr];
 });
+
 function licenseToUrl(license: string){
 	license = license.toLowerCase().replaceAll('-', ' ');
 	if (license == 'cc0'){
@@ -139,19 +145,22 @@ function licenseToUrl(license: string){
 	}
 }
 
-// Close handling
+// ========== Close handling ==========
+
 function onClose(evt: Event){
 	if (evt.target == rootRef.value || closeRef.value!.$el.contains(evt.target)){
 		emit('close');
 	}
 }
 
-// Styles
+// ========== For styles ==========
+
 const styles = computed(() => ({
 	backgroundColor: store.color.bgAlt,
 	borderRadius: store.borderRadius + 'px',
 	overflow: 'visible auto',
 }));
+
 const imgStyles = computed(() => {
 	return {
 		width: '200px',

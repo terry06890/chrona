@@ -2,12 +2,17 @@
 <div class="fixed left-0 top-0 w-full h-full bg-black/40" @click="onClose" ref="rootRef">
 	<div class="absolute left-1/2 -translate-x-1/2 top-1/4 -translate-y-1/2 min-w-3/4 md:min-w-[12cm] flex"
 		:style="styles">
+		<!-- Input field -->
 		<input type="text" class="block border p-1 px-2 rounded-l-[inherit] grow" ref="inputRef"
 			@keyup.enter="onSearch" @keyup.esc="onClose"
 			@input="onInput" @keydown.down.prevent="onDownKey" @keydown.up.prevent="onUpKey"/>
+
+		<!-- Search button -->
 		<div class="p-1 hover:cursor-pointer">
 			<search-icon @click.stop="onSearch" class="w-8 h-8"/>
 		</div>
+
+		<!-- Search suggestions -->
 		<div class="absolute top-[100%] w-full overflow-hidden" :style="suggContainerStyles">
 			<div v-for="(sugg, idx) of searchSuggs" :key="sugg"
 				:style="{backgroundColor: idx == focusedSuggIdx ? store.color.bgAltDark : store.color.bgAlt}"
@@ -35,24 +40,24 @@ import {HistEvent, queryServer, EventInfoJson, jsonToEventInfo, SuggResponseJson
 import {useStore} from '../store';
 import {RBTree} from '../rbtree';
 
-// Refs
 const rootRef = ref(null as HTMLDivElement | null);
 const inputRef = ref(null as HTMLInputElement | null);
 
-// Global store
 const store = useStore();
 
-// Props + events
 const props = defineProps({
 	eventTree: {type: Object as PropType<RBTree<HistEvent>>, required: true},
 	titleToEvent: {type: Object as PropType<Map<string, HistEvent>>, required: true},
 });
+
 const emit = defineEmits(['search', 'close', 'info-click', 'net-wait', 'net-get']);
 
-// Search-suggestion data
+// ========== Search-suggestion data ==========
+
 const searchSuggs = ref([] as string[]);
 const hasMoreSuggs = ref(false);
 const suggsInput = ref(''); // The input that resulted in the current suggestions (used to highlight matching text)
+
 const suggDisplayStrings = computed((): [string, string, string][] => {
 	let result: [string, string, string][] = [];
 	let input = suggsInput.value;
@@ -71,15 +76,19 @@ const suggDisplayStrings = computed((): [string, string, string][] => {
 	}
 	return result;
 });
+
 const focusedSuggIdx = ref(null as null | number); // Index of a suggestion selected using the arrow keys
 
-// For server requests
+// ========== For server requests ==========
+
 const lastReqTime = ref(0);
 const pendingReqParams = ref(null as null | URLSearchParams); // Holds data for latest request to make
 const pendingReqInput = ref(''); // Holds the user input associated with pendingReqData
 const pendingDelayedSuggReq = ref(0); // Set via setTimeout() for making a request despite a previous one still waiting
+
 async function onInput(){
 	let input = inputRef.value!;
+
 	// Check for empty input
 	if (input.value.length == 0){
 		searchSuggs.value = [];
@@ -87,6 +96,7 @@ async function onInput(){
 		focusedSuggIdx.value = null;
 		return;
 	}
+
 	// Create URL params
 	let urlParams = new URLSearchParams({
 		type: 'sugg',
@@ -100,6 +110,7 @@ async function onInput(){
 	if (store.reqImgs){
 		urlParams.append('imgonly', 'true');
 	}
+
 	// Code for querying server
 	pendingReqParams.value = urlParams;
 	pendingReqInput.value = input.value;
@@ -119,6 +130,7 @@ async function onInput(){
 			focusedSuggIdx.value = null;
 		}
 	};
+
 	// Query server, delaying/skipping if a request was recently sent
 	let currentTime = new Date().getTime();
 	if (lastReqTime.value == 0){
@@ -139,7 +151,8 @@ async function onInput(){
 	}
 }
 
-// For search events
+// ========== For search events ==========
+
 function onSearch(){
 	if (focusedSuggIdx.value == null){
 		let input = inputRef.value!.value;
@@ -148,6 +161,7 @@ function onSearch(){
 		resolveSearch(searchSuggs.value[focusedSuggIdx.value]);
 	}
 }
+
 async function resolveSearch(eventTitle: string){
 	if (eventTitle == ''){
 		return;
@@ -156,6 +170,7 @@ async function resolveSearch(eventTitle: string){
 	if (Object.values(store.ctgs).some((b: boolean) => !b)){
 		visibleCtgs = Object.entries(store.ctgs).filter(([, enabled]) => enabled).map(([ctg, ]) => ctg);
 	}
+
 	// Check if the event data is already here
 	if (props.titleToEvent.has(eventTitle)){
 		let event = props.titleToEvent.get(eventTitle)!;
@@ -171,6 +186,7 @@ async function resolveSearch(eventTitle: string){
 		emit('search', event);
 		return;
 	}
+
 	// Query server for event
 	let urlParams = new URLSearchParams({type: 'info', event: eventTitle});
 	if (visibleCtgs != null){
@@ -194,23 +210,27 @@ async function resolveSearch(eventTitle: string){
 	}
 }
 
-// More event handling
+// ========== More event handling ==========
+
 function onClose(evt: Event){
 	if (evt.target == rootRef.value){
 		emit('close');
 	}
 }
+
 function onDownKey(){
 	if (focusedSuggIdx.value != null){
 		focusedSuggIdx.value = (focusedSuggIdx.value + 1) % searchSuggs.value.length;
 	}
 }
+
 function onUpKey(){
 	if (focusedSuggIdx.value != null){
 		focusedSuggIdx.value = (focusedSuggIdx.value - 1 + searchSuggs.value.length) % searchSuggs.value.length;
 			// The addition after '-1' is to avoid becoming negative
 	}
 }
+
 function onInfoIconClick(eventTitle: string){
 	emit('info-click', eventTitle);
 }
@@ -218,7 +238,8 @@ function onInfoIconClick(eventTitle: string){
 // Focus input on mount
 onMounted(() => inputRef.value!.focus())
 
-// Styles
+// ========== For styles ==========
+
 const styles = computed((): Record<string,string> => {
 	let br = store.borderRadius;
 	return {
@@ -226,6 +247,7 @@ const styles = computed((): Record<string,string> => {
 		borderRadius: (searchSuggs.value.length == 0) ? `${br}px` : `${br}px ${br}px 0 0`,
 	};
 });
+
 const suggContainerStyles = computed((): Record<string,string> => {
 	let br = store.borderRadius;
 	return {

@@ -1,24 +1,28 @@
-// Copied from node_modules/bintrees/lib/, and adapted to use ES6, classes, and typescript
+/*
+ * Copied from node_modules/bintrees/lib/, and adapted to use ES6, classes, and typescript.
+ */
 
 export class Node<T> {
 	data: T;
 	left: Node<T> | null;
 	right: Node<T> | null;
 	red: boolean;
+
 	constructor(data: T){
 		this.data = data;
 		this.left = null;
 		this.right = null;
 		this.red = true;
 	}
+
 	get_child(dir: boolean){
 		return dir ? this.right : this.left;
 	}
+
 	set_child(dir: boolean, val: Node<T> | null){
 		if (dir) {
 			this.right = val;
-		}
-		else {
+		} else {
 			this.left = val;
 		}
 	}
@@ -28,14 +32,17 @@ export class Iterator<T> {
 	_tree: RBTree<T>;
 	_ancestors: Node<T>[];
 	_cursor: Node<T> | null;
+
 	constructor(tree: RBTree<T>){
 		this._tree = tree;
 		this._ancestors = [];
 		this._cursor = null;
 	}
+
 	data(): T | null {
 		return this._cursor !== null ? this._cursor.data : null;
 	}
+
 	// if null-iterator, returns first node
 	// otherwise, returns next node
 	next(): T | null{
@@ -69,6 +76,7 @@ export class Iterator<T> {
 		}
 		return this._cursor !== null ? this._cursor.data : null;
 	}
+
 	// if null-iterator, returns last node
 	// otherwise, returns previous node
 	prev(): T | null {
@@ -99,6 +107,7 @@ export class Iterator<T> {
 		}
 		return this._cursor !== null ? this._cursor.data : null;
 	}
+
 	_minNode(start: Node<T>) {
 		while(start.left !== null) {
 			this._ancestors.push(start);
@@ -106,6 +115,7 @@ export class Iterator<T> {
 		}
 		this._cursor = start;
 	}
+
 	_maxNode(start: Node<T>) {
 		while(start.right !== null) {
 			this._ancestors.push(start);
@@ -119,16 +129,19 @@ export class RBTree<T> {
 	_root: Node<T> | null;
 	size: number;
 	_comparator: (a: T, b: T) => number;
+
 	constructor(comparator: (a: T, b: T) => number){
 		this._root = null;
 		this._comparator = comparator;
 		this.size = 0;
 	}
+
 	// removes all nodes from the tree
 	clear(){
 		this._root = null;
 		this.size = 0;
 	}
+
 	// returns node data if found, null otherwise
 	find(data: T): T | null{
 		let res = this._root;
@@ -143,6 +156,7 @@ export class RBTree<T> {
 		}
 		return null;
 	}
+
 	// returns iterator to node if found, null otherwise
 	findIter(data: T): Iterator<T> | null {
 		let res = this._root;
@@ -160,6 +174,7 @@ export class RBTree<T> {
 		}
 		return null;
 	}
+
 	// Returns an iterator to the tree node at or immediately after the item
 	lowerBound(item: T): Iterator<T> {
 		let cur = this._root;
@@ -185,6 +200,7 @@ export class RBTree<T> {
 		iter._ancestors.length = 0;
 		return iter;
 	}
+
 	// Returns an iterator to the tree node immediately after the item
 	upperBound(item: T): Iterator<T> {
 		const iter = this.lowerBound(item);
@@ -194,6 +210,7 @@ export class RBTree<T> {
 		}
 		return iter;
 	}
+
 	// returns null if tree is empty
 	min(): T | null {
 		let res = this._root;
@@ -205,6 +222,7 @@ export class RBTree<T> {
 		}
 		return res.data;
 	}
+
 	// returns null if tree is empty
 	max(): T | null {
 		let res = this._root;
@@ -216,11 +234,13 @@ export class RBTree<T> {
 		}
 		return res.data;
 	}
+
 	// returns a null iterator
 	// call next() or prev() to point to an element
 	iterator() {
 		return new Iterator(this);
 	}
+
 	// calls cb on each node's data, in order
 	each(cb: (x: T) => boolean) {
 		const it = this.iterator();
@@ -231,6 +251,7 @@ export class RBTree<T> {
 			}
 		}
 	}
+
 	// calls cb on each node's data, in reverse order
 	reach(cb: (x: T) => boolean) {
 		const it=this.iterator();
@@ -241,6 +262,7 @@ export class RBTree<T> {
 			}
 		}
 	}
+
 	// returns true if inserted, false if duplicate
 	insert(data: T): boolean {
 		let ret = false;
@@ -307,6 +329,7 @@ export class RBTree<T> {
 		this._root!.red = false;
 		return ret;
 	}
+
 	// returns true if removed, false if not found
 	remove(data: T): boolean {
 		if(this._root === null) {

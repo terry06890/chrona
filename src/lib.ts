@@ -5,8 +5,11 @@
 import {RBTree} from './rbtree';
 
 export const DEBUG = true;
-// For detecting screen size
+
+// ========== For device detection ==========
+
 export type Breakpoint = 'sm' | 'md' | 'lg';
+
 export function getBreakpoint(): Breakpoint {
 	const w = window.innerWidth;
 	if (w < 768){
@@ -17,13 +20,16 @@ export function getBreakpoint(): Breakpoint {
 		return 'lg';
 	}
 }
-// For detecting a touch device
+
+// Returns true for a touch device
 export function onTouchDevice(){
 	return window.matchMedia('(pointer: coarse)').matches;
 }
-// For detecting writing-mode
+
+// For detecting writing mode
 	// Used with ResizeObserver callbacks, to determine which resized dimensions are width and height
 export let WRITING_MODE_HORZ = true;
+
 if ('writing-mode' in window.getComputedStyle(document.body)){ // Can be null when testing
 	const bodyStyles = window.getComputedStyle(document.body);
 	if ('writing-mode' in bodyStyles){
@@ -31,51 +37,7 @@ if ('writing-mode' in window.getComputedStyle(document.body)){ // Can be null wh
 	}
 }
 
-// Similar to %, but for negative LHS, return a positive offset from a lower RHS multiple
-export function moduloPositive(x: number, y: number){
-	return x - Math.floor(x / y) * y;
-}
-// Used to async-await for until after a timeout
-export async function timeout(ms: number){
-	return new Promise(resolve => setTimeout(resolve, ms))
-}
-// For positive int n, converts 1 to '1st', 2 to '2nd', etc
-export function intToOrdinal(n: number){
-	if (n == 1 || n > 20 && n % 10 == 1){
-		return `${n == 1 ? '' : Math.floor(n / 10)}1st`;
-	} else if (n == 2 || n > 20 && n % 10 == 2){
-		return `${n == 2 ? '' : Math.floor(n / 10)}2nd`;
-	} else if (n == 3 || n > 20 && n % 10 == 3){
-		return `${n == 3 ? '' : Math.floor(n / 10)}3rd`;
-	} else {
-		return String(n) + 'th';
-	}
-}
-// For positive int n, returns number of trailing zeros in decimal representation
-export function getNumTrailingZeros(n: number): number {
-	let pow10 = 10;
-	while (pow10 != Infinity){
-		if (n % pow10 != 0){
-			return Math.log10(pow10 / 10);
-		}
-		pow10 *= 10;
-	}
-	throw new Error('Exceeded floating point precision');
-}
-// Removes a class from an element, triggers reflow, then adds the class
-export function animateWithClass(el: HTMLElement, className: string){
-	el.classList.remove(className);
-	el.offsetWidth; // Triggers reflow
-	el.classList.add(className);
-}
-// For estimating text width (via https://stackoverflow.com/questions/118241/calculate-text-width-with-javascript)
-const _getTextWidthCanvas = document.createElement('canvas');
-export function getTextWidth(text: string, font: string): number {
-	const context = _getTextWidthCanvas.getContext('2d')!;
-	context.font = font;
-	const metrics = context.measureText(text);
-	return metrics.width;
-}
+// ========== For handler throttling ==========
 
 // For creating throttled version of handler function
 export function makeThrottled(hdlr: (...args: any[]) => void, delay: number){
@@ -114,7 +76,61 @@ export function makeThrottledSpaced(hdlr: (...args: any[]) => void, delay: numbe
 	};
 }
 
-// For calendar conversion (mostly copied from backend/hist_data/cal.py)
+// ========== General utility functions ==========
+
+// Similar to %, but for negative LHS, return a positive offset from a lower RHS multiple
+export function moduloPositive(x: number, y: number){
+	return x - Math.floor(x / y) * y;
+}
+
+// For positive int n, converts 1 to '1st', 2 to '2nd', etc
+export function intToOrdinal(n: number){
+	if (n == 1 || n > 20 && n % 10 == 1){
+		return `${n == 1 ? '' : Math.floor(n / 10)}1st`;
+	} else if (n == 2 || n > 20 && n % 10 == 2){
+		return `${n == 2 ? '' : Math.floor(n / 10)}2nd`;
+	} else if (n == 3 || n > 20 && n % 10 == 3){
+		return `${n == 3 ? '' : Math.floor(n / 10)}3rd`;
+	} else {
+		return String(n) + 'th';
+	}
+}
+
+// For positive int n, returns number of trailing zeros in decimal representation
+export function getNumTrailingZeros(n: number): number {
+	let pow10 = 10;
+	while (pow10 != Infinity){
+		if (n % pow10 != 0){
+			return Math.log10(pow10 / 10);
+		}
+		pow10 *= 10;
+	}
+	throw new Error('Exceeded floating point precision');
+}
+
+// Removes a class from an element, triggers reflow, then adds the class
+export function animateWithClass(el: HTMLElement, className: string){
+	el.classList.remove(className);
+	el.offsetWidth; // Triggers reflow
+	el.classList.add(className);
+}
+
+// Used to async-await for until after a timeout
+export async function timeout(ms: number){
+	return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+// For estimating text width (via https://stackoverflow.com/questions/118241/calculate-text-width-with-javascript)
+const _getTextWidthCanvas = document.createElement('canvas');
+export function getTextWidth(text: string, font: string): number {
+	const context = _getTextWidthCanvas.getContext('2d')!;
+	context.font = font;
+	const metrics = context.measureText(text);
+	return metrics.width;
+}
+
+// ========== For calendar conversion (mostly copied from backend/hist_data/cal.py) ==========
+
 export function gregorianToJdn(year: number, month: number, day: number): number {
 	if (year < 0){
 		year += 1;
@@ -126,6 +142,7 @@ export function gregorianToJdn(year: number, month: number, day: number): number
 	jdn += day - 32075;
 	return jdn;
 }
+
 export function julianToJdn(year: number, month: number, day: number): number {
 	if (year < 0){
 		year += 1;
@@ -136,6 +153,7 @@ export function julianToJdn(year: number, month: number, day: number): number {
 	jdn += day + 1729777;
 	return jdn;
 }
+
 export function jdnToGregorian(jdn: number): [number, number, number] {
 	const f = jdn + 1401 + Math.trunc((Math.trunc((4 * jdn + 274277) / 146097) * 3) / 4) - 38;
 	const e = 4 * f + 3;
@@ -149,6 +167,7 @@ export function jdnToGregorian(jdn: number): [number, number, number] {
 	}
 	return [Y, M, D];
 }
+
 export function jdnToJulian(jdn: number): [number, number, number] {
 	const f = jdn + 1401;
 	const e = 4 * f + 3;
@@ -162,30 +181,37 @@ export function jdnToJulian(jdn: number): [number, number, number] {
 	}
 	return [Y, M, D];
 }
+
 export function julianToGregorian(year: number, month: number, day: number): [number, number, number] {
 	return jdnToGregorian(julianToJdn(year, month, day));
 }
+
 export function gregorianToJulian(year: number, month: number, day: number): [number, number, number] {
 	return jdnToJulian(gregorianToJdn(year, month, day));
 }
+
 export function getDaysInMonth(year: number, month: number){
 	return gregorianToJdn(year, month + 1, 1) - gregorianToJdn(year, month, 1);
 }
 
-// For date representation
+// ========== For date representation ==========
+
 export const MIN_CAL_YEAR = -4713; // Earliest year where months/day scales are usable
 export const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 export class HistDate {
 	gcal: boolean | null;
 	year: number;
 	month: number;
 	day: number;
+
 	constructor(gcal: boolean | null, year: number, month: number, day: number){
 		this.gcal = gcal;
 		this.year = year;
 		this.month = gcal == null ? 1 : month;
 		this.day = gcal == null ? 1 : day;
 	}
+
 	equals(other: HistDate, scale=DAY_SCALE){ // Does not check gcal
 		if (scale == DAY_SCALE){
 			return this.year == other.year && this.month == other.month && this.day == other.day;
@@ -195,9 +221,11 @@ export class HistDate {
 			return Math.floor(this.year / scale) == Math.floor(other.year / scale);
 		}
 	}
+
 	clone(){
 		return new HistDate(this.gcal, this.year, this.month, this.day);
 	}
+
 	isEarlier(other: HistDate, scale=DAY_SCALE){
 		const yearlyScale = scale != DAY_SCALE && scale != MONTH_SCALE;
 		const thisYear = yearlyScale ? Math.floor(this.year / scale) : this.year;
@@ -212,6 +240,7 @@ export class HistDate {
 			}
 		}
 	}
+
 	cmp(other: HistDate, scale=DAY_SCALE){
 		if (this.isEarlier(other, scale)){
 			return -1;
@@ -221,11 +250,13 @@ export class HistDate {
 			return 0;
 		}
 	}
+
 	getDayDiff(other: HistDate){ // Assumes neither date has gcal=null
 		const jdn2 = gregorianToJdn(this.year, this.month, this.day);
 		const jdn1 = gregorianToJdn(other.year, other.month, other.day);
 		return Math.abs(jdn1 - jdn2);
 	}
+
 	getMonthDiff(other: HistDate){
 		// Determine earlier date
 		let earlier = this as HistDate;
@@ -234,7 +265,7 @@ export class HistDate {
 			earlier = other;
 			later = this as HistDate;
 		}
-		//
+
 		const yearDiff = earlier.getYearDiff(later);
 		if (yearDiff == 0){
 			return later.month - earlier.month;
@@ -242,6 +273,7 @@ export class HistDate {
 			return (13 - earlier.month) + (yearDiff - 1) * 12 + later.month - 1;
 		}
 	}
+
 	getYearDiff(other: HistDate){
 		let yearDiff = Math.abs(this.year - other.year);
 		if (this.year * other.year < 0){ // Account for no 0 AD
@@ -249,6 +281,7 @@ export class HistDate {
 		}
 		return yearDiff;
 	}
+
 	toString(){
 		if (this.gcal != null){
 			return `${this.year}-${this.month}-${this.day}`;
@@ -256,6 +289,7 @@ export class HistDate {
 			return `${this.year}`;
 		}
 	}
+
 	toYearString(){
 		if (this.year >= 1000){
 			return String(this.year);
@@ -289,6 +323,7 @@ export class HistDate {
 			}
 		}
 	}
+
 	toTickString(){
 		if (this.month == 1 && this.day == 1){
 			return this.toYearString();
@@ -298,27 +333,32 @@ export class HistDate {
 			return intToOrdinal(this.day);
 		}
 	}
+
 	toInt(){ // Used for v-for keys
 		return this.day + this.month * 50 + this.year * 1000;
 	}
 }
+
 export class YearDate extends HistDate {
 	declare gcal: null;
 	declare year: number;
 	declare month: 1;
 	declare day: 1;
+
 	constructor(year: number){
 		// Note: Intentionally not enforcing year < MIN_CAL_YEAR here.  This does mean a YearDate can be
-		// interpreted as the same day as a CalDate, but it also avoids having HistEvents that span across
-		// MIN_CAL_YEAR that have a mix of YearDates and CalDates.
+			// interpreted as the same day as a CalDate, but it also avoids having HistEvents that
+			// span across MIN_CAL_YEAR that have a mix of YearDates and CalDates.
 		super(null, year, 1, 1);
 	}
 }
+
 export class CalDate extends HistDate {
 	declare gcal: boolean;
 	declare year: number;
 	declare month: number;
 	declare day: number;
+
 	constructor(year: number, month: number, day: number, gcal=true){
 		if (year < MIN_CAL_YEAR){
 			throw new Error(`Year must not be before ${MIN_CAL_YEAR}`);
@@ -326,9 +366,11 @@ export class CalDate extends HistDate {
 		super(gcal, year, month, day);
 	}
 }
+
 export const MIN_CAL_DATE = new CalDate(MIN_CAL_YEAR, 1, 1);
 
-// For event representation
+// ========== For event representation ==========
+
 export class HistEvent {
 	id: number;
 	title: string;
@@ -339,6 +381,7 @@ export class HistEvent {
 	ctg: string;
 	imgId: number;
 	pop: number;
+
 	constructor(
 			id: number, title: string, start: HistDate, startUpper: HistDate | null = null,
 			end: HistDate | null = null, endUpper: HistDate | null = null, ctg='', imgId=0, pop=0){
@@ -353,11 +396,13 @@ export class HistEvent {
 		this.pop = pop;
 	}
 }
+
 export class ImgInfo {
 	url: string;
 	license: string;
 	artist: string;
 	credit: string;
+
 	constructor(url: string, license: string, artist: string, credit: string){
 		this.url = url;
 		this.license = license;
@@ -365,11 +410,13 @@ export class ImgInfo {
 		this.credit = credit;
 	}
 }
+
 export class EventInfo {
 	event: HistEvent;
 	desc: string | null;
 	wikiId: number;
 	imgInfo: ImgInfo | null;
+
 	constructor(event: HistEvent, desc: string, wikiId: number, imgInfo: ImgInfo | null){
 		this.event = event;
 		this.desc = desc;
@@ -377,12 +424,14 @@ export class EventInfo {
 		this.imgInfo = imgInfo;
 	}
 }
+
 export function cmpHistEvent(event: HistEvent, event2: HistEvent){
 	const cmp = event.start.cmp(event2.start);
 	return cmp != 0 ? cmp : event.id - event2.id;
 }
 
-// For date display
+// ========== For date display ==========
+
 export function dateToDisplayStr(date: HistDate){
 	if (date.year <= -1e4){ // N.NNN billion/million/thousand years ago
 		if (date.year <= -1e9){
@@ -406,8 +455,9 @@ export function dateToDisplayStr(date: HistDate){
 		return `${intToOrdinal(date.day)} ${MONTH_NAMES[date.month-1]} ${Math.abs(date.year)}${bcSuffix}${calStr}`;
 	}
 }
+
+// Converts a date with uncertain end bound to string for display
 export function boundedDateToStr(start: HistDate, end: HistDate | null) : string {
-	// Converts a date with uncertain end bound to string for display
 	if (end == null){
 		return dateToDisplayStr(start);
 	}
@@ -466,13 +516,16 @@ export function boundedDateToStr(start: HistDate, end: HistDate | null) : string
 }
 
 
-// For server requests
+// ========== For server requests ==========
+
 const SERVER_DATA_URL = (new URL(window.location.href)).origin + '/data/'
 const SERVER_IMG_PATH = '/hist_data/img/'
+
 export async function queryServer(params: URLSearchParams, serverDataUrl=SERVER_DATA_URL){
 	// Construct URL
 	const url = new URL(serverDataUrl);
 	url.search = params.toString();
+
 	// Query server
 	let responseObj;
 	try {
@@ -484,16 +537,20 @@ export async function queryServer(params: URLSearchParams, serverDataUrl=SERVER_
 	}
 	return responseObj;
 }
+
 export function getImagePath(imgId: number): string {
 	return SERVER_IMG_PATH + String(imgId) + '.jpg';
 }
-// For server responses
+
+// ========== For server responses ==========
+
 export type HistDateJson = {
 	gcal: boolean | null,
 	year: number,
 	month: number,
 	day: number,
 }
+
 export type HistEventJson = {
 	id: number,
 	title: string,
@@ -505,29 +562,35 @@ export type HistEventJson = {
 	imgId: number,
 	pop: number,
 }
+
 export type EventResponseJson = {
 	events: HistEventJson[],
 	unitCounts: {[x: number]: number} | null,
 }
+
 export type EventInfoJson = {
 	event: HistEventJson,
 	desc: string,
 	wikiId: number,
 	imgInfo: ImgInfoJson | null,
 }
+
 export type ImgInfoJson = {
 	url: string,
 	license: string,
 	artist: string,
 	credit: string,
 }
+
 export type SuggResponseJson = {
 	suggs: string[],
 	hasMore: boolean,
 }
+
 export function jsonToHistDate(json: HistDateJson): HistDate {
 	return new HistDate(json.gcal, json.year, json.month, json.day);
 }
+
 export function jsonToHistEvent(json: HistEventJson): HistEvent {
 	return new HistEvent(
 		json.id,
@@ -541,14 +604,17 @@ export function jsonToHistEvent(json: HistEventJson): HistEvent {
 		json.pop,
 	);
 }
+
 export function jsonToEventInfo(json: EventInfoJson): EventInfo {
 	return new EventInfo(jsonToHistEvent(json.event), json.desc, json.wikiId, jsonToImgInfo(json.imgInfo));
 }
+
 export function jsonToImgInfo(json: ImgInfoJson | null): ImgInfo | null {
 	return json == null ? null : new ImgInfo(json.url, json.license, json.artist, json.credit);
 }
 
-// For dates in a timeline
+// ========== For dates in a timeline ==========
+
 export const MIN_DATE = new YearDate(-13.8e9);
 export const MAX_DATE = new CalDate(2030, 1, 1);
 export const MONTH_SCALE = -1;
@@ -556,7 +622,8 @@ export const DAY_SCALE = -2;
 export const SCALES = [1e9, 1e8, 1e7, 1e6, 1e5, 1e4, 1e3, 100, 10, 1, MONTH_SCALE, DAY_SCALE];
 	// The timeline will be divided into units of SCALES[0], then SCALES[1], etc
 	// Positive ints represent numbers of years, -1 represents 1 month, -2 represents 1 day
-if (DEBUG){
+
+if (DEBUG){ // Validate SCALES
 	if (SCALES[SCALES.length - 1] != DAY_SCALE
 			|| SCALES[SCALES.length - 2] != MONTH_SCALE
 			|| SCALES[SCALES.length - 3] != 1){
@@ -574,6 +641,7 @@ if (DEBUG){
 		}
 	}
 }
+
 export function stepDate( // Steps a date N units along a scale
 	date: HistDate, scale: number, {forward=true, count=1, inplace=false} = {}): HistDate {
 	// If stepping by month or years, leaves day value unchanged
@@ -650,6 +718,7 @@ export function stepDate( // Steps a date N units along a scale
 	}
 	return newDate;
 }
+
 export function inDateScale(date: HistDate, scale: number): boolean {
 	if (scale == DAY_SCALE){
 		return true;
@@ -659,8 +728,9 @@ export function inDateScale(date: HistDate, scale: number): boolean {
 		return (date.year == 1 || date.year % scale == 0) && date.month == 1 && date.day == 1;
 	}
 }
+
+// Returns number of units in 'scale' per unit in 'scale2' (provides upper/lower value for days-per-month/year)
 export function getScaleRatio(scale: number, scale2: number, lowerVal=false){
-	// Returns number of units in 'scale' per unit in 'scale2' (provides upper/lower value for days-per-month/year)
 	const daysPerMonth = lowerVal ? 28 : 31;
 	if (scale == DAY_SCALE){
 		scale = 1 / 12 / daysPerMonth;
@@ -674,8 +744,9 @@ export function getScaleRatio(scale: number, scale2: number, lowerVal=false){
 	}
 	return scale2 / scale;
 }
+
+// Returns number of sub-units for a unit starting at 'date' on scale for 'scaleIdx'
 export function getNumSubUnits(date: HistDate, scaleIdx: number){
-	// Returns number of sub-units for a unit starting at 'date' on scale for 'scaleIdx'
 	const scale = SCALES[scaleIdx]
 	if (scale == DAY_SCALE){
 		throw new Error('Cannot get sub-units for DAY_SCALE unit');
@@ -687,6 +758,7 @@ export function getNumSubUnits(date: HistDate, scaleIdx: number){
 		return scale / SCALES[scaleIdx + 1] - (date.year == 1 ? 1 : 0); // Account for lack of 0 AD
 	}
 }
+
 export function getUnitDiff(date: HistDate, date2: HistDate, scale: number): number {
 	if (scale == DAY_SCALE){
 		return date.getDayDiff(date2);
@@ -696,8 +768,9 @@ export function getUnitDiff(date: HistDate, date2: HistDate, scale: number): num
 		return date.getYearDiff(date2) / scale;
 	}
 }
+
+// Returns smallest scale at which 'event's start-startUpper range is within one unit, or infinity
 export function getEventPrecision(event: HistEvent): number {
-	// Returns smallest scale at which 'event's start-startUpper range is within one unit, or infinity
 	// Note: Intentionally not adding an exception for century and millenia ranges like
 		// 101 to 200 (as opposed to 100 to 199) being interpreted as 'within' one 100/1000-year scale unit
 	const {start, startUpper} = event;
@@ -716,8 +789,9 @@ export function getEventPrecision(event: HistEvent): number {
 	}
 	return Number.POSITIVE_INFINITY;
 }
+
+// For a YearDate and sub-yearly scale, uses the first day of the YearDate's year
 export function dateToUnit(date: HistDate, scale: number): number {
-	// For a YearDate and sub-yearly scale, uses the first day of the YearDate's year
 	if (scale >= 1){
 		return Math.floor(date.year / scale);
 	} else if (scale == MONTH_SCALE){
@@ -734,8 +808,9 @@ export function dateToUnit(date: HistDate, scale: number): number {
 		}
 	}
 }
+
+// Returns a date representing the unit on 'scale' that 'date' is within
 export function dateToScaleDate(date: HistDate, scale: number): HistDate {
-	// Returns a date representing the unit on 'scale' that 'date' is within
 	if (scale == DAY_SCALE){
 		return new CalDate(date.year, date.month, date.day);
 	} else if (scale == MONTH_SCALE){
@@ -750,7 +825,8 @@ export function dateToScaleDate(date: HistDate, scale: number): HistDate {
 	}
 }
 
-// For sending timeline-bound data to BaseLine
+// ========== For sending timeline-bound data to BaseLine ==========
+
 export class TimelineState {
 	id: number;
 	startDate: HistDate;
@@ -769,16 +845,20 @@ export class TimelineState {
 	}
 }
 
-// For managing sets of non-overlapping date ranges
+// ========== For managing sets of non-overlapping date ranges ==========
+
 export type DateRange = [HistDate, HistDate];
+
 export class DateRangeTree {
 	tree: RBTree<DateRange>;
 	constructor(){
 		this.tree = new RBTree((r1: DateRange, r2: DateRange) => r1[0].cmp(r2[0]));
 	}
+
 	add(range: DateRange){
 		const rangesToRemove: HistDate[] = []; // Holds starts of ranges to remove
 		const dummyDate = new YearDate(1);
+
 		// Find ranges to remove
 		const itr = this.tree.lowerBound([range[0], dummyDate]);
 		let prevRange = itr.prev();
@@ -802,15 +882,18 @@ export class DateRangeTree {
 				rangesToRemove.push(nextRange[0])
 			}
 		}
+
 		// Remove included/overlapping ranges
 		for (const start of rangesToRemove){
 			this.tree.remove([start, dummyDate]);
 		}
+
 		// Add possibly-merged range
 		const startDate = prevRange != null ? prevRange[0] : range[0];
 		const endDate = nextRange != null ? nextRange[1] : range[1];
 		this.tree.insert([startDate, endDate]);
 	}
+
 	contains(range: DateRange): boolean {
 		const itr = this.tree.lowerBound([range[0], new YearDate(1)]);
 		let r = itr.data();
@@ -829,6 +912,7 @@ export class DateRangeTree {
 			}
 		}
 	}
+
 	clear(){
 		this.tree.clear();
 	}

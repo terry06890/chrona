@@ -6,10 +6,13 @@ import {defineStore} from 'pinia';
 import {HistDate, CalDate} from './lib';
 import {getBreakpoint, Breakpoint, onTouchDevice} from './lib';
 
+// ========== For store state ==========
+
 export type StoreState = {
 	// Device info
 	touchDevice: boolean,
 	breakpoint: Breakpoint,
+
 	// Tick display
 	tickLen: number, //px
 	largeTickLen: number,
@@ -19,17 +22,20 @@ export type StoreState = {
 	minLastTicks: number // When at smallest scale, don't zoom further into less than this many ticks
 	defaultEndTickOffset: number, // Default fraction of a unit to offset start/end ticks
 	showMinorTicks: boolean,
+
 	// Mainline and event display
 	mainlineBreadth: number, // Breadth of mainline area (incl ticks and labels)
 	eventImgSz: number, // Width/height of event images
 	eventLabelHeight: number,
 	spacing: number, // Spacing between display edge, events, and mainline area
 	showEventLines: boolean,
+
 	// User input
 	scrollRatio: number, // Fraction of timeline length to move by upon scroll
 	zoomRatio: number, // Ratio of timeline expansion upon zooming out (eg: 1.5)
 	dragInertia: number, // Multiplied by final-drag-speed (pixels-per-sec) to get extra scroll distance
 	disableShortcuts: boolean,
+
 	// Other feature-specific
 	reqImgs: boolean, // Only show events with images
 	showEventCounts: boolean,
@@ -43,6 +49,7 @@ export type StoreState = {
 		work: boolean,
 		discovery: boolean,
 	},
+
 	// Other
 	initialStartDate: HistDate,
 	initialEndDate: HistDate, // Must be later than initialStartDate
@@ -66,6 +73,7 @@ export type StoreState = {
 	borderRadius: number, // px
 	transitionDuration: number, // ms
 };
+
 function getDefaultState(): StoreState {
 	const breakpoint = getBreakpoint();
 	const color = {
@@ -89,6 +97,7 @@ function getDefaultState(): StoreState {
 		// Device info
 		touchDevice: onTouchDevice(),
 		breakpoint: breakpoint,
+
 		// Tick display
 		tickLen: 16,
 		largeTickLen: 32,
@@ -98,17 +107,20 @@ function getDefaultState(): StoreState {
 		minLastTicks: 3,
 		defaultEndTickOffset: 0.5,
 		showMinorTicks: true,
+
 		// Mainline and event display
 		mainlineBreadth: 70,
 		eventImgSz: 100,
 		eventLabelHeight: 20,
 		spacing: 10,
 		showEventLines: true,
+
 		// User input
 		scrollRatio: 0.2,
 		zoomRatio: 1.5,
 		dragInertia: 0.1,
 		disableShortcuts: false,
+
 		// Other feature-specific
 		reqImgs: true,
 		showEventCounts: true,
@@ -122,6 +134,7 @@ function getDefaultState(): StoreState {
 			work: true,
 			discovery: true,
 		},
+
 		// Other
 		initialStartDate: new CalDate(1900, 1, 1),
 		initialEndDate: new CalDate(2030, 1, 1),
@@ -145,8 +158,11 @@ function getCompositeKeys(state: StoreState){
 	}
 	return compKeys;
 }
+
 const STORE_COMP_KEYS = getCompositeKeys(getDefaultState());
-// For getting/setting values in store
+
+// ========== For getting/setting/loading store state ==========
+
 function getStoreVal(state: StoreState, compKey: string): any {
 	if (compKey in state){
 		return state[compKey as keyof StoreState];
@@ -160,6 +176,7 @@ function getStoreVal(state: StoreState, compKey: string): any {
 	}
 	return null;
 }
+
 function setStoreVal(state: StoreState, compKey: string, val: any): void {
 	if (compKey in state){
 		(state[compKey as keyof StoreState] as any) = val;
@@ -174,7 +191,7 @@ function setStoreVal(state: StoreState, compKey: string, val: any): void {
 		}
 	}
 }
-// For loading settings into [initial] store state
+
 function loadFromLocalStorage(state: StoreState){
 	for (const key of STORE_COMP_KEYS){
 		const item = localStorage.getItem(key)
@@ -184,16 +201,20 @@ function loadFromLocalStorage(state: StoreState){
 	}
 }
 
+// ========== Main export ==========
+
 export const useStore = defineStore('store', {
 	state: () => {
 		const state = getDefaultState();
 		loadFromLocalStorage(state);
 		return state;
 	},
+
 	actions: {
 		reset(): void {
 			Object.assign(this, getDefaultState());
 		},
+
 		resetOne(key: string){
 			const val = getStoreVal(this, key);
 			if (val != null){
@@ -203,14 +224,17 @@ export const useStore = defineStore('store', {
 				}
 			}
 		},
+
 		save(key: string){
 			if (STORE_COMP_KEYS.includes(key)){
 				localStorage.setItem(key, JSON.stringify(getStoreVal(this, key)));
 			}
 		},
+
 		load(): void {
 			loadFromLocalStorage(this);
 		},
+
 		clear(): void {
 			for (const key of STORE_COMP_KEYS){
 				localStorage.removeItem(key);

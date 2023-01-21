@@ -9,6 +9,7 @@
 			Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore.
 		</p>
 		<div class="flex flex-col gap-2 p-2">
+			<!-- Licensing and Credits -->
 			<s-collapsible :class="scClasses">
 				<template #summary="slotProps">
 					<div :class="scSummaryClasses">
@@ -70,6 +71,8 @@
 					</div>
 				</template>
 			</s-collapsible>
+
+			<!-- FAQs -->
 			<s-collapsible :class="scClasses">
 				<template #summary="slotProps">
 					<div :class="scSummaryClasses">
@@ -100,36 +103,35 @@ import CloseIcon from './icon/CloseIcon.vue';
 import DownIcon from './icon/DownIcon.vue';
 import {useStore} from '../store';
 
-// Refs
 const rootRef = ref(null as HTMLDivElement | null)
 const closeRef = ref(null as typeof CloseIcon | null);
 
-// Global store
 const store = useStore();
 
-// Props + events
 const emit = defineEmits(['close']);
 
-// Event handlers
+// ========== Event handlers ==========
+
 function onClose(evt: Event){
 	if (evt.target == rootRef.value || closeRef.value!.$el.contains(evt.target)){
 		emit('close');
 	}
 }
 
-// Styles
-const styles = computed(() => ({
-	backgroundColor: store.color.bgAlt,
-	borderRadius: store.borderRadius + 'px',
-}));
-const aStyles = computed(() => ({
-	color: store.color.altDark,
-}));
+// ========== For styles ==========
 
-// Classes
 const scClasses = 'border border-stone-400 rounded';
 const scSummaryClasses = 'relative text-center p-1 bg-stone-300 hover:brightness-90 hover:bg-yellow-200 md:p-2';
 const downIconClasses = 'absolute w-6 h-6 my-auto mx-1 transition-transform duration-300';
 const downIconExpandedClasses = computed(() => downIconClasses + ' -rotate-90');
 const contentClasses = 'py-2 px-2 text-sm md:text-base';
+
+const styles = computed(() => ({
+	backgroundColor: store.color.bgAlt,
+	borderRadius: store.borderRadius + 'px',
+}));
+
+const aStyles = computed(() => ({
+	color: store.color.altDark,
+}));
 </script>
