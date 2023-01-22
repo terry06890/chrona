@@ -39,17 +39,13 @@
 			:stroke="store.color.alt" :stroke-width="`${tick.width}px`"
 			:style="tickStyles(tick)" class="animate-fadein"
 			:class="{'max-tick': tick.bound == 'max', 'min-tick': tick.bound == 'min'}"/>
-
-		<!-- Tick labels -->
-		<template v-for="tick, idx in ticks" :key="tick.date.toInt()">
-			<text v-if="tick.major || store.showMinorTicks"
-				x="0" y="0" :text-anchor="vert ? 'start' : 'middle'" dominant-baseline="middle"
-				:fill="tick.major ? store.color.textDark : store.color.textDark2"
-				class="text-sm animate-fadein cursor-default select-none" :style="tickLabelStyles[idx]">
-				{{tickLabelTexts[idx]}}
-			</text>
-		</template>
 	</svg>
+
+	<!-- Tick labels -->
+	<div v-for="tick, idx in ticks" :key="tick.date.toInt()"
+		class="absolute top-0 left-0 text-sm animate-fadein cursor-default select-none" :style="tickLabelStyles[idx]">
+		{{tickLabelTexts[idx]}}
+	</div>
 
 	<!-- Movement fail indicators -->
 	<div class="absolute z-20" :style="failDivStyles(true)" ref="minFailRef"></div>
@@ -1507,16 +1503,18 @@ const tickLabelStyles = computed((): Record<string,string>[] => {
 	// Determine styles
 	let styles: Record<string,string>[] = [];
 	for (let i = 0; i < ticks.value.length; i++){
+		let tick = ticks.value[i];
 		let pxOffset = pxOffsets[i];
 		styles.push({
+			color: tick.major ? store.color.textDark : store.color.textDark2,
 			transform: vert.value ?
-				`translate(${mainlineOffset.value + tickLabelMargin.value}px, ${pxOffset}px)` :
-				`translate(${pxOffset}px, ${mainlineOffset.value + tickLabelMargin.value}px)`
-					+ (hasLongLabel ? 'rotate(30deg)' : ''),
+				`translate(${mainlineOffset.value + tickLabelMargin.value}px, ${pxOffset}px) translate(0, -50%)` :
+				`translate(${pxOffset}px, ${mainlineOffset.value + tickLabelMargin.value}px) `
+					+ (hasLongLabel ? 'rotate(30deg)' : 'translate(-50%, 0)'),
 			transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
 			transitionDuration: store.transitionDuration + 'ms',
 			transitionTimingFunction: 'linear',
-			display: visibilities[i] ? 'block' : 'none',
+			display: (tick.major || store.showMinorTicks) && visibilities[i] ? 'block' : 'none',
 		});
 	}
 	return styles;
