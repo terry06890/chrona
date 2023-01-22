@@ -1,5 +1,5 @@
 <template>
-<div class="touch-none relative overflow-hidden z-0" ref="rootRef"
+<div class="relative overflow-hidden z-0" ref="rootRef"
 	@pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp"
 	@pointercancel="onPointerUp" @pointerout="onPointerUp" @pointerleave="onPointerUp"
 	@wheel.exact="onWheel" @wheel.shift.exact="onShiftWheel">
@@ -886,6 +886,7 @@ const timelinePosStr = computed((): string => {
 
 // ========== For panning/zooming ==========
 
+// Pans the timeline forward or backward
 function panTimeline(scrollRatio: number){
 	let numUnits = getNumDisplayUnits();
 	let chgUnits = numUnits * scrollRatio;
@@ -984,7 +985,8 @@ function panTimeline(scrollRatio: number){
 	endOffset.value = newEndOffset;
 }
 
-function zoomTimeline(zoomRatio: number, ignorePointer=false){
+// Zooms the timeline in or out, optionally centered around a given pointer X and Y
+function zoomTimeline(zoomRatio: number, pointer: [number, number] | null){
 	if (zoomRatio > 1
 			&& startDate.value.equals(MIN_DATE, scale.value)
 			&& endDate.value.equals(MAX_DATE, scale.value)){
@@ -998,12 +1000,13 @@ function zoomTimeline(zoomRatio: number, ignorePointer=false){
 	// Get tentative bound changes
 	let startChg: number;
 	let endChg: number;
-	let ptrOffset = props.vert ? pointerY : pointerX;
-	if (ptrOffset == null || ignorePointer){
+
+	if (pointer == null){
 		let unitChg = newNumUnits - numUnits;
 		startChg = -unitChg / 2;
 		endChg = unitChg / 2;
 	} else { // Pointer-centered zoom
+		let ptrOffset = props.vert ? pointer[1] : pointer[0];
 		// Get element-relative ptrOffset
 		let innerOffset = 0;
 		if (rootRef.value != null){ // Can become null during dev-server hot-reload for some reason
@@ -1197,13 +1200,14 @@ function getMovedBounds(
 
 // ========== For mouse/etc handling ==========
 
-let pointerX: number | null = null; // Used for pointer-centered zooming
-let pointerY: number | null = null;
+let pointerX = 0; // Used for pointer-centered zooming
+let pointerY = 0;
 const ptrEvtCache: PointerEvent[] = []; // Holds last captured PointerEvent for each pointerId (used for pinch-zoom)
-let lastPinchDiff = -1; // Holds last x/y distance between two pointers that are down
 let dragDiff = 0; // Holds accumlated change in pointer's x/y coordinate while dragging
 let dragHandler = 0; // Set by a setTimeout() to a handler for pointer dragging
 let dragVelocity: number; // Used to add 'drag momentum'
+let prevPinchDiff = -1; // Holds distance between two touch points (updated upon a pinch-zoom)
+let pinchHandler = 0;
 let vUpdateTime: number; // Holds timestamp for last update of 'dragVelocity'
 let vPrevPointer: null | number; // Holds pointerX/pointerY used for last update of 'dragVelocity'
 let vUpdater = 0; // Set by a setInterval(), used to update 'dragVelocity'
@@ -1221,6 +1225,9 @@ function onPointerDown(evt: PointerEvent){
 	vUpdateTime = Date.now();
 	vPrevPointer = null;
 	vUpdater = window.setInterval(() => {
+		if (ptrEvtCache.length != 1){
+			return;
+		}
 		if (vPrevPointer != null){
 			let time = Date.now();
 			let ptrDiff = (props.vert ? pointerY! : pointerX!) - vPrevPointer;
@@ -1255,16 +1262,23 @@ function onPointerMove(evt: PointerEvent){
 		const pinchDiff = Math.abs(props.vert ?
 			ptrEvtCache[0].clientY - ptrEvtCache[1].clientY :
 			ptrEvtCache[0].clientX - ptrEvtCache[1].clientX);
-		if (lastPinchDiff > 0){
-			if (pinchDiff > lastPinchDiff){
-				console.log('Pinching out, zooming in');
-				//TODO: implement pinch-zooming
-			} else if (pinchDiff < lastPinchDiff){
-				console.log('Pinching in, zooming out');
-				//TODO: implement pinch-zooming
+		if (prevPinchDiff == -1){
+			prevPinchDiff = pinchDiff;
+		} else {
+			if (pinchHandler == 0){
+				pinchHandler = window.setTimeout(() => {
+					let pinchChg = pinchDiff - prevPinchDiff;
+					if (Math.abs(pinchChg) > 10 && ptrEvtCache.length == 2){
+						zoomTimeline(prevPinchDiff / pinchDiff, [
+							(ptrEvtCache[0].clientX + ptrEvtCache[1].clientX) / 2,
+							(ptrEvtCache[0].clientY + ptrEvtCache[1].clientY) / 2,
+						]);
+						prevPinchDiff = pinchDiff;
+					}
+					pinchHandler = 0;
+				}, 50);
 			}
 		}
-		lastPinchDiff = pinchDiff;
 	}
 
 	// Update stored cursor position
@@ -1288,14 +1302,14 @@ function onPointerUp(evt: PointerEvent){
 	if (vUpdater != 0){ // Might be zero on pointerleave/etc
 		clearInterval(vUpdater);
 		vUpdater = 0;
-		if (lastPinchDiff == -1 && Math.abs(dragVelocity) > 10){
+		if (prevPinchDiff == -1 && Math.abs(dragVelocity) > 10){
 			let scrollChg = dragVelocity * store.dragInertia;
 			panTimeline(-scrollChg / availLen.value);
 		}
 	}
 
 	if (ptrEvtCache.length < 2){
-		lastPinchDiff = -1;
+		prevPinchDiff = -1;
 	}
 	dragDiff = 0;
 }
@@ -1307,7 +1321,7 @@ function onWheel(evt: WheelEvent){
 
 function onShiftWheel(evt: WheelEvent){
 	let zoomRatio = evt.deltaY > 0 ? store.zoomRatio : 1/store.zoomRatio;
-	zoomTimeline(zoomRatio);
+	zoomTimeline(zoomRatio, [pointerX, pointerY]);
 }
 
 // ========== For bound-change signalling ==========
@@ -1401,13 +1415,13 @@ function onKeyDown(evt: KeyboardEvent){
 	}
 	if (evt.key == 'ArrowUp'){
 		if (evt.shiftKey){
-			zoomTimeline(1/store.zoomRatio, true);
+			zoomTimeline(1/store.zoomRatio, null);
 		} else if (props.vert){
 			panTimeline(-store.scrollRatio);
 		}
 	} else if (evt.key == 'ArrowDown'){
 		if (evt.shiftKey){
-			zoomTimeline(store.zoomRatio, true);
+			zoomTimeline(store.zoomRatio, null);
 		} else if (props.vert){
 			panTimeline(store.scrollRatio);
 		}
