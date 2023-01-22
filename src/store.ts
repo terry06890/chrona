@@ -135,7 +135,7 @@ function getDefaultState(): StoreState {
 		},
 
 		// Other
-		initialStartDate: new CalDate(1, 1, 1),
+		initialStartDate: new CalDate(1500, 1, 1),
 		initialEndDate: new CalDate(2000, 1, 1),
 		color,
 		borderRadius: 5,
