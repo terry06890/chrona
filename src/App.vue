@@ -117,6 +117,10 @@ function updateAreaDims(){
 
 onMounted(updateAreaDims);
 
+// Kludge for some devices that don't provide the right dimensions until some time after mounting
+onMounted(() => setTimeout(updateAreaDims, store.transitionDuration));
+onMounted(() => setTimeout(updateAreaDims, store.transitionDuration * 2));
+
 // ========== Timeline data ==========
 
 const timelines: Ref<TimelineState[]> = ref([]);
