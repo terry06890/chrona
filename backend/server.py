@@ -8,7 +8,7 @@ from typing import Iterable
 import os
 from wsgiref import simple_server, util
 import mimetypes
-from histplorer import application
+from chrona import application
 
 import argparse
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

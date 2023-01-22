@@ -1,12 +1,18 @@
-# Histplorer
+# Chrona
 
 An interactive historical timeline.
-[Available online](https://terryt.dev/tilo/).
+Available online.
 
 ## Project Overview
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-tempor incididunt ut labore et dolore magna aliqua.
+The UI is largely coded in Typescript, using the [Vue](https://vuejs.org)
+framework, with [Vite](https://vitejs.dev) as the build tool. Much of
+the styling is done using [Tailwind](https://tailwindcss.com). Packages
+are managed using [npm](https://www.npmjs.com) and [Node.js](https://nodejs.org).
+
+On the server side, tree data is served and generated using Python, with
+packages managed using [Pip](https://pypi.org/project/pip). Tree data is
+stored using [Sqlite](https://www.sqlite.org).
 
 ## Files
 
@@ -16,6 +22,7 @@ tempor incididunt ut labore et dolore magna aliqua.
 -   **LICENCE.txt**:        This project's license (MIT)
 ### Client &amp; Server
 -   **src**:                Contains most of the client-side code
+-   **tests**:              Contains client-side unit tests
 -   **index.html**:         Holds code for the main page, into which code from 'src' will be included
 -   **public**:             Contains files to be copied unchanged in the client's production build
 -   **backend**:            Contains code for the server, and for generating history data
@@ -25,30 +32,46 @@ tempor incididunt ut labore et dolore magna aliqua.
 -   **postcss.config.js**:  For configuring Tailwind
 -   **tsconfig.json**:      For configuring Typescript
 -   **tsconfig.node.json**: For configuring Typescript
+-   **.eslintrc.js**:       For configuring ESLint
 ### Other
 -   **.gitignore**:         Lists files to be ignored if using Git
+-   **DEPLOY.md**:          Instructions for deployment on an Apache server on Ubuntu.
+-   **prebuild.sh**:        Bash script for automating some steps of deployment.
 
 ## Setup Instructions
 
+Note: Running your own version of the client and server should be straightforward,
+but generating the database takes a long time.
+More details are in `backend/hist_data/README.md`.
+
 ### Client Side
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-tempor incididunt ut labore et dolore magna aliqua.
+1.  If you don't have npm or Node.js installed, you can download a Node installer from
+    <https://nodejs.org/en/download>, which includes npm. This project was coded using version 16.
+1.  In this directory, run the command `npm install`, which install packages listed in
+    package.json, creating a `node_modules` directory to hold them.
 
 ### Server Side
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-tempor incididunt ut labore et dolore magna aliqua.
+1.  If you don't have Python 3 installed, see <https://www.python.org/downloads>.
+    The package manager Pip is included.
+1.  The database used by the server is generated using scripts in `backend/hist_data/`.
+    See it's README for instructions. You'll likely need to install a few
+    packages using Pip.
+1.  To run the data server via `backend/server.py`, you'll need to install jsonpickle.
+    This can be done using `python -m pip install jsonpickle`.
 
-### Running Histplorer
+    If you want to keep the installed package separate from your system's packages,
+    it's common practice to use [venv](https://docs.python.org/3/tutorial/venv.html).
+
+### Running Chrona
 1.  In `backend/`, run `./server.py`, which starts a basic HTTP server that provides
     history data on port 8000.
 1.  Running `npm run dev` starts the dev server.
 1.  Open a web browser, and navigate to <http://localhost:5713>.
 
 ## Deploying the Website
-
-Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod
-tempor incididunt ut labore et dolore magna aliqua.
+This is significantly dependent on the server platform. `DEPLOY.md` contains
+instructions for deployment on an Apache server on an Ubuntu system.
 
 ## Licence
 
-Histplorer is licensed under the MIT Licence.
+Chrona is licensed under the MIT Licence.

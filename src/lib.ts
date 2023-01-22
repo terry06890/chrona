@@ -1,5 +1,5 @@
 /*
- * Common project globals
+ * Project-wide globals
  */
 
 import {moduloPositive, intToOrdinal, getNumTrailingZeros} from './util';
