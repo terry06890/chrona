@@ -3,8 +3,15 @@
 	:style="{scrollbarColor: store.color.altDark2 + ' ' + store.color.bgDark}">
 	<!-- Title bar -->
 	<div class="flex gap-2 p-2" :style="{backgroundColor: store.color.bgDark2}">
+		<div class="flex flex-col items-center"  :style="{color: store.color.altDark}">
+			<h1 class="my-auto text-xl hover:cursor-pointer"
+				@click="onReset" title="Reset Timeline">Chrona</h1>
+			<div class="text-xs">(prototype)</div>
+		</div>
+		<!--
 		<h1 class="my-auto ml-2 sm:ml-2 text-4xl hover:cursor-pointer" :style="{color: store.color.altDark}"
-			@click="onReset" title="Reset Timeline">Chrona</h1>
+			@click="onReset" title="Reset Timeline">Chrona (prototype)</h1>
+		-->
 		<div class="mx-auto"/> <!-- Spacer -->
 		<!-- Icons -->
 		<icon-button :size="45" :style="buttonStyles" @click="helpOpen = true" title="Show help info">
