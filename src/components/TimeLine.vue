@@ -88,7 +88,7 @@ import {ref, onMounted, onUnmounted, computed, watch, PropType, Ref} from 'vue';
 import IconButton from './IconButton.vue';
 import CloseIcon from './icon/CloseIcon.vue';
 
-import {WRITING_MODE_HORZ, moduloPositive, animateWithClass, getTextWidth} from '../util';
+import {moduloPositive, animateWithClass, getTextWidth} from '../util';
 import {
 	getDaysInMonth, MIN_CAL_DATE, MONTH_NAMES, HistDate, HistEvent, getImagePath, dateToYearStr, dateToTickStr,
 	MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES,
@@ -107,7 +107,8 @@ const bgFailRef: Ref<HTMLElement | null> = ref(null);
 const store = useStore();
 
 const props = defineProps({
-	vert: {type: Boolean, required: true}, // Display orientation
+	width: {type: Number, required: true},
+	height: {type: Number, required: true},
 	closeable: {type: Boolean, default: true},
 	current: {type: Boolean, required: true},
 	initialState: {type: Object as PropType<TimelineState>, required: true},
@@ -124,34 +125,12 @@ const emit = defineEmits(['close', 'state-chg', 'event-display', 'info-click']);
 
 // ========== For size tracking ==========
 
-const width = ref(0);
-const height = ref(0);
-const availLen = computed(() => props.vert ? height.value : width.value);
-const availBreadth = computed(() => props.vert ? width.value : height.value);
+const vert = computed(() => props.height >= props.width);
+const availLen = computed(() => vert.value ? props.height : props.width);
+const availBreadth = computed(() => vert.value ? props.width : props.height);
 const mounted = ref(false);
 
-onMounted(() => {
-	let rootEl = rootRef.value!;
-	width.value = rootEl.offsetWidth;
-	height.value = rootEl.offsetHeight;
-	mounted.value = true;
-})
-
-const resizeObserver = new ResizeObserver((entries) => {
-	for (const entry of entries){
-		if (entry.contentBoxSize){
-			// Get resized dimensions
-			const boxSize = Array.isArray(entry.contentBoxSize) ? entry.contentBoxSize[0] : entry.contentBoxSize;
-			width.value = WRITING_MODE_HORZ ? boxSize.inlineSize : boxSize.blockSize;
-			height.value = WRITING_MODE_HORZ ? boxSize.blockSize : boxSize.inlineSize;
-			// Check for horz/vert swap
-			skipTransition.value = true;
-			setTimeout(() => {skipTransition.value = false}, 100); // Note: Using nextTick() doesn't work
-		}
-	}
-});
-
-onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
+onMounted(() => mounted.value = true);
 
 // ========== Timeline data ==========
 
@@ -253,7 +232,7 @@ function initScale(){
 
 // ========== Tick data ==========
 
-const tickLabelMargin = computed(() => props.vert ? 20 : 30); // Distance from label to mainline
+const tickLabelMargin = computed(() => vert.value ? 20 : 30); // Distance from label to mainline
 const tickLabelSpan = computed( // Leftover breadth in half-mainline-area for tick label
 	() => store.mainlineBreadth - store.largeTickLen / 2 - tickLabelMargin.value);
 
@@ -275,16 +254,16 @@ class Tick {
 		this.offset = offset;
 		this.bound = bound;
 		if (this.bound == null){
-			this.x1 = props.vert ? -store.tickLen / 2 : 0;
-			this.y1 = props.vert ? 0 : -store.tickLen / 2;
-			this.x2 = props.vert ?  store.tickLen / 2 : 0;
-			this.y2 = props.vert ? 0 :  store.tickLen / 2;
+			this.x1 = vert.value ? -store.tickLen / 2 : 0;
+			this.y1 = vert.value ? 0 : -store.tickLen / 2;
+			this.x2 = vert.value ?  store.tickLen / 2 : 0;
+			this.y2 = vert.value ? 0 :  store.tickLen / 2;
 			this.width = 1;
 		} else {
-			this.x1 = props.vert ? -store.endTickSz / 2 : 0;
-			this.y1 = props.vert ? 0 : -store.endTickSz / 2;
-			this.x2 = props.vert ?  store.endTickSz / 2 : 0;
-			this.y2 = props.vert ? 0 :  store.endTickSz / 2;
+			this.x1 = vert.value ? -store.endTickSz / 2 : 0;
+			this.y1 = vert.value ? 0 : -store.endTickSz / 2;
+			this.x2 = vert.value ?  store.endTickSz / 2 : 0;
+			this.y2 = vert.value ? 0 :  store.endTickSz / 2;
 			this.width = store.endTickSz;
 		}
 	}
@@ -483,8 +462,8 @@ const endIsLastVisible = computed(() => {
 
 const eventWidth = computed(() => store.eventImgSz);
 const eventHeight = computed(() => store.eventImgSz + store.eventLabelHeight);
-const eventMajorSz = computed(() => props.vert ? eventHeight.value : eventWidth.value);
-const eventMinorSz = computed(() => props.vert ? eventWidth.value : eventHeight.value)
+const eventMajorSz = computed(() => vert.value ? eventHeight.value : eventWidth.value);
+const eventMinorSz = computed(() => vert.value ? eventWidth.value : eventHeight.value)
 
 const mainlineToSide = computed( // True if unable to fit mainline in middle with events on both sides
 	() => availBreadth.value < store.mainlineBreadth + (eventMinorSz.value + store.spacing * 2) * 2);
@@ -494,7 +473,7 @@ const mainlineOffset = computed(() => { // Distance from mainline-area line to l
 		return availBreadth.value / 2 - store.mainlineBreadth /2 + store.largeTickLen / 2;
 	} else {
 		return availBreadth.value - store.spacing - tickLabelMargin.value
-			- (props.vert ? tickLabelSpan.value : store.tickLabelHeight);
+			- (vert.value ? tickLabelSpan.value : store.tickLabelHeight);
 	}
 });
 
@@ -548,7 +527,7 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 		return map;
 	}
 
-	// Determine columns to place event elements in (or rows if !props.vert)
+	// Determine columns to place event elements in (or rows if !vert.value)
 	let cols: [number, number][][] = []; // For each column, for each laid out event, stores an ID and pixel offset
 	let colOffsets: number[] = []; // Stores the pixel offset of each column
 	let afterMainlineIdx: number | null = null; // Index of first column after the mainline, if there is one
@@ -717,7 +696,7 @@ function getEventLayout(): Map<number, [number, number, number, number]> {
 	for (let colIdx = 0; colIdx < cols.length; colIdx++){
 		let minorOffset = colOffsets[colIdx];
 		for (let [eventId, majorOffset] of cols[colIdx]){
-			if (props.vert){
+			if (vert.value){
 				map.set(eventId, [minorOffset, majorOffset, eventWidth.value, eventHeight.value]);
 			} else {
 				map.set(eventId, [majorOffset, minorOffset, eventWidth.value, eventHeight.value]);
@@ -736,8 +715,8 @@ function updateLayout(){
 	for (let [eventId, [x, y, , ]] of map.entries()){
 		if (idToPos.value.has(eventId)){
 			let [oldX, oldY, , ] = idToPos.value.get(eventId)!;
-			if (props.vert && (oldX - mainlineOffset.value) * (x - mainlineOffset.value) < 0
-					|| !props.vert && (oldY - mainlineOffset.value) * (y - mainlineOffset.value) < 0){
+			if (vert.value && (oldX - mainlineOffset.value) * (x - mainlineOffset.value) < 0
+					|| !vert.value && (oldY - mainlineOffset.value) * (y - mainlineOffset.value) < 0){
 				idsToSkipTransition.value.add(eventId);
 			}
 		}
@@ -773,7 +752,7 @@ function updateLayout(){
 		let event = idToEvent.value.get(id)!;
 		let unitOffset = dateToUnitOffset(event.start);
 		let posFrac = unitOffset / numUnits;
-		if (props.vert){
+		if (vert.value){
 			x = mainlineOffset.value;
 			y = posFrac * availLen.value;
 		} else {
@@ -808,8 +787,8 @@ function updateLayout(){
 }
 
 watch(idToEvent, updateLayout);
-watch(width, updateLayout);
-watch(height, updateLayout);
+watch(() => props.width, updateLayout);
+watch(() => props.height, updateLayout);
 
 function dateToUnitOffset(date: HistDate){ // Assumes 'date' is >=firstDate and <=lastDate
 	// Find containing major tick
@@ -1006,12 +985,12 @@ function zoomTimeline(zoomRatio: number, pointer: [number, number] | null){
 		startChg = -unitChg / 2;
 		endChg = unitChg / 2;
 	} else { // Pointer-centered zoom
-		let ptrOffset = props.vert ? pointer[1] : pointer[0];
+		let ptrOffset = vert.value ? pointer[1] : pointer[0];
 		// Get element-relative ptrOffset
 		let innerOffset = 0;
 		if (rootRef.value != null){ // Can become null during dev-server hot-reload for some reason
 			let rect = rootRef.value.getBoundingClientRect();
-			innerOffset = props.vert ? ptrOffset - rect.top : ptrOffset - rect.left;
+			innerOffset = vert.value ? ptrOffset - rect.top : ptrOffset - rect.left;
 		}
 		// Get bound changes
 		let zoomCenter = numUnits * (innerOffset / availLen.value);
@@ -1230,11 +1209,11 @@ function onPointerDown(evt: PointerEvent){
 		}
 		if (vPrevPointer != null){
 			let time = Date.now();
-			let ptrDiff = (props.vert ? pointerY! : pointerX!) - vPrevPointer;
+			let ptrDiff = (vert.value ? pointerY! : pointerX!) - vPrevPointer;
 			dragVelocity = ptrDiff / (time - vUpdateTime) * 1000;
 			vUpdateTime = time;
 		}
-		vPrevPointer = (props.vert ? pointerY : pointerX);
+		vPrevPointer = (vert.value ? pointerY : pointerX);
 	}, 50);
 }
 
@@ -1247,7 +1226,7 @@ function onPointerMove(evt: PointerEvent){
 
 	if (ptrEvtCache.length == 1){
 		// Handle pointer dragging
-		dragDiff += props.vert ? evt.clientY - pointerY! : evt.clientX - pointerX!;
+		dragDiff += vert.value ? evt.clientY - pointerY! : evt.clientX - pointerX!;
 		if (dragHandler == 0){
 			dragHandler = window.setTimeout(() => {
 				if (Math.abs(dragDiff) > 2){
@@ -1259,7 +1238,7 @@ function onPointerMove(evt: PointerEvent){
 		}
 	} else if (ptrEvtCache.length == 2){
 		// Handle pinch-zoom
-		const pinchDiff = Math.abs(props.vert ?
+		const pinchDiff = Math.abs(vert.value ?
 			ptrEvtCache[0].clientY - ptrEvtCache[1].clientY :
 			ptrEvtCache[0].clientX - ptrEvtCache[1].clientX);
 		if (prevPinchDiff == -1){
@@ -1315,7 +1294,7 @@ function onPointerUp(evt: PointerEvent){
 }
 
 function onWheel(evt: WheelEvent){
-	let shiftDir = (evt.deltaY > 0 ? 1 : -1) * (!props.vert ? -1 : 1);
+	let shiftDir = (evt.deltaY > 0 ? 1 : -1) * (!vert.value ? -1 : 1);
 	panTimeline(shiftDir * store.scrollRatio);
 }
 
@@ -1416,21 +1395,21 @@ function onKeyDown(evt: KeyboardEvent){
 	if (evt.key == 'ArrowUp'){
 		if (evt.shiftKey){
 			zoomTimeline(1/store.zoomRatio, null);
-		} else if (props.vert){
+		} else if (vert.value){
 			panTimeline(-store.scrollRatio);
 		}
 	} else if (evt.key == 'ArrowDown'){
 		if (evt.shiftKey){
 			zoomTimeline(store.zoomRatio, null);
-		} else if (props.vert){
+		} else if (vert.value){
 			panTimeline(store.scrollRatio);
 		}
 	} else if (evt.key == 'ArrowLeft'){
-		if (!props.vert){
+		if (!vert.value){
 			panTimeline(-store.scrollRatio);
 		}
 	} else if (evt.key == 'ArrowRight'){
-		if (!props.vert){
+		if (!vert.value){
 			panTimeline(store.scrollRatio);
 		}
 	}
@@ -1447,13 +1426,20 @@ onUnmounted(() => {
 // ========== For skipping transitions on startup (and on horz/vert swap) ==========
 
 const skipTransition = ref(true);
-onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
+function tempSkipTransition(){
+	skipTransition.value = true;
+	setTimeout(() => {skipTransition.value = false}, 100);
+}
+
+onMounted(tempSkipTransition);
+watch(() => props.width, tempSkipTransition);
+watch(() => props.height, tempSkipTransition);
 
 // ========== For styles ==========
 
 const mainlineStyles = computed(() => {
 	return {
-		transform: props.vert ?
+		transform: vert.value ?
 			`translate(${mainlineOffset.value}px, 0) rotate(90deg) scale(${availLen.value},1)` :
 			`translate(0, ${mainlineOffset.value}px) rotate(0deg) scale(${availLen.value},1)`,
 	};
@@ -1464,7 +1450,7 @@ function tickStyles(tick: Tick){
 	let pxOffset = tick.offset / numMajorUnits * availLen.value;
 	let scaleFactor = tick.major ? store.largeTickLen / store.tickLen : 1;
 	return {
-		transform: props.vert ?
+		transform: vert.value ?
 			`translate(${mainlineOffset.value}px,  ${pxOffset}px) scale(${scaleFactor})` :
 			`translate(${pxOffset}px, ${mainlineOffset.value}px) scale(${scaleFactor})`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
@@ -1481,7 +1467,7 @@ const tickLabelTexts = computed(() => ticks.value.map((tick: Tick) => dateToTick
 
 const tickLabelStyles = computed((): Record<string,string>[] => {
 	let numMajorUnits = getNumDisplayUnits();
-	let labelSz = props.vert ? store.tickLabelHeight : tickLabelSpan.value;
+	let labelSz = vert.value ? store.tickLabelHeight : tickLabelSpan.value;
 
 	// Get offsets, and check for label overlap
 	let pxOffsets: number[] = [];
@@ -1493,7 +1479,7 @@ const tickLabelStyles = computed((): Record<string,string>[] => {
 		pxOffsets.push(ticks.value[i].offset / numMajorUnits * availLen.value);
 	}
 	let visibilities: boolean[] = pxOffsets.map(() => true); // Elements set to false for overlapping ticks
-	if (!hasLongLabel && !props.vert){
+	if (!hasLongLabel && !vert.value){
 		// Iterate through ticks, checking for subsequent overlapping ticks, prioritising major ticks over minor ones
 		for (let i = 0; i < ticks.value.length; i++){
 			if (pxOffsets[i] < labelSz || pxOffsets[i] > availLen.value - labelSz){ // Hidden ticks
@@ -1523,7 +1509,7 @@ const tickLabelStyles = computed((): Record<string,string>[] => {
 	for (let i = 0; i < ticks.value.length; i++){
 		let pxOffset = pxOffsets[i];
 		styles.push({
-			transform: props.vert ?
+			transform: vert.value ?
 				`translate(${mainlineOffset.value + tickLabelMargin.value}px, ${pxOffset}px)` :
 				`translate(${pxOffset}px, ${mainlineOffset.value + tickLabelMargin.value}px)`
 					+ (hasLongLabel ? 'rotate(30deg)' : ''),
@@ -1585,10 +1571,10 @@ function densityIndStyles(tickIdx: number, count: number): Record<string,string>
 	let breadth = countLevel * 4 + 4;
 	return {
 		backgroundColor: store.color.altBg,
-		top: props.vert ? pxOffset + 'px' : (mainlineOffset.value - breadth / 2) + 'px',
-		left: props.vert ? (mainlineOffset.value - breadth / 2) + 'px' : pxOffset + 'px',
-		width: props.vert ? breadth + 'px' : len + 'px',
-		height: props.vert ? len + 'px' : breadth + 'px',
+		top: vert.value ? pxOffset + 'px' : (mainlineOffset.value - breadth / 2) + 'px',
+		left: vert.value ? (mainlineOffset.value - breadth / 2) + 'px' : pxOffset + 'px',
+		width: vert.value ? breadth + 'px' : len + 'px',
+		height: vert.value ? len + 'px' : breadth + 'px',
 		transitionProperty: skipTransition.value ? 'none' : 'top, left, width, height',
 		transitionDuration: store.transitionDuration + 'ms',
 		transitionTimingFunction: 'linear',
@@ -1609,14 +1595,14 @@ function animateFailDiv(which: 'min' | 'max' | 'both' | 'bg'){
 }
 
 function failDivStyles(minDiv: boolean){
-	const gradientDir = props.vert ? (minDiv ? 'top' : 'bottom') : (minDiv ? 'left' : 'right');
+	const gradientDir = vert.value ? (minDiv ? 'top' : 'bottom') : (minDiv ? 'left' : 'right');
 	return {
-		top: props.vert ? (minDiv ? 0 : 'auto') : 0,
-		bottom: props.vert ? (minDiv ? 'auto' : 0) : 'auto',
-		left: props.vert ? 0 : (minDiv ? 0 : 'auto'),
-		right: props.vert ? 'auto' : (minDiv ? 'auto' : 0),
-		width: props.vert ? '100%' : '2cm',
-		height: props.vert ? '2cm' : '100%',
+		top: vert.value ? (minDiv ? 0 : 'auto') : 0,
+		bottom: vert.value ? (minDiv ? 'auto' : 0) : 'auto',
+		left: vert.value ? 0 : (minDiv ? 0 : 'auto'),
+		right: vert.value ? 'auto' : (minDiv ? 'auto' : 0),
+		width: vert.value ? '100%' : '2cm',
+		height: vert.value ? '2cm' : '100%',
 		backgroundImage: `linear-gradient(to ${gradientDir}, rgba(255,0,0,0), rgba(255,0,0,0.3))`,
 		opacity: 0,
 	};

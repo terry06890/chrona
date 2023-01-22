@@ -33,13 +33,15 @@
 	<div class="grow min-h-0 flex" :class="{'flex-col': !vert}"
 			:style="{backgroundColor: store.color.bg}" ref="contentAreaRef">
 		<time-line v-for="(state, idx) in timelines" :key="state.id"
-			:vert="vert" :closeable="timelines.length > 1" :current="idx == currentTimelineIdx && !modalOpen"
+			:width="timelineWidth" :height="timelineHeight"
+			:closeable="timelines.length > 1" :current="idx == currentTimelineIdx && !modalOpen"
 			:initialState="state" :eventTree="eventTree" :unitCountMaps="unitCountMaps"
 			:searchTarget="searchTargets[idx]" :reset="resetFlags[idx]"
 			class="grow basis-full min-h-0 outline outline-1"
 			@close="onTimelineClose(idx)" @state-chg="onTimelineChg($event, idx)" @event-display="onEventDisplay"
 			@info-click="onInfoClick" @pointerenter="currentTimelineIdx = idx"/>
-		<base-line v-if="store.showBaseLine" :vert="vert" :timelines="timelines" class='m-2'/>
+		<base-line v-if="store.showBaseLine" :vert="vert" :len="vert ? contentHeight : contentWidth"
+			:timelines="timelines"/>
 	</div>
 
 	<!-- Modals -->
@@ -98,6 +100,14 @@ const store = useStore();
 const contentWidth = ref(1);
 const contentHeight = ref(1);
 const vert = computed(() => contentHeight.value > contentWidth.value);
+const timelineWidth = computed(() => {
+	let baseLineWidth = (store.showBaseLine && vert.value) ? store.baseLineBreadth : 0;
+	return (contentWidth.value - baseLineWidth) / (vert.value ? timelines.value.length : 1);
+});
+const timelineHeight = computed(() => {
+	let baseLineHeight = (store.showBaseLine && !vert.value) ? store.baseLineBreadth : 0;
+	return (contentHeight.value - baseLineHeight) / (vert.value ? 1 : timelines.value.length);
+});
 
 function updateAreaDims(){
 	let contentAreaEl = contentAreaRef.value!;

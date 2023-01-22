@@ -1,6 +1,6 @@
 <template>
 <div class="flex relative" :class="{'flex-col': vert}"
-	:style="{color: store.color.text}" ref="rootRef">
+	:style="{color: store.color.text, padding: PADDING + 'px'}" ref="rootRef">
 	<!-- Time periods -->
 	<div v-for="p in periods" :key="p.label" class="relative" :style="periodStyles(p)">
 		<div :style="labelStyles">{{p.label}}</div>
@@ -16,7 +16,6 @@
 
 <script setup lang="ts">
 import {ref, computed, onMounted, PropType, Ref} from 'vue';
-import {WRITING_MODE_HORZ} from '../util';
 import {MIN_DATE, MAX_DATE, SCALES, MONTH_SCALE, DAY_SCALE, stepDate, TimelineState} from '../lib';
 import {useStore} from '../store';
 
@@ -26,8 +25,13 @@ const store = useStore();
 
 const props = defineProps({
 	vert: {type: Boolean, required: true},
+	len: {type: Number, required: true},
 	timelines: {type: Object as PropType<TimelineState[]>, required: true},
 });
+
+const PADDING = 8;
+const contentLen = computed(() => props.len - PADDING * 2)
+const contentBreadth = computed(() => store.baseLineBreadth - PADDING * 2)
 
 // ========== Static time periods ==========
 
@@ -49,28 +53,9 @@ onMounted(() => setTimeout(() => {skipTransition.value = false}, 100));
 
 // ========== For size and mount-status tracking ==========
 
-const width = ref(0);
-const height = ref(0);
 const mounted = ref(false);
 
-onMounted(() => {
-	let rootEl = rootRef.value!;
-	width.value = rootEl.offsetWidth;
-	height.value = rootEl.offsetHeight;
-	mounted.value = true;
-})
-
-const resizeObserver = new ResizeObserver((entries) => {
-	for (const entry of entries){
-		if (entry.contentBoxSize){
-			const boxSize = Array.isArray(entry.contentBoxSize) ? entry.contentBoxSize[0] : entry.contentBoxSize;
-			width.value = WRITING_MODE_HORZ ? boxSize.inlineSize : boxSize.blockSize;
-			height.value = WRITING_MODE_HORZ ? boxSize.blockSize : boxSize.inlineSize;
-		}
-	}
-});
-
-onMounted(() => resizeObserver.observe(rootRef.value as HTMLElement));
+onMounted(() => mounted.value = true);
 
 // ========== For styles ==========
 
@@ -86,15 +71,16 @@ function periodStyles(period: Period){
 const labelStyles = computed((): Record<string, string> => ({
 	transform: props.vert ? 'rotate(90deg) translate(50%, 0)' : 'none',
 	whiteSpace: 'nowrap',
-	width: props.vert ? '40px' : 'auto', // Chose vertical value to roughly match height in horizontal mode
+	width: props.vert ? contentBreadth.value + 'px' : 'auto',
+	height: props.vert ? 'auto' : contentBreadth.value + 'px',
 	padding: props.vert ? '0' : '4px',
 }));
+
+const MIN_SPAN_LEN = 3;
 
 function spanStyles(stateIdx: number){
 	const state = props.timelines[stateIdx];
 	let styles: Record<string,string>;
-	const availLen = props.vert ? height.value : width.value;
-	const availBreadth = props.vert ? width.value : height.value;
 
 	// Determine start/end date
 	if (state.startOffset == null || state.endOffset == null || state.scaleIdx == null){
@@ -111,17 +97,19 @@ function spanStyles(stateIdx: number){
 	// Determine positions in full timeline (only uses year information)
 	let startFrac = (start.year - MIN_DATE.year) / (MAX_DATE.year - MIN_DATE.year);
 	let lenFrac = (end.year - start.year) / (MAX_DATE.year - MIN_DATE.year);
-	let startPx = Math.max(0, availLen * startFrac); // Prevent negatives due to end-padding
-	let lenPx = Math.min(availLen - startPx, availLen * lenFrac);
-	if (lenPx < 3){ // Prevent zero length
-		lenPx = 3;
-		startPx -= Math.max(0, startPx + lenPx - availLen);
+	let startPx = Math.max(0, contentLen.value * startFrac);
+	let lenPx = Math.min(contentLen.value - startPx, contentLen.value * lenFrac);
+	if (lenPx < MIN_SPAN_LEN){ // Prevent zero length
+		lenPx = MIN_SPAN_LEN;
+		startPx -= Math.max(0, startPx + lenPx - contentLen.value);
 	}
 
 	// Account for multiple timelines
-	const breadth = availBreadth / props.timelines.length;
-	const sidePx = breadth * stateIdx;
+	const breadth = contentBreadth.value / props.timelines.length;
+	let sidePx = breadth * stateIdx;
 
+	startPx += PADDING;
+	sidePx += PADDING;
 	if (props.vert){
 		styles = {
 			top: startPx + 'px',

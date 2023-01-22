@@ -40,6 +40,7 @@ export type StoreState = {
 	reqImgs: boolean, // Only show events with images
 	showEventCounts: boolean,
 	showBaseLine: boolean,
+	baseLineBreadth: number,
 	searchSuggLimit: number,
 	ctgs: { // Specifies event categories, and which ones should be visible
 		event: boolean,
@@ -124,6 +125,7 @@ function getDefaultState(): StoreState {
 		reqImgs: true,
 		showEventCounts: true,
 		showBaseLine: true,
+		baseLineBreadth: 56,
 		searchSuggLimit: 10,
 		ctgs: {
 			event: true,

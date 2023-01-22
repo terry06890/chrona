@@ -22,17 +22,6 @@ export function onTouchDevice(){
 	return window.matchMedia('(pointer: coarse)').matches;
 }
 
-// For detecting writing mode
-	// Used with ResizeObserver callbacks, to determine which resized dimensions are width and height
-export let WRITING_MODE_HORZ = true;
-
-if ('writing-mode' in window.getComputedStyle(document.body)){ // Can be null when testing
-	const bodyStyles = window.getComputedStyle(document.body);
-	if ('writing-mode' in bodyStyles){
-		WRITING_MODE_HORZ = (bodyStyles['writing-mode'] as string).startsWith('horizontal');
-	}
-}
-
 // ========== For handler throttling ==========
 
 // For creating throttled version of handler function
