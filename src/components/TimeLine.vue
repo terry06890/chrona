@@ -717,7 +717,7 @@ function updateLayout(){
 			}
 		}
 	}
-	setTimeout(() => idsToSkipTransition.value.clear(), store.transitionDuration);
+	setTimeout(() => idsToSkipTransition.value.clear(), movementDelay.value);
 
 	// Update idToPos // Note: For some reason, if the map is assigned directly, events won't consistently transition
 	let toDelete = [];
@@ -1178,7 +1178,7 @@ function getMovedBounds(
 let pointerX = 0; // Used for pointer-centered zooming
 let pointerY = 0;
 const ptrEvtCache: PointerEvent[] = []; // Holds last captured PointerEvent for each pointerId (used for pinch-zoom)
-let dragDiff = 0; // Holds accumlated change in pointer's x/y coordinate while dragging
+let dragDiff = -1; // Holds accumlated change in pointer's x/y coordinate while dragging
 let dragHandler = 0; // Set by a setTimeout() to a handler for pointer dragging
 let dragVelocity: number; // Used to add 'drag momentum'
 let prevPinchDiff = -1; // Holds distance between two touch points (updated upon a pinch-zoom)
@@ -1187,7 +1187,10 @@ let vUpdateTime: number; // Holds timestamp for last update of 'dragVelocity'
 let vPrevPointer: null | number; // Holds pointerX/pointerY used for last update of 'dragVelocity'
 let vUpdater = 0; // Set by a setInterval(), used to update 'dragVelocity'
 
+const pointerDown = ref(false);
+
 function onPointerDown(evt: PointerEvent){
+	pointerDown.value = true;
 	ptrEvtCache.push(evt);
 
 	// Update pointer position
@@ -1284,9 +1287,10 @@ function onPointerUp(evt: PointerEvent){
 	}
 
 	if (ptrEvtCache.length < 2){
+		pointerDown.value = false;
 		prevPinchDiff = -1;
 	}
-	dragDiff = 0;
+	dragDiff = -1;
 }
 
 function onWheel(evt: WheelEvent){
@@ -1433,6 +1437,8 @@ watch(() => props.height, tempSkipTransition);
 
 // ========== For styles ==========
 
+const movementDelay = computed(() => pointerDown.value ? store.animationDelay : store.transitionDuration);
+
 const mainlineStyles = computed(() => {
 	return {
 		transform: vert.value ?
@@ -1450,7 +1456,7 @@ function tickStyles(tick: Tick){
 			`translate(${mainlineOffset.value}px,  ${pxOffset}px) scale(${scaleFactor})` :
 			`translate(${pxOffset}px, ${mainlineOffset.value}px) scale(${scaleFactor})`,
 		transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
-		transitionDuration: store.transitionDuration + 'ms',
+		transitionDuration: movementDelay.value + 'ms',
 		transitionTimingFunction: 'linear',
 		opacity: (pxOffset >= 0 && pxOffset <= availLen.value) ? 1 : 0,
 	}
@@ -1512,7 +1518,7 @@ const tickLabelStyles = computed((): Record<string,string>[] => {
 				`translate(${pxOffset}px, ${mainlineOffset.value + tickLabelMargin.value}px) `
 					+ (hasLongLabel ? 'rotate(30deg)' : 'translate(-50%, 0)'),
 			transitionProperty: skipTransition.value ? 'none' : 'transform, opacity',
-			transitionDuration: store.transitionDuration + 'ms',
+			transitionDuration: movementDelay.value + 'ms',
 			transitionTimingFunction: 'linear',
 			display: (tick.major || store.showMinorTicks) && visibilities[i] ? 'block' : 'none',
 		});
@@ -1528,7 +1534,7 @@ function eventStyles(eventId: number){
 		width: w + 'px',
 		height: h + 'px',
 		transitionProperty: (skipTransition.value || idsToSkipTransition.value.has(eventId)) ? 'none' : 'all',
-		transitionDuration: store.transitionDuration + 'ms',
+		transitionDuration: movementDelay.value + 'ms',
 		transitionTimingFunction: 'linear',
 	};
 }
@@ -1554,7 +1560,7 @@ function eventLineStyles(eventId: number){
 	return {
 		transform: `translate(${x}px, ${y}px) rotate(${a}deg)`,
 		transitionProperty: (skipTransition.value || idsToSkipTransition.value.has(eventId)) ? 'none' : 'transform',
-		transitionDuration: store.transitionDuration + 'ms',
+		transitionDuration: movementDelay.value + 'ms',
 		transitionTimingFunction: 'linear',
 	};
 }
@@ -1574,7 +1580,7 @@ function densityIndStyles(tickIdx: number, count: number): Record<string,string>
 		width: vert.value ? breadth + 'px' : len + 'px',
 		height: vert.value ? len + 'px' : breadth + 'px',
 		transitionProperty: skipTransition.value ? 'none' : 'top, left, width, height',
-		transitionDuration: store.transitionDuration + 'ms',
+		transitionDuration: movementDelay.value + 'ms',
 		transitionTimingFunction: 'linear',
 	}
 }

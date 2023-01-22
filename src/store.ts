@@ -73,6 +73,7 @@ export type StoreState = {
 	},
 	borderRadius: number, // px
 	transitionDuration: number, // ms
+	animationDelay: number, // ms
 };
 
 function getDefaultState(): StoreState {
@@ -142,6 +143,7 @@ function getDefaultState(): StoreState {
 		color,
 		borderRadius: 5,
 		transitionDuration: 300,
+		animationDelay: 100,
 	};
 }
 
