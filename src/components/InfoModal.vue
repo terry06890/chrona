@@ -82,7 +82,7 @@
 			<div v-if="eventInfo.desc != null">{{eventInfo.desc}}</div>
 			<div v-else class="text-center text-stone-500 text-sm">(No description found)</div>
 			<div v-if="event.id > 0" class="text-sm text-right">
-				<a :href="'https://en.wikipedia.org/?curid=' + eventInfo.wikiId" target="_blank">From Wikipedia</a>
+				From <a :href="'https://en.wikipedia.org/?curid=' + eventInfo.wikiId" target="_blank">Wikipedia</a>
 				(via <a :href="'https://www.wikidata.org/wiki/Q' + event.id" target="_blank">Wikidata</a>)
 				<external-link-icon class="inline-block w-3 h-3 ml-1"/>
 			</div>

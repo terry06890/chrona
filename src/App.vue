@@ -82,7 +82,7 @@ import SettingsIcon from './components/icon/SettingsIcon.vue';
 import PlusIcon from './components/icon/PlusIcon.vue';
 import SearchIcon from './components/icon/SearchIcon.vue';
 
-import {makeThrottled, makeThrottledSpaced} from './util';
+import {makeThrottledSpaced} from './util';
 import {
 	HistDate, HistEvent, EventInfo, cmpHistEvent,
 	queryServer, EventResponseJson, jsonToHistEvent, EventInfoJson, jsonToEventInfo,
@@ -359,7 +359,19 @@ async function handleOnEventDisplay(
 	}
 }
 
-const onEventDisplay = makeThrottled(handleOnEventDisplay, 200);
+const timelineTimeouts: Map<number, number> = new Map();
+	// Maps timeline IDs to setTimeout() timeouts (used to throttle handleEventDisplay() per-timeline)
+
+function onEventDisplay(
+		timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
+	if (timelineTimeouts.has(timelineId)){
+		clearTimeout(timelineTimeouts.get(timelineId));
+	}
+	timelineTimeouts.set(timelineId, window.setTimeout(async () => {
+		timelineTimeouts.delete(timelineId);
+		handleOnEventDisplay(timelineId, eventIds, firstDate, lastDate, scaleIdx);
+	}, 200));
+}
 
 // ========== For info modal ==========
 
