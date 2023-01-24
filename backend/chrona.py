@@ -33,7 +33,7 @@ import jsonpickle
 from hist_data.cal import HistDate, dbDateToHistDate, dateToUnit
 
 DB_FILE = 'hist_data/data.db'
-MAX_REQ_EVENTS = 500
+MAX_REQ_EVENTS = 2000
 MAX_REQ_UNIT_COUNTS = MAX_REQ_EVENTS
 DEFAULT_REQ_EVENTS = 20
 MAX_REQ_SUGGS = 50

@@ -370,7 +370,7 @@ function onEventDisplay(
 	timelineTimeouts.set(timelineId, window.setTimeout(async () => {
 		timelineTimeouts.delete(timelineId);
 		handleOnEventDisplay(timelineId, eventIds, firstDate, lastDate, scaleIdx);
-	}, 200));
+	}, 100));
 }
 
 // ========== For info modal ==========
