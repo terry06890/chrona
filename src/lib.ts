@@ -628,7 +628,7 @@ export function getUnitDiff(date: HistDate, date2: HistDate, scale: number): num
 	}
 }
 
-// Returns smallest scale at which 'event's start-startUpper range is within one unit, or infinity
+// Returns smallest scale at which 'event's start-startUpper range is within one unit, or infinity if there is none
 export function getEventPrecision(event: HistEvent): number {
 	// Note: Intentionally not adding an exception for century and millenia ranges like
 		// 101 to 200 (as opposed to 100 to 199) being interpreted as 'within' one 100/1000-year scale unit
@@ -647,6 +647,34 @@ export function getEventPrecision(event: HistEvent): number {
 		}
 	}
 	return Number.POSITIVE_INFINITY;
+}
+
+// Returns an 'appropriate' scale to use when jumping to a target date
+export function getScaleForJump(event: HistEvent): number {
+	const start = event.start;
+	const startUpper = event.startUpper;
+	if (start.gcal != null){
+		if (start.day > 1){
+			return MONTH_SCALE; // Intentionally not using DAY_SCALE
+		} else if (start.month > 1
+				|| startUpper != null // Account for month-precision events
+					&& gregorianToJdn(start.year, start.month+1, 0)
+						== gregorianToJdn(startUpper.year, startUpper.month, startUpper.day)){
+			return MONTH_SCALE;
+		}
+	}
+	for (let scaleIdx = 0; scaleIdx < SCALES.length - 2; scaleIdx++){
+		const scale = SCALES[scaleIdx];
+		if ((scale == 100 || scale == 1e3) // Account for century/millenium-precision events
+				&& moduloPositive(start.year - 1, scale) == 0 && startUpper != null
+				&& startUpper.year == start.year + scale - 1 || start.year + scale - 1 == 0){ // Account for no 0 BC
+			return scale;
+		}
+		if (moduloPositive(start.year, scale) == 0){
+			return scale;
+		}
+	}
+	throw new Error('Invalid state');
 }
 
 export function dateToUnit(date: HistDate, scale: number): number {

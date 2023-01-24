@@ -88,7 +88,8 @@ import {moduloPositive, animateWithClass, getTextWidth} from '../util';
 import {
 	getDaysInMonth, MIN_CAL_DATE, MONTH_NAMES, HistDate, HistEvent, getImagePath, dateToYearStr, dateToTickStr,
 	MIN_DATE, MAX_DATE, MONTH_SCALE, DAY_SCALE, SCALES,
-	stepDate, getScaleRatio, getNumSubUnits, getUnitDiff, getEventPrecision, dateToUnit, dateToScaleDate,
+	stepDate, getScaleRatio, getNumSubUnits, getUnitDiff, getEventPrecision, getScaleForJump,
+		dateToUnit, dateToScaleDate,
 	TimelineState,
 } from '../lib';
 import {useStore} from '../store';
@@ -1332,12 +1333,8 @@ watch(() => props.searchTarget, () => {
 
 	if (!idToPos.value.has(event.id)){ // If not already visible
 		// Determine new time range
-		let tempScale = scale.value;
-		let targetDate = event.start;
-		if (targetDate.isEarlier(MIN_CAL_DATE) && tempScale < 1){ // Account for jumping out of calendar limits
-			tempScale = getEventPrecision(event);
-		}
-		targetDate = dateToScaleDate(targetDate, tempScale);
+		let tempScale = getScaleForJump(event);
+		let targetDate = dateToScaleDate(event.start, tempScale);
 		const startEndDiff = getUnitDiff(startDate.value, endDate.value, scale.value);
 		let targetStart = stepDate(targetDate, tempScale, {forward: false, count: Math.floor(startEndDiff / 2)});
 		if (targetStart.isEarlier(MIN_DATE)){

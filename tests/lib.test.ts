@@ -6,7 +6,7 @@ import {
 	dateToDisplayStr, boundedDateToStr,
 	queryServer, jsonToHistDate, jsonToHistEvent,
 	DAY_SCALE, MONTH_SCALE, stepDate, inDateScale, getScaleRatio, getUnitDiff,
-		getEventPrecision, dateToUnit, dateToScaleDate,
+		getEventPrecision, getScaleForJump, dateToUnit, dateToScaleDate,
 	DateRangeTree,
 } from '/src/lib.ts';
 
@@ -231,6 +231,22 @@ test('getEventPrecision', () => {
 	expect(getEventPrecision(new HistEvent(1, 'one', new CalDate(2000, 1, 1), new CalDate(2150, 1, 1)))).toBe(1000)
 	expect(getEventPrecision(new HistEvent(1, 'one', new CalDate(1, 2, 3), new CalDate(1, 2, 25)))).toBe(MONTH_SCALE)
 	expect(getEventPrecision(new HistEvent(1, 'one', new CalDate(1, 2, 3), new CalDate(1, 2, 3)))).toBe(DAY_SCALE)
+})
+
+test('getScaleForJump', () => {
+	expect(getScaleForJump(new HistEvent(1, '1', new CalDate(1970, 2, 3), null))).toBe(DAY_SCALE)
+	expect(getScaleForJump(new HistEvent(1, '1', new CalDate(1970, 2, 1), null))).toBe(MONTH_SCALE)
+	expect(getScaleForJump(new HistEvent(1, '1', new CalDate(100, 1, 1), new CalDate(100, 1, 31)))).toBe(MONTH_SCALE)
+	expect(getScaleForJump(new HistEvent(1, '1', new CalDate(12, 1, 1), null))).toBe(1)
+	expect(getScaleForJump(new HistEvent(1, '1', new YearDate(-20), null))).toBe(10)
+	expect(getScaleForJump(new HistEvent(1, '1', new YearDate(-100), null))).toBe(100)
+	expect(getScaleForJump(new HistEvent(1, '1', new YearDate(-99), new CalDate(-1, 1, 1)))).toBe(100)
+	expect(getScaleForJump(new HistEvent(1, '1', new YearDate(1501), new CalDate(1600, 1, 1)))).toBe(100)
+	expect(getScaleForJump(new HistEvent(1, '1', new YearDate(1500), new CalDate(1599, 1, 1)))).toBe(100)
+	expect(getScaleForJump(new HistEvent(1, '1', new YearDate(1001), null))).toBe(1)
+	expect(getScaleForJump(new HistEvent(1, '1', new YearDate(1001), new YearDate(2000)))).toBe(1000)
+	expect(getScaleForJump(new HistEvent(1, '1', new CalDate(1e5, 1, 1), null))).toBe(1e5)
+	expect(getScaleForJump(new HistEvent(1, '1', new CalDate(1e5+1, 1, 1), null))).toBe(1)
 })
 
 test('dateToUnit', () => {
