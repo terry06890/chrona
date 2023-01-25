@@ -2,7 +2,8 @@
 <div class="relative overflow-hidden z-0" ref="rootRef"
 	@pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp"
 	@pointercancel="onPointerUp" @pointerout="onPointerUp" @pointerleave="onPointerUp"
-	@wheel.exact="onWheel" @wheel.shift.exact="onShiftWheel">
+	@wheel.exact="onWheel" @wheel.shift.exact="onShiftWheel"
+	:style="{backgroundColor: !current && closeable ? 'rgba(0,0,0,0.3)' : store.color.bg}">
 
 	<!-- Event density indicators -->
 	<template v-if="store.showEventCounts">
@@ -229,7 +230,7 @@ function initScale(){
 
 // ========== Tick data ==========
 
-const tickLabelMargin = computed(() => vert.value ? 20 : 30); // Distance from label to mainline
+const tickLabelMargin = computed(() => vert.value ? 20 : 18); // Distance from label to mainline
 const tickLabelSpan = computed( // Leftover breadth in half-mainline-area for tick label
 	() => store.mainlineBreadth - store.largeTickLen / 2 - tickLabelMargin.value);
 
