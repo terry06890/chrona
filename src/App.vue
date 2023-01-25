@@ -60,6 +60,9 @@
 		<help-modal v-if="helpOpen" :vert="vert" @close="helpOpen = false"/>
 	</transition>
 	<transition name="fade">
+		<intro-modal v-if="showIntro" :vert="vert" @close="onCloseIntro"/>
+	</transition>
+	<transition name="fade">
 		<loading-modal v-if="loadingMsg != null" :msg="loadingMsg"/>
 	</transition>
 </div>
@@ -74,6 +77,7 @@ import InfoModal from './components/InfoModal.vue';
 import SearchModal from './components/SearchModal.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import HelpModal from './components/HelpModal.vue';
+import IntroModal from './components/IntroModal.vue';
 import LoadingModal from './components/LoadingModal.vue';
 import IconButton from './components/IconButton.vue';
 
@@ -420,6 +424,17 @@ function onSettingChg(option: string){
 // ========== For help modal ==========
 
 const helpOpen = ref(false);
+
+// ========== For intro modal ==========
+
+const showIntro = ref(!store.introSkip);
+function onCloseIntro(){
+	showIntro.value = false;
+	if (store.introSkip == false){
+		store.introSkip = true;
+		store.save('introSkip');
+	}
+}
 
 // ========== For loading modal ==========
 

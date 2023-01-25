@@ -493,7 +493,7 @@ export function jsonToImgInfo(json: ImgInfoJson | null): ImgInfo | null {
 
 // ========== For timeline dates/data ==========
 
-export const MIN_DATE = new YearDate(-13.8e9);
+export const MIN_DATE = new YearDate(-14e9);
 export const MAX_DATE = new CalDate(2030, 1, 1);
 
 // (Same as in /backend/hist_data/cal.py)

@@ -5,12 +5,6 @@
 		<close-icon @click.stop="onClose" ref="closeRef"
 			class="absolute top-1 right-1 md:top-2 md:right-2 w-8 h-8 hover:cursor-pointer"/>
 		<h1 class="text-center text-xl sm:text-2xl font-bold pt-2 pb-1">Help</h1>
-		<p class="px-4 pb-1">
-			This is an interactive historical timeline, displaying events from
-			{{dateToDisplayStr(MIN_DATE)}} to {{dateToDisplayStr(MAX_DATE)}}.
-			{{touchDevice ? 'Drag the screen' : 'Scroll or press ' + (vert ? 'up/down': 'left/right')}} to pan.
-			{{touchDevice ? 'Pinch' : 'Hold shift'}} to zoom.
-		</p>
 		<div class="flex flex-col gap-2 p-2">
 			<s-collapsible :class="scClasses">
 				<template #summary="slotProps">
@@ -30,8 +24,8 @@
 							class="border border-stone-300 rounded mx-auto md:mx-0 md:shrink-0"/>
 						<p>
 							Events are shown as labelled images. Blue borders indicate
-							discovery events. This allows distinctions like between when a planet was discovered
-							and when it was formed.
+							discovery events. This is so that events like the discovery of Andromeda
+							don't look the same as the event of its creation.
 						</p>
 						<p>
 							Events are linked to points on the timeline that match their 'start date'.
@@ -306,7 +300,7 @@ import SCollapsible from './SCollapsible.vue';
 import CloseIcon from './icon/CloseIcon.vue';
 import DownIcon from './icon/DownIcon.vue';
 
-import {MIN_DATE, MAX_DATE, MIN_CAL_YEAR, dateToDisplayStr} from '../lib';
+import {MIN_DATE, MAX_DATE, MIN_CAL_YEAR, dateToDisplayStr, dateToYearStr} from '../lib';
 import {useStore} from '../store';
 
 const rootRef = ref(null as HTMLDivElement | null)

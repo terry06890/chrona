@@ -50,6 +50,7 @@ export type StoreState = {
 		work: boolean,
 		discovery: boolean,
 	},
+	introSkip: boolean,
 
 	// Other
 	initialStartDate: HistDate, // Must be after MIN_DATE (from lib.ts)
@@ -136,6 +137,7 @@ function getDefaultState(): StoreState {
 			work: true,
 			discovery: true,
 		},
+		introSkip: false,
 
 		// Other
 		initialStartDate: new CalDate(1500, 1, 1),
