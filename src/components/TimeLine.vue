@@ -56,8 +56,15 @@
 	<!-- Events -->
 	<div v-for="id in idToPos.keys()" :key="id" class="absolute animate-fadein z-20" :style="eventStyles(id)">
 		<!-- Image -->
-		<div class="rounded-full cursor-pointer hover:brightness-125" :style="eventImgStyles(id)"
-			:title="idToEvent.get(id)!.title" @click="emit('info-click', idToEvent.get(id)!.title)"></div>
+		<div class="relative rounded-full cursor-pointer hover:brightness-125" :style="eventImgStyles(id)"
+			:title="idToEvent.get(id)!.title" @click="emit('info-click', idToEvent.get(id)!.title)">
+			<!-- For flashing search results -->
+			<transition name="fadeout">
+				<div v-if="flashedEventId == id"
+					class="absolute w-full h-full top-0 left-0 rounded-[inherit] opacity-70"
+					:style="{backgroundColor: getCtgColor(idToEvent.get(id)!.ctg)}"></div>
+			</transition>
+		</div>
 		<!-- Label -->
 		<div class="text-center text-stone-100 text-sm whitespace-nowrap text-ellipsis overflow-hidden select-none">
 			{{idToEvent.get(id)!.title}}
@@ -1320,6 +1327,8 @@ watch(endDate, onStateChg);
 
 const searchEvent = ref(null as null | HistEvent); // Holds most recent search result
 let pendingSearch = false; // Used to prevent removal of search highlighting until after a search jump has completed
+const flashedEventId = ref(-1); // Holds ID of event to flash after a jump
+	// -1 indicates no flash, 0 indicates pending search, >0 indicates an event ID
 
 watch(() => props.searchTarget, () => {
 	const event = props.searchTarget[0];
@@ -1362,6 +1371,10 @@ watch(() => props.searchTarget, () => {
 			scaleIdx.value = SCALES.findIndex((s: number) => s == tempScale);
 		}
 		pendingSearch = true;
+		flashedEventId.value = 0;
+	} else { // Flash result
+		flashedEventId.value = event.id;
+		setTimeout(() => {flashedEventId.value = -1;}, 300);
 	}
 
 	searchEvent.value = event;
@@ -1371,6 +1384,14 @@ watch(() => props.searchTarget, () => {
 watch(idToEvent, () => {
 	if (searchEvent.value != null && !idToEvent.value.has(searchEvent.value.id) && !pendingSearch){
 		searchEvent.value = null;
+	}
+});
+
+// For flashing search result after a jump
+watch(idToEvent, () => {
+	if (flashedEventId.value == 0 && searchEvent.value != null && idToEvent.value.has(searchEvent.value.id)){
+		flashedEventId.value = searchEvent.value.id;
+		setTimeout(() => {flashedEventId.value = -1;}, 300);
 	}
 });
 
@@ -1537,10 +1558,18 @@ function eventStyles(eventId: number){
 	};
 }
 
+function getCtgColor(ctg: string){
+	if (ctg == 'discovery'){
+		return store.color.accent;
+	} else {
+		return store.color.altDark;
+	}
+}
+
 function eventImgStyles(eventId: number){
 	const event = idToEvent.value.get(eventId)!;
 	let isSearchResult = searchEvent.value != null && searchEvent.value.id == eventId;
-	let color = event.ctg == 'discovery' ? store.color.accent : store.color.altDark;
+	let color = getCtgColor(event.ctg);
 	return {
 		width: store.eventImgSz + 'px',
 		height: store.eventImgSz + 'px',

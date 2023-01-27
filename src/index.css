@@ -25,6 +25,14 @@
 		opacity: 1;
 	}
 }
+.fadeout-leave-to {
+	opacity: 0;
+}
+.fadeout-leave-active {
+	transition-property: opacity;
+	transition-duration: 300ms;
+	transition-timing-function: ease-out;
+}
 .animate-red-then-fade {
 	animation-name: red-then-fade;
 	animation-duration: 500ms;
