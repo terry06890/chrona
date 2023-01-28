@@ -359,18 +359,31 @@ async function handleOnEventDisplay(
 	}
 }
 
+let lastEventDisplayHdlrTime = 0;
 const timelineTimeouts: Map<number, number> = new Map();
 	// Maps timeline IDs to setTimeout() timeouts (used to throttle handleEventDisplay() per-timeline)
+const EVENT_DISPLAY_HDLR_DELAY = 150;
 
 function onEventDisplay(
 		timelineId: number, eventIds: number[], firstDate: HistDate, lastDate: HistDate, scaleIdx: number){
 	if (timelineTimeouts.has(timelineId)){
 		clearTimeout(timelineTimeouts.get(timelineId));
-	}
-	timelineTimeouts.set(timelineId, window.setTimeout(async () => {
 		timelineTimeouts.delete(timelineId);
-		handleOnEventDisplay(timelineId, eventIds, firstDate, lastDate, scaleIdx);
-	}, 150));
+	}
+	const currentTime = new Date().getTime();
+	if (currentTime - lastEventDisplayHdlrTime > EVENT_DISPLAY_HDLR_DELAY){
+		lastEventDisplayHdlrTime = currentTime;
+		window.setTimeout(async () => {
+			await handleOnEventDisplay(timelineId, eventIds, firstDate, lastDate, scaleIdx);
+			lastEventDisplayHdlrTime = new Date().getTime();
+		}, EVENT_DISPLAY_HDLR_DELAY);
+	} else {
+		timelineTimeouts.set(timelineId, window.setTimeout(async () => {
+			timelineTimeouts.delete(timelineId);
+			await handleOnEventDisplay(timelineId, eventIds, firstDate, lastDate, scaleIdx);
+			lastEventDisplayHdlrTime = new Date().getTime();
+		}, EVENT_DISPLAY_HDLR_DELAY));
+	}
 }
 
 // ========== For info modal ==========

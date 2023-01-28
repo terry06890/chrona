@@ -54,7 +54,7 @@ export function makeThrottledSpaced(hdlr: (...args: any[]) => void, delay: numbe
 			hdlr(...args);
 			lastHdlrTime = new Date().getTime();
 		} else {
-			endHdlr = window.setTimeout(async () => {
+			endHdlr = window.setTimeout(() => {
 				endHdlr = 0;
 				hdlr(...args);
 				lastHdlrTime = new Date().getTime();
