@@ -104,7 +104,7 @@ function getDefaultState(): StoreState {
 		tickLen: 16,
 		largeTickLen: 32,
 		endTickSz: 8,
-		tickLabelHeight: 10,
+		tickLabelHeight: 18,
 		minTickSep: 30,
 		minLastTicks: 3,
 		defaultEndTickOffset: breakpoint == 'sm' ? 0.2 : 0.5,

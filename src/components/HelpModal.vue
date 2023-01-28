@@ -146,7 +146,12 @@
 				</template>
 				<template #content>
 					<div :class="contentClasses">
-						<p>The source code is available on GitHub, under the MIT Licence.</p>
+						<p>
+							The source code is available on
+							<a href="https://github.com/terry06890/chrona" :style="aStyles">GitHub</a>, under the
+							<a href="https://github.com/terry06890/tilo/blob/main/LICENCE.txt"
+									:style="aStyles">MIT Licence</a>
+						</p>
 						<br/>
 						<h1 :class="contentH1Classes">Data Sources</h1>
 						<ul :class="contentULClasses">
@@ -287,7 +292,7 @@
 			</s-collapsible>
 		</div>
 		<p class="text-right text-xs md:text-sm text-stone-500 pr-2 pb-2">
-			Last updated 22/01/23
+			Last updated 28/01/23
 		</p>
 	</div>
 </div>

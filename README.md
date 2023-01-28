@@ -1,7 +1,7 @@
 # Chrona
 
 An interactive historical timeline.
-Available online.
+[Available online](https://terryt.dev/chrona/).
 
 ## Project Overview
 
@@ -74,4 +74,4 @@ instructions for deployment on an Apache server on an Ubuntu system.
 
 ## Licence
 
-Chrona is licensed under the MIT Licence.
+Chrona is licensed under the [MIT Licence](https://github.com/terry06890/chrona/blob/main/LICENCE.txt).
