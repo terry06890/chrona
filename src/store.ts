@@ -145,7 +145,7 @@ function getDefaultState(): StoreState {
 		color,
 		borderRadius: 5,
 		transitionDuration: 300,
-		animationDelay: 100,
+		animationDelay: 50,
 	};
 }
 

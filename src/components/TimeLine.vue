@@ -1222,7 +1222,7 @@ function onPointerDown(evt: PointerEvent){
 			vUpdateTime = time;
 		}
 		vPrevPointer = (vert.value ? pointerY : pointerX);
-	}, 50);
+	}, 30);
 }
 
 function onPointerMove(evt: PointerEvent){
