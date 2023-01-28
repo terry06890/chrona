@@ -7,7 +7,7 @@
 			class="absolute top-1 right-1 md:top-2 md:right-2 w-8 h-8 hover:cursor-pointer"/>
 
 		<!-- Title -->
-		<h1 class="text-center text-xl font-bold pt-2 pb-1 md:text-2xl md:pt-3">
+		<h1 class="text-center text-xl font-bold px-8 pt-2 pb-1 md:text-2xl md:pt-3">
 			{{event.title}}
 		</h1>
 
@@ -43,8 +43,7 @@
 							:style="{backgroundColor: store.color.bg, color: store.color.text}">
 							<li>
 								<span :style="sourceLabelStyles">Source: </span>
-								<a :href="eventInfo.imgInfo.url" target="_blank">Link</a>
-								<external-link-icon class="inline-block w-3 h-3 ml-1"/>
+								<a :href="eventInfo.imgInfo.url" target="_blank" :style="aStyles">Link</a>
 							</li>
 							<li class="whitespace-nowrap">
 								<span :style="sourceLabelStyles">Artist: </span>
@@ -57,21 +56,18 @@
 							<li>
 								<span :style="sourceLabelStyles">License: </span>
 								<template v-if="licenseToUrl(eventInfo.imgInfo.license) != null">
-									<a :href="licenseToUrl(eventInfo.imgInfo.license)!" target="_blank">
-										{{eventInfo.imgInfo.license}}
-									</a>
-									<external-link-icon class="inline-block w-3 h-3 ml-1"/>
+									<a :href="licenseToUrl(eventInfo.imgInfo.license)!" target="_blank"
+										:style="aStyles">{{eventInfo.imgInfo.license}}</a>
 								</template>
 								<span v-else>{{eventInfo.imgInfo.license}}</span>
 							</li>
 							<li>
 								<span :style="sourceLabelStyles">Obtained via: </span>
-								<a href="https://www.wikipedia.org/">Wikipedia</a>
-								<external-link-icon class="inline-block w-3 h-3 ml-1"/>
+								<a href="https://www.wikipedia.org/" :style="aStyles">Wikipedia</a>
 							</li>
 							<li>
 								<span :style="sourceLabelStyles">Changes: </span>
-								Cropped and resized
+								Cropped &amp; resized
 							</li>
 						</ul>
 					</template>
@@ -79,13 +75,17 @@
 			</div>
 
 			<!-- Description -->
-			<div v-if="eventInfo.desc != null">{{eventInfo.desc}}</div>
-			<div v-else class="text-center text-stone-500 text-sm">(No description found)</div>
-			<div v-if="event.id > 0" class="text-sm text-stone-600 text-right mt-1">
-				From <a :href="'https://en.wikipedia.org/?curid=' + eventInfo.wikiId" target="_blank">Wikipedia</a>
-				(via <a :href="'https://www.wikidata.org/wiki/Q' + event.id" target="_blank">Wikidata</a>)
-				<external-link-icon class="inline-block w-3 h-3 ml-1"/>
+			<div v-if="eventInfo.desc != null">
+				<div>
+					{{eventInfo.desc}}
+				</div>
+				<div v-if="event.id > 0" class="text-sm text-stone-600 text-right mt-1">
+					From <a :href="'https://en.wikipedia.org/?curid=' + eventInfo.wikiId" target="_blank">Wikipedia</a>
+					(via <a :href="'https://www.wikidata.org/wiki/Q' + event.id" target="_blank">Wikidata</a>)
+					<external-link-icon class="inline-block w-3 h-3 ml-1"/>
+				</div>
 			</div>
+			<div v-else class="text-center text-stone-500 text-sm">(No description found)</div>
 		</div>
 	</div>
 </div>
@@ -188,9 +188,14 @@ const imgStyles = computed(() => {
 	};
 });
 
-const sourceLabelStyles = computed(() => {
+const sourceLabelStyles = computed((): Record<string,string> => {
 	return {
-		color: store.color.altDark,
+		color: store.color.textDark,
+		fontWeight: 'bold',
 	};
 });
+
+const aStyles = computed((): Record<string,string> => ({
+	color: store.color.altDark,
+}));
 </script>
