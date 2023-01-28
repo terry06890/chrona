@@ -18,12 +18,14 @@
 					<span class="font-bold">Drag the screen</span> to move
 				</li>
 				<li v-else>
-					<span class="font-bold">Scroll</span> or
-					<span class="font-bold">press {{vert ? 'up &amp; down': 'left &amp; right'}}</span>
+					<span class="font-bold">Scroll</span> or press
+					<span class="font-bold">{{vert ? 'Up &amp; Down': 'Left &amp; Right'}}</span>
 					to move
 				</li>
 				<li>
-					<span class="font-bold">{{touchDevice ? 'Pinch' : 'Hold shift'}}</span> to zoom in &amp; out
+					<span v-if="touchDevice">Pinch</span>
+					<span v-else>Hold <span class="font-bold">Ctrl</span></span>
+					to zoom in &amp; out
 				</li>
 			</ul>
 		</div>

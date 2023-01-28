@@ -2,7 +2,7 @@
 <div class="relative overflow-hidden z-0" ref="rootRef"
 	@pointerdown="onPointerDown" @pointermove="onPointerMove" @pointerup="onPointerUp"
 	@pointercancel="onPointerUp" @pointerout="onPointerUp" @pointerleave="onPointerUp"
-	@wheel.exact="onWheel" @wheel.shift.exact="onShiftWheel"
+	@wheel.exact="onWheel" @wheel.shift.exact="onWheel" @wheel.ctrl.exact.prevent="onCtrlWheel"
 	:style="{backgroundColor: !current && closeable ? 'rgba(0,0,0,0.3)' : store.color.bg}">
 
 	<!-- Event density indicators -->
@@ -1303,11 +1303,18 @@ function onPointerUp(evt: PointerEvent){
 }
 
 function onWheel(evt: WheelEvent){
-	let shiftDir = (evt.deltaY > 0 ? 1 : -1) * (!vert.value ? -1 : 1);
-	panTimeline(shiftDir * store.scrollRatio);
+	if (Math.abs(evt.deltaY) > Math.abs(evt.deltaX)){ // Vertical wheel scroll
+		const shiftDir = (evt.deltaY > 0 ? 1 : -1) * (vert.value ? -1 : 1);
+		panTimeline(shiftDir * store.scrollRatio);
+	} else { // Horizontal wheel scroll
+		if (!vert.value){
+			const shiftDir = evt.deltaX > 0 ? 1 : -1;
+			panTimeline(shiftDir * store.scrollRatio);
+		}
+	}
 }
 
-function onShiftWheel(evt: WheelEvent){
+function onCtrlWheel(evt: WheelEvent){
 	let zoomRatio = evt.deltaY > 0 ? store.zoomRatio : 1/store.zoomRatio;
 	zoomTimeline(zoomRatio, [pointerX, pointerY]);
 }
