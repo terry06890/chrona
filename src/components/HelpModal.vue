@@ -30,6 +30,7 @@
 						<p>
 							Events are linked to points on the timeline that match their 'start date'.
 							For a person, this is a date of birth. For a book, this is a date of publication.
+							A dashed line indicates imprecision.
 							{{touchDevice ? 'Tap' : 'Click'}} on an event to bring up more details.
 						</p>
 						<p>
@@ -41,7 +42,7 @@
 							The + button at the top right adds another timeline, if there's enough space.
 						</p>
 						<p>
-							The sidebar at the {{vert ? 'right' : 'bottom'}} represents the full range of
+							The bar at the {{vert ? 'right' : 'bottom'}} represents the full range of
 							possible dates. Each timeline's bounds are displayed as a yellow subregion.
 							Timelines will often look very thin, as the whole bar spans billions of years.
 						</p>
@@ -65,11 +66,6 @@
 								<span class="font-bold">{{vert ? 'Down': 'Right'}}</span> pan the timeline
 							</li>
 							<li>
-								<span class="font-bold">{{vert ? 'Left' : 'Up'}}</span> and
-								<span class="font-bold">{{vert ? 'Right' : 'Down'}}</span>
-								switch between timelines
-							</li>
-							<li>
 								<span class="font-bold">Shift-{{vert ? 'Left' : 'Up'}}</span> and
 								<span class="font-bold">Shift-{{vert ? 'Right' : 'Down'}}</span>
 								zoom in and out
@@ -77,6 +73,11 @@
 							<li>
 								<span class="font-bold">Plus</span> and <span class="font-bold">Delete</span>
 								add and remove timelines
+							</li>
+							<li>
+								<span class="font-bold">{{vert ? 'Left' : 'Up'}}</span> and
+								<span class="font-bold">{{vert ? 'Right' : 'Down'}}</span>
+								switch between timelines
 							</li>
 							<li><span class="font-bold">Ctrl-F</span> opens the search bar</li>
 							<li><span class="font-bold">Esc</span> closes an open pane</li>
@@ -115,7 +116,7 @@
 									<li><span class="font-bold">Event lines:</span>
 										Toggles lines linking events to timelines</li>
 									<li><span class="font-bold">Baseline:</span>
-										Toggles the sidebar representing the full date range</li>
+										Toggles the bar representing the full date range</li>
 								</ul>
 							</li>
 							<li>

@@ -11,7 +11,7 @@
 
 		<div class="px-4 pb-3 md:pb-4">
 			<p class="px-2">
-				This is an interactive historical timeline, spanning 14 billion years ago to 2030.
+				This is an interactive historical timeline spanning 14 billion years.
 			</p>
 			<ul class="list-disc pl-4 pt-1">
 				<li v-if="touchDevice">
