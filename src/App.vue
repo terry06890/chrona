@@ -106,7 +106,7 @@ const timelineWidth = computed(() => {
 });
 const timelineHeight = computed(() => {
 	let baseLineHeight = (store.showBaseLine && !vert.value) ? store.baseLineBreadth : 0;
-	return (contentHeight.value - baseLineHeight) / (vert.value ? 1 : timelines.value.length);
+	return Math.max(1, contentHeight.value - baseLineHeight) / (vert.value ? 1 : timelines.value.length);
 });
 
 function updateAreaDims(){
