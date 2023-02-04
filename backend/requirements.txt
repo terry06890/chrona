@@ -1,0 +1,12 @@
+# For encoding data to send from server
+jsonpickle==3.0.1
+
+# For parsing Wikipedia dumps
+mwxml==0.3.3
+mwparserfromhell==0.6.4
+
+# For parallelised bzip2 processing
+indexed-bzip2==1.4.0
+
+# For downloading data
+requests==2.28.2

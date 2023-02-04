@@ -44,12 +44,6 @@ This directory holds files used to generate the history database data.db.
 
 # Generating the Database
 
-## Environment
-Some of the scripts use third-party packages:
--   `indexed_bzip2`: For parallelised bzip2 processing
--   `mwxml`, `mwparserfromhell`: For parsing Wikipedia dumps
--   `requests`: For downloading data
-
 ## Generate Event Data
 1.  Obtain a Wikidata JSON dump in wikidata/, as specified in it's README.
 1.  Run `gen_events_data.py`, which creates `data.db`, and adds the `events` table.

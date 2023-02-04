@@ -3,7 +3,7 @@ import tempfile
 import os
 
 from tests.common import createTestDbTable
-from histplorer import handleReq, HistDate, Event, ImgInfo, EventInfo, SuggResponse
+from chrona import handleReq, HistDate, HistEvent, ImgInfo, EventInfo, SuggResponse
 
 def initTestDb(dbFile: str) -> None:
 	createTestDbTable(
@@ -113,17 +113,17 @@ class TestHandleReq(unittest.TestCase):
 	def test_events_req(self):
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=-1999.2002-11-1&scale=1&incl=3&limit=2'})
 		self.assertEqual(response.events, [
-			Event(5, 'event five', HistDate(None, 2000, 1, 1), None, HistDate(None, 2001, 1, 1), None,
+			HistEvent(5, 'event five', HistDate(None, 2000, 1, 1), None, HistDate(None, 2001, 1, 1), None,
 				'event', 50, 51),
-			Event(3, 'event three', HistDate(True, 1990, 10, 10), HistDate(True, 2000, 10, 10), None, None,
+			HistEvent(3, 'event three', HistDate(True, 1990, 10, 10), HistDate(True, 2000, 10, 10), None, None,
 				'discovery', 30, 0),
 		])
 		self.assertEqual(response.unitCounts, {1900: 2, 1990: 1, 2000: 1, 2001: 1})
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=events&range=.1999-11-27&scale=1&ctgs=event'})
 		self.assertEqual(response.events, [
-			Event(4, 'event four', HistDate(False, -2000, 10, 10), None, HistDate(False, 1, 10, 10), None,
+			HistEvent(4, 'event four', HistDate(False, -2000, 10, 10), None, HistDate(False, 1, 10, 10), None,
 				'event', 20, 1000),
-			Event(1, 'event one', HistDate(None, 1900, 1, 1), None, None, None, 'event', 10, 11),
+			HistEvent(1, 'event one', HistDate(None, 1900, 1, 1), None, None, None, 'event', 10, 11),
 		])
 		self.assertEqual(response.unitCounts, {-2000: 1, 1900: 2, 1990: 1})
 
@@ -131,13 +131,13 @@ class TestHandleReq(unittest.TestCase):
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=info&event=event%20three'})
 		self.assertEqual(response,
 			EventInfo(
-				Event(3, 'event three', HistDate(True, 1990, 10, 10), HistDate(True, 2000, 10, 10), None, None,
+				HistEvent(3, 'event three', HistDate(True, 1990, 10, 10), HistDate(True, 2000, 10, 10), None, None,
 					'discovery', 30, 0),
 				'desc three', 300, ImgInfo('example.com/3', 'cc-by-sa 3.0', 'artist three', 'credits three')))
 		response = handleReq(self.dbFile, {'QUERY_STRING': 'type=info&event=event%20four'})
 		self.assertEqual(response,
 			EventInfo(
-				Event(4, 'event four', HistDate(False, -2000, 10, 10), None, HistDate(False, 1, 10, 10), None,
+				HistEvent(4, 'event four', HistDate(False, -2000, 10, 10), None, HistDate(False, 1, 10, 10), None,
 					'event', 20, 1000),
 				'desc four', 400, ImgInfo('example.com/2', 'cc-by', 'artist two', 'credits two')))
 

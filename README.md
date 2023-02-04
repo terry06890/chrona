@@ -54,10 +54,8 @@ More details are in `backend/hist_data/README.md`.
 1.  If you don't have Python 3 installed, see <https://www.python.org/downloads>.
     The package manager Pip is included.
 1.  The database used by the server is generated using scripts in `backend/hist_data/`.
-    See it's README for instructions. You'll likely need to install a few
-    packages using Pip.
-1.  To run the data server via `backend/server.py`, you'll need to install jsonpickle.
-    This can be done using `python -m pip install jsonpickle`.
+    See it's README for instructions. Package dependencies are listed in `backend/requirements.txt`.
+    They can be installed using `pip install -r requirements.txt`.
 
     If you want to keep the installed package separate from your system's packages,
     it's common practice to use [venv](https://docs.python.org/3/tutorial/venv.html).
